@@ -1,16 +1,6 @@
 <template>
     <div>
-      <!-- Page Header -->
-      <!-- <PageHeader>
-        <div class="text-center">
-          <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-            Your <span class="text-gradient">Order</span>
-          </h1>
-          <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Review your items and complete your order
-          </p>
-        </div>
-      </PageHeader> -->
+      <!-- Page Header -->     
       <PageHeader
       title-before="Your"
       highlight-text="Order"
@@ -21,7 +11,7 @@
       variant="gradient"
     />
   
-      <div class="section-padding">
+      <div class="section-padding mx-3 my-3 md:mx-8 md:my-8 px-3 py-3 md:py-8 md:px-8">
         <div class="container-narrow">
           <!-- Empty Cart State -->
           <div v-if="cart.items.length === 0" class="text-center py-12">

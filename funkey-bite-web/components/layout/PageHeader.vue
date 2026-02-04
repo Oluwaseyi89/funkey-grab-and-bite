@@ -1,6 +1,6 @@
 <template>
   <header 
-    class="section-padding bg-gradient-to-b from-white to-gray-50 dark:from-slate-900 dark:to-slate-800 pb-16 md:pb-20"
+    class="section-padding bg-gradient-to-b from-white to-gray-50 dark:from-slate-900 dark:to-slate-800 px-8 md:px-12 py-8 md:py-12"
     :class="[
       headerClass,
       variant === 'gradient' ? 'bg-gradient-to-b from-white to-gray-50 dark:from-slate-900 dark:to-slate-800' : '',

@@ -33,7 +33,7 @@
       </div>
   
       <!-- Promo Code -->
-      <div class="mt-4">
+      <!-- <div style="border: solid red 1px" class="mt-4">
         <div class="flex space-x-2">
           <input
             v-model="promoCode"
@@ -51,7 +51,26 @@
         <div v-if="discount > 0" class="mt-2 text-green-600 dark:text-green-400 text-sm">
           -${{ discount.toFixed(2) }} discount applied
         </div>
-      </div>
+      </div> -->
+      <div class="mt-4">
+        <div class="flex space-x-2">
+            <input
+            v-model="promoCode"
+            type="text"
+            placeholder="Promo code"
+            class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-transparent bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+            />
+            <button
+            @click="applyPromo"
+            class="px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+            >
+            Apply
+            </button>
+        </div>
+        <div v-if="discount > 0" class="mt-2 text-green-600 dark:text-green-400 text-sm">
+            -${{ discount.toFixed(2) }} discount applied
+        </div>
+    </div>
   
       <!-- Checkout Button -->
       <button

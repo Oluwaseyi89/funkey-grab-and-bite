@@ -12,7 +12,7 @@
             v-model="formData.customerName"
             type="text"
             required
-            class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             placeholder="John Doe"
           />
         </div>
@@ -24,7 +24,7 @@
             v-model="formData.customerPhone"
             type="tel"
             required
-            class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             placeholder="+1 (555) 123-4567"
           />
         </div>
@@ -39,7 +39,7 @@
           v-model="formData.customerEmail"
           type="email"
           required
-          class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           placeholder="john@example.com"
         />
       </div>
@@ -52,7 +52,7 @@
         <textarea
           v-model="formData.notes"
           rows="3"
-          class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           placeholder="Allergies, delivery instructions, etc."
         ></textarea>
       </div>
@@ -60,15 +60,15 @@
       <!-- Submit -->
       <button
         type="submit"
-        :disabled="isLoading"
-        class="w-full btn-primary py-4 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+        :disabled="props.isLoading"
+        class="w-full btn-primary py-4 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed dark:text-white"
       >
-        <template v-if="isLoading">
+        <template v-if="props.isLoading">
           <Loader2 class="w-5 h-5 animate-spin inline mr-2" />
           Processing...
         </template>
         <template v-else>
-          {{ submitText }}
+          {{ props.submitText }}
         </template>
       </button>
     </form>

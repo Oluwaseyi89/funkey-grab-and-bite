@@ -56,6 +56,15 @@ module.exports = {
           '100%': { opacity: '1' },
         },
       },
+      backgroundColor: {
+        'input-dark': 'transparent',
+      },
+      borderColor: {
+        'input-dark': '#4b5563', // gray-600
+      },
+      textColor: {
+        'input-dark': '#ffffff',
+      },
     },
   },
   plugins: [],

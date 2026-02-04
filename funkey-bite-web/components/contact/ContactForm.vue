@@ -12,7 +12,7 @@
             v-model="formData.name"
             type="text"
             required
-            class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             placeholder="John Doe"
           />
         </div>
@@ -24,7 +24,7 @@
             v-model="formData.email"
             type="email"
             required
-            class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             placeholder="john@example.com"
           />
         </div>
@@ -38,7 +38,7 @@
         <input
           v-model="formData.phone"
           type="tel"
-          class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           placeholder="+1 (555) 123-4567"
         />
       </div>
@@ -51,15 +51,15 @@
         <select
           v-model="formData.subject"
           required
-          class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white"
         >
-          <option value="" disabled selected>Select a subject</option>
-          <option value="general">General Inquiry</option>
-          <option value="catering">Catering Request</option>
-          <option value="feedback">Feedback & Suggestions</option>
-          <option value="partnership">Business Partnership</option>
-          <option value="careers">Careers</option>
-          <option value="other">Other</option>
+          <option value="" disabled selected class="text-gray-500 dark:text-gray-400">Select a subject</option>
+          <option value="general" class="text-gray-900 dark:text-white">General Inquiry</option>
+          <option value="catering" class="text-gray-900 dark:text-white">Catering Request</option>
+          <option value="feedback" class="text-gray-900 dark:text-white">Feedback & Suggestions</option>
+          <option value="partnership" class="text-gray-900 dark:text-white">Business Partnership</option>
+          <option value="careers" class="text-gray-900 dark:text-white">Careers</option>
+          <option value="other" class="text-gray-900 dark:text-white">Other</option>
         </select>
       </div>
   
@@ -72,7 +72,7 @@
           v-model="formData.message"
           rows="5"
           required
-          class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           placeholder="How can we help you?"
         ></textarea>
       </div>
@@ -80,10 +80,10 @@
       <!-- Submit Button -->
       <button
         type="submit"
-        :disabled="isSubmitting"
-        class="w-full btn-primary py-4 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+        :disabled="props.isSubmitting"
+        class="w-full btn-primary py-4 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed dark:text-white"
       >
-        <template v-if="isSubmitting">
+        <template v-if="props.isSubmitting">
           <Loader2 class="w-5 h-5 animate-spin inline mr-2" />
           Sending Message...
         </template>
