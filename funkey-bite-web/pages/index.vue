@@ -10,7 +10,18 @@
     <FeaturedItems :items="featuredItems" :is-loading="menuStore.isLoading" />
 
     <!-- Promotions Banner -->
-    <PromotionsBanner @claim-offer="handleClaimOffer" />
+    <!-- <PromotionsBanner @claim-offer="handleClaimOffer" /> -->
+    <!-- <PromotionsBanner 
+    :promotions="activePromotions"
+    @claim-offer="handleClaimOffer"
+    @view-details="viewPromotionDetails"
+  /> -->
+
+  <PromotionsBanner 
+  :promotions="mockPromotions"
+  :menu-items="mockMenuItems"
+  @claim-offer="handleClaimOffer"
+/>
 
     <!-- Catering CTA -->
     <CateringCTA />
@@ -20,6 +31,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useMenuStore } from '../stores/menu'
+
+import { mockPromotions, mockMenuItems } from '../utils/mockData'
+import type { Promotion } from '../types/menu'
 
 // Components
 import HeroBanner from '../components/home/HeroBanner.vue'
@@ -36,6 +50,9 @@ import { navigateTo } from 'nuxt/app'
 const menuStore = useMenuStore()
 const categories = ref(menuStore.categories)
 const featuredItems = computed(() => menuStore.featuredItems)
+
+const activePromotions = mockPromotions.filter(promo => promo.isActive)
+
 
 onMounted(async () => {
   // Fetch menu data
@@ -66,5 +83,12 @@ onMounted(async () => {
 const handleClaimOffer = () => {
   // Navigate to menu or show modal
   navigateTo('/menu?promo=weekend-special')
+}
+
+
+const viewPromotionDetails = (promotion: Promotion) => {
+  console.log('Viewing details:', promotion)
+  // Navigate to promotion details page or open modal
+  // Example: navigateTo(`/promotions/${promotion.id}`)
 }
 </script>

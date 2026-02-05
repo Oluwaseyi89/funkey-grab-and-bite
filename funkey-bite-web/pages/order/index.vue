@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="mt-[-30px]">
       <!-- Page Header -->     
       <PageHeader
       title-before="Your"
@@ -11,7 +11,7 @@
       variant="gradient"
     />
   
-      <div class="section-padding mx-3 my-3 md:mx-8 md:my-8 px-3 py-3 md:py-8 md:px-8">
+      <div class="section-padding mx-3 md:mx-8 mt-[-60px] md:mt-[-80px] px-3 py-3 md:py-8 md:px-8">
         <div class="container-narrow">
           <!-- Empty Cart State -->
           <div v-if="cart.items.length === 0" class="text-center py-12">
@@ -29,7 +29,7 @@
           <!-- Order Flow -->
           <div v-else>
             <!-- Step Progress -->
-            <div class="mb-12">
+            <div class="my-5 md:my-8 px-3 py-3 md:py-8 md:px-8 mt-0">
               <div class="flex items-center justify-center space-x-4 md:space-x-12">
                 <div v-for="(step, index) in steps" :key="step.id" class="flex items-center">
                   <div class="flex flex-col items-center">
@@ -60,13 +60,13 @@
               </div>
             </div>
   
-            <div class="grid lg:grid-cols-3 gap-8">
+            <div class="grid lg:grid-cols-3 gap-8 px-3 py-3 md:px-8 md:py-8">
               <!-- Left Column: Cart Items -->
               <div class="lg:col-span-2">
                 <!-- Step 1: Review Cart -->
                 <div v-if="currentStep === 0" class="space-y-4">
                   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Review Your Order</h2>
-                  <div class="space-y-4">
+                  <div class="space-y-4 w-screen md:w-full">
                     <CartItem
                       v-for="item in cart.items"
                       :key="item.menuItem.id"

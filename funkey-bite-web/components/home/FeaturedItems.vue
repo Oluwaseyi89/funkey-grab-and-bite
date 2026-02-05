@@ -24,7 +24,7 @@
         </div>
   
         <!-- Items Grid -->
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-3 md:px-8 py-3 md:py-8">
           <FoodCard v-for="item in items" :key="item.id" :item="item" />
         </div>
       </div>

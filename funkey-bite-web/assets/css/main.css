@@ -16,6 +16,10 @@
   body {
     @apply bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 transition-colors duration-300;
   }
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
 
   /* Custom scrollbar */
   ::-webkit-scrollbar {

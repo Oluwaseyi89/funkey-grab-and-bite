@@ -72,17 +72,17 @@
           <button
             @click="$emit('addToCart', item)"
             :disabled="!item.isAvailable"
-            class="flex-1 btn-primary text-center justify-center"
+            class="flex-1 btn-primary text-center justify-center dark:text-white"
             :class="{ 'opacity-50 cursor-not-allowed': !item.isAvailable }"
           >
-            <ShoppingCart class="w-4 h-4 inline mr-2" />
+            <ShoppingCart class="w-4 h-4 inline mr-2 dark:text-white" />
             Add to Cart
           </button>
           <button
             @click="$emit('viewDetails', item)"
             class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
           >
-            <Eye class="w-4 h-4" />
+            <Eye class="w-4 h-4 dark:text-white" />
           </button>
         </div>
       </div>

@@ -54,16 +54,14 @@
         <div>
           <h3 class="text-xl font-bold mb-6 text-gray-900 dark:text-white pb-2 border-b border-gray-200 dark:border-slate-800/50">Our Menu</h3>
           <ul class="space-y-4">
-            <li v-for="category in menuCategories" :key="category">
-              <NuxtLink 
-                :to="`/menu?category=${category.toLowerCase().replace(' & ', '-').replace(' ', '-')}`"
-                class="text-gray-700 hover:text-brand-500 dark:text-gray-300 dark:hover:text-brand-300 transition-colors flex items-center group py-2"
-              >
+            <li v-for="category in mockCategories" :key="category.id" 
+             @click="navigateToMenu(category.id)"
+            class="text-gray-700 hover:text-brand-500 cursor-pointer dark:text-gray-300 dark:hover:text-brand-300 transition-colors flex items-center group py-2"
+            >
                 <div class="w-1.5 h-1.5 bg-brand-500 rounded-full mr-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <span class="group-hover:translate-x-1 transition-transform duration-200">
-                  {{ category }}
+                  {{ category.name }}
                 </span>
-              </NuxtLink>
             </li>
           </ul>
         </div>
@@ -160,6 +158,10 @@ import {
   MessageCircle 
 } from 'lucide-vue-next'
 
+import { navigateTo } from 'nuxt/app';
+
+import { mockCategories } from '../../utils/mockData';
+
 const quickLinks = [
   { name: 'Home', href: '/' },
   { name: 'Menu', href: '/menu' },
@@ -169,12 +171,7 @@ const quickLinks = [
   { name: 'Contact', href: '/contact' },
 ]
 
-const menuCategories = [
-  'Chips & Chicken',
-  'Noodles',
-  'Shawarma',
-  'Soup & Food Bowls',
-  'Drinks',
-  'Lunch Packs'
-]
+const navigateToMenu = (categoryId: string) => {
+    navigateTo(`/menu?category=${categoryId}`)
+  }
 </script>

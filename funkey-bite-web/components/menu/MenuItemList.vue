@@ -49,7 +49,7 @@
           <div class="flex gap-3">
             <button
               @click="$emit('viewDetails', item)"
-              class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 dark:text-white transition-colors"
             >
               Details
             </button>

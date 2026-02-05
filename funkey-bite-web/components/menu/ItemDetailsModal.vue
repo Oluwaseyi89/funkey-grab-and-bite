@@ -119,7 +119,7 @@
               <button
                 @click="handleAddToCart"
                 :disabled="!item.isAvailable"
-                class="flex-1 btn-primary text-lg py-4"
+                class="flex-1 btn-primary text-lg py-4 dark:text-white"
                 :class="{ 'opacity-50 cursor-not-allowed': !item.isAvailable }"
               >
                 <ShoppingCart class="w-5 h-5 inline mr-2" />
@@ -128,7 +128,7 @@
               <button 
                 v-if="!isMobile"
                 @click="handleClose" 
-                class="px-6 py-4 border border-gray-300 dark:border-slate-600 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                class="px-6 py-4 border border-gray-300 dark:border-slate-600 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors dark:text-white"
               >
                 Close
               </button>

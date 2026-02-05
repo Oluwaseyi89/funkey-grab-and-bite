@@ -1,64 +1,39 @@
 <template>
     <div class="mx-5 px-3 py-3 md:mx-8 md:py-8 md:px-8">
-      <!-- Hero Section -->
-      <!-- <section style="border: solid green 1px" class="bg-gradient-to-r from-brand-500 to-accent-500 mb-4 md:mb-8 px-3 md:px-8 py-3 md:py-8 text-white">
-        <div class="container-narrow section-padding">
-          <div class="max-w-3xl mx-auto text-center">
-            <h1 class="text-4xl md:text-5xl font-bold mb-6">
-              <span class="text-white">Catering for</span>
-              <span class="block">Every Occasion</span>
-            </h1>
-            <p class="text-xl opacity-90 mb-8">
-              From corporate meetings to wedding celebrations, we bring delicious food and professional service to your event. Serving 10 to 500+ guests.
-            </p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-              <button 
-                @click="scrollToForm"
-                class="bg-white text-brand-600 hover:bg-gray-100 font-bold py-3 px-8 rounded-xl transition-colors"
-              >
-                Request Quote
-              </button>
-              <a href="tel:+1234567890" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm font-medium py-3 px-8 rounded-xl transition-colors">
-                📞 (555) 123-4567
-              </a>
-            </div>
-          </div>
-        </div>
-      </section> -->
-
-      <PageHeader
-  title-before="Catering for"
-  highlight-text="Every"
-  title-after="Occasion"
-  subtitle="From corporate meetings to wedding celebrations, we bring delicious food and professional service to your event. Serving 10 to 500+ guests."
-  variant="solid"
-  solid-color="brand-50"
-  solid-color-dark="brand-600"
-  :narrow="true"
-  alignment="center"
-  header-class="bg-gradient-to-r from-brand-50 to-accent-50 dark:from-brand-500 dark:to-accent-500"
-  title-class="text-gray-900 dark:text-white"
-  subtitle-class="text-gray-700 dark:text-white/90"
->
-  <!-- CTA Buttons -->
-  <div class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-    <button 
-      @click="scrollToForm"
-      class="bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 px-8 rounded-xl transition-colors hover:scale-105 shadow-lg hover:shadow-xl"
-    >
-      Request Quote
-    </button>
-    <a 
-      href="tel:+1234567890" 
-      class="bg-white/80 dark:bg-white/20 hover:bg-white dark:hover:bg-white/30 backdrop-blur-sm font-medium py-3 px-8 rounded-xl transition-colors hover:scale-105 flex items-center justify-center gap-2 border border-brand-200 dark:border-white/30 text-brand-700 dark:text-white"
-    >
-      <Phone class="w-5 h-5" />
-      (555) 123-4567
-    </a>
-  </div>
-</PageHeader>
+      <!-- Hero Section -->     
+  <PageHeader
+    title-before="Catering for"
+    highlight-text="Every"
+    title-after="Occasion"
+    subtitle="From corporate meetings to wedding celebrations, we bring delicious food and professional service to your event. Serving 10 to 500+ guests."
+    variant="solid"
+    solid-color="brand-50"
+    solid-color-dark="brand-600"
+    :narrow="true"
+    alignment="center"
+    header-class="dark:from-brand-500 dark:to-accent-500"
+    title-class="text-gray-900 dark:text-white"
+    subtitle-class="text-gray-700 dark:text-white/90"
+  >
+      <!-- CTA Buttons -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+        <button 
+          @click="scrollToForm"
+          class="text-gray-900 dark:text-white font-bold py-3 px-8 rounded-xl transition-colors hover:scale-105 shadow-lg hover:shadow-xl"
+        >
+          Request Quote
+        </button>
+        <a 
+          href="tel:+1234567890" 
+          class="bg-white/80 dark:bg-white/20 hover:bg-white dark:hover:bg-white/30 backdrop-blur-sm font-medium py-3 px-8 rounded-xl transition-colors hover:scale-105 flex items-center justify-center gap-2 border border-brand-200 dark:border-white/30 text-brand-700 dark:text-white"
+        >
+          <Phone class="w-5 h-5" />
+          (555) 123-4567
+        </a>
+      </div>
+    </PageHeader>
       <!-- Why Choose Us -->
-      <section class="section-padding px-3 py-3 md:py-8 md:px-8 my-3 md:my-8 bg-white dark:bg-slate-900">
+      <section class="section-padding px-3 py-3 md:py-8 md:px-8 my-3 md:my-8 bg-transparent dark:bg-slate-900">
         <div class="container-narrow">
           <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
             Why Choose <span class="text-gradient">Funkey</span> Catering
@@ -77,7 +52,7 @@
       </section>
   
       <!-- Packages -->
-      <section class="section-padding mx-5 md:mx-8 my-5 md:my-8 px-3 md:px-8 py-3 md:py-8 bg-gray-50 dark:bg-slate-800">
+      <section class="section-padding mx-5 md:mx-8 my-5 md:my-8 px-3 md:px-8 py-3 md:py-8 bg-transparent">
         <div class="container-narrow">
           <CateringPackages
             :selected-package="selectedPackage"

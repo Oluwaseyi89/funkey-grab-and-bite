@@ -7,7 +7,7 @@
       <div class="relative h-48 overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent z-10"></div>
         <img
-          :src="imageUrl"
+          :src="item.imageUrl"
           :alt="item.name"
           class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
           loading="lazy"
@@ -67,19 +67,19 @@
             Nutritional Info
           </div>
           <div class="grid grid-cols-4 gap-2 text-xs">
-            <div class="text-center p-2 bg-gray-50 dark:bg-slate-700 rounded-lg">
+            <div class="text-center p-2 bg-gray-50 dark:bg-slate-700 rounded-lg dark:text-white">
               <div class="font-bold">{{ item.nutritionalInfo.calories }}</div>
               <div class="text-gray-500 dark:text-gray-400">Cal</div>
             </div>
-            <div class="text-center p-2 bg-gray-50 dark:bg-slate-700 rounded-lg">
+            <div class="text-center p-2 bg-gray-50 dark:bg-slate-700 rounded-lg dark:text-white">
               <div class="font-bold">{{ item.nutritionalInfo.protein }}g</div>
               <div class="text-gray-500 dark:text-gray-400">Protein</div>
             </div>
-            <div class="text-center p-2 bg-gray-50 dark:bg-slate-700 rounded-lg">
+            <div class="text-center p-2 bg-gray-50 dark:bg-slate-700 rounded-lg dark:text-white">
               <div class="font-bold">{{ item.nutritionalInfo.carbs }}g</div>
               <div class="text-gray-500 dark:text-gray-400">Carbs</div>
             </div>
-            <div class="text-center p-2 bg-gray-50 dark:bg-slate-700 rounded-lg">
+            <div class="text-center p-2 bg-gray-50 dark:bg-slate-700 rounded-lg dark:text-white">
               <div class="font-bold">{{ item.nutritionalInfo.fat }}g</div>
               <div class="text-gray-500 dark:text-gray-400">Fat</div>
             </div>
@@ -102,7 +102,7 @@
             </button>
             <button
               @click="addToCart"
-              class="btn-primary px-4 py-2 text-sm"
+              class="btn-primary px-4 py-2 text-sm dark:text-white"
             >
               Add to Cart
             </button>

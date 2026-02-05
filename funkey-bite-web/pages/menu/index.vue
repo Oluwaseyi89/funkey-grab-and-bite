@@ -6,7 +6,6 @@
       highlight-text="Delicious"
       title-after="Menu"
       subtitle="Explore our wide range of mouth-watering dishes, each crafted with fresh ingredients and passion."
-      variant="gradient"
       alignment="center"
       :narrow="true"
       header-class="pb-12"
@@ -164,7 +163,7 @@
               </div>
               
               <!-- Sort Options -->
-              <div class="flex items-center gap-4">
+              <div class="flex items-center gap-4 dark:text-white">
                 <select
                   v-model="sortBy"
                   class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
@@ -176,7 +175,7 @@
                 </select>
                 
                 <!-- View Toggle (Optional) -->
-                <div class="hidden sm:flex items-center gap-1 p-1 bg-gray-100 dark:bg-slate-800 rounded-lg">
+                <div class="hidden sm:flex items-center gap-1 p-1 bg-gray-100 dark:bg-slate-800 rounded-lg dark:text-white">
                   <button
                     @click="gridView = 'grid'"
                     class="p-2 rounded transition-colors"
@@ -281,6 +280,8 @@ import {
 } from 'lucide-vue-next'
 import type { MenuItem } from '../../types/menu'
 import { useNuxtApp } from 'nuxt/app'
+import { useRoute } from 'vue-router'
+
 
 // Components
 import PageHeader from '../../components/layout/PageHeader.vue'
@@ -289,6 +290,9 @@ import CategoryFilter from '../../components/menu/CategoryFilter.vue'
 import PriceFilter from '../../components/menu/PriceFilter.vue'
 import MenuGrid from '../../components/menu/MenuGrid.vue'
 import ItemDetailsModal from '../../components/menu/ItemDetailsModal.vue'
+
+const route = useRoute()
+
 
 // Stores
 const menuStore = useMenuStore()
@@ -445,7 +449,22 @@ const clearAllFilters = () => {
 }
 
 // Lifecycle
+// onMounted(async () => {
+//   await Promise.all([
+//     menuStore.fetchCategories(),
+//     menuStore.fetchMenuItems()
+//   ])
+  
+//   // Reset scroll position
+//   window.scrollTo({ top: 0, behavior: 'instant' })
+// })
+// Replace your current onMounted with this:
 onMounted(async () => {
+  // Read category from URL query parameter
+  if (route.query.category) {
+    selectedCategory.value = route.query.category as string
+  }
+  
   await Promise.all([
     menuStore.fetchCategories(),
     menuStore.fetchMenuItems()

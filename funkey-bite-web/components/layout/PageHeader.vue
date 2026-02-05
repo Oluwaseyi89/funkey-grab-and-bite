@@ -1,9 +1,9 @@
 <template>
   <header 
-    class="section-padding bg-gradient-to-b from-white to-gray-50 dark:from-slate-900 dark:to-slate-800 px-8 md:px-12 py-8 md:py-12"
+    class="section-padding bg-transparent dark:from-slate-900 dark:to-slate-800 px-8 md:px-12 py-8 md:py-12"
     :class="[
       headerClass,
-      variant === 'gradient' ? 'bg-gradient-to-b from-white to-gray-50 dark:from-slate-900 dark:to-slate-800' : '',
+      // variant === 'gradient' ? 'bg-gradient-to-b from-white to-gray-50 dark:from-slate-900 dark:to-slate-800' : '',
       variant === 'solid' ? `bg-${solidColor || 'amber-50'} dark:bg-${solidColorDark || 'amber-900/20'}` : '',
       variant === 'image' && backgroundImage ? `bg-cover bg-center` : ''
     ]"

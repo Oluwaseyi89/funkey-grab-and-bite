@@ -1,7 +1,7 @@
 <template>
-    <div class="flex items-center space-x-4 p-4 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
+    <div class="flex flex-col md:flex-row w-screen md:w-full items-center space-x-4 space-y-3 p-4 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
       <!-- Item Image -->
-      <div class="w-20 h-20 flex-shrink-0">
+      <div class="w-full md:w-20 h-20 flex-shrink-0">
         <img 
           :src="item.menuItem.imageUrl" 
           :alt="item.menuItem.name"
@@ -59,7 +59,7 @@
   import type { CartItem } from '../../types/menu'
   import { Minus, Plus, Trash2 } from 'lucide-vue-next'
   
-  defineProps<{
+  const { item } = defineProps<{
     item: CartItem
   }>()
   

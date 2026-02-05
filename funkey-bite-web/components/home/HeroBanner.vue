@@ -1,6 +1,11 @@
 <template>
-    <div ref="heroRef" class="relative overflow-hidden bg-gradient-to-br px-5 py-5 from-brand-50 to-white dark:from-slate-900 dark:to-slate-800 rounded-3xl mx-4 md:mx-8 lg:mx-16 mt-8 mb-16">
+    <div ref="heroRef" class="relative overflow-hidden bg-gradient-to-br px-5 py-5 from-brand-50 to-white dark:from-slate-900 dark:to-slate-800 rounded-3xl mx-4 md:mx-8 lg:mx-16 mb-8 md:mb-12">
       <div class="absolute inset-0">
+        <div 
+    class="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
+    :style="{ backgroundImage: `url(${heroBannerBackgroundImages[currentImageIndex]})` }"
+  ></div>
+  <div class="absolute inset-0 bg-black/20 dark:bg-black/40"></div>
         <!-- Animated background elements -->
         <div class="absolute top-0 left-0 w-64 h-64 bg-brand-100 dark:bg-brand-900/20 rounded-full -translate-x-32 -translate-y-32"></div>
         <div class="absolute bottom-0 right-0 w-96 h-96 bg-accent-100 dark:bg-accent-900/20 rounded-full translate-x-48 translate-y-48"></div>
@@ -84,6 +89,7 @@
   import { useNuxtApp } from 'nuxt/app'
   import { ref } from 'vue'
   import { onMounted } from 'vue'
+  import { heroBannerBackgroundImages } from '../../utils/mockData';
   
   const { $gsap, $animations } = useNuxtApp()
   const gsap = $gsap as typeof import('gsap')
@@ -94,6 +100,8 @@
   const buttonsRef = ref<HTMLElement>()
   const statsRef = ref<HTMLElement>()
   const imageRef = ref<HTMLElement>()
+  const currentImageIndex = ref(0)
+
   
   onMounted(() => {
     if (import.meta.client) {
@@ -145,5 +153,19 @@
         y: 50,
       })
     }
+
+     // Background image rotation
+  const interval = setInterval(() => {
+    currentImageIndex.value = (currentImageIndex.value + 1) % heroBannerBackgroundImages.length
+  }, 10000)
+  
+  // Cleanup
+  return () => clearInterval(interval)
   })
   </script>
+
+<style scoped>
+    .bg-transition {
+      transition: background-image 1s ease-in-out;
+    }
+</style>

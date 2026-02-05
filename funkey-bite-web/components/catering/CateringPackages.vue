@@ -11,7 +11,8 @@
           class="bg-white dark:bg-slate-800 rounded-2xl p-8 border-2 transition-all hover:scale-105 hover:shadow-2xl"
           :class="[
             pkg.popular 
-              ? 'border-brand-500 shadow-xl' 
+              // ? 'border-brand-500 shadow-xl' 
+              ? 'border-gray-200 dark:border-slate-700 shadow-xl' 
               : 'border-gray-200 dark:border-slate-700'
           ]"
         >

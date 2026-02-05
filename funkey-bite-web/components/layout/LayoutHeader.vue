@@ -8,7 +8,7 @@
             <span class="text-white font-bold text-xl">F</span>
           </div>
           <div>
-            <h1 class="text-2xl font-bold text-gradient bg-clip-text">Funkey Grab & Bite</h1>
+            <h1 class="text-xl font-bold text-gradient bg-clip-text md:text-2xl">Funkey Grab & Bite</h1>
             <p class="text-xs text-gray-600/80 dark:text-gray-400/80">Fast Food & Catering</p>
           </div>
         </NuxtLink>

@@ -54,7 +54,7 @@ export const mockMenuItems: MenuItem[] = [
     name: 'Classic Chicken & Chips',
     description: 'Crispy chicken with golden fries and special sauce',
     price: 12.99,
-    imageUrl: 'menu/chips-chicken-classic.jpg',
+    imageUrl: '/images/chicken_and_chips.jpg',
     isAvailable: true,
     isPreOrder: false,
     preparationTime: 15,
@@ -72,7 +72,7 @@ export const mockMenuItems: MenuItem[] = [
     name: 'Spicy Chicken Wings',
     description: 'Crispy wings tossed in our signature spicy sauce',
     price: 10.99,
-    imageUrl: 'menu/chicken-wings.jpg',
+    imageUrl: '/images/spicy_chicken_wings.jpg',
     isAvailable: true,
     isPreOrder: false,
     preparationTime: 20,
@@ -84,7 +84,7 @@ export const mockMenuItems: MenuItem[] = [
     name: 'Stir Fry Noodles',
     description: 'Fresh noodles with vegetables and choice of protein',
     price: 11.99,
-    imageUrl: 'menu/stir-fry-noodles.jpg',
+    imageUrl: '/images/stir_fry_noodles.jpeg',
     isAvailable: true,
     isPreOrder: false,
     preparationTime: 12,
@@ -96,7 +96,7 @@ export const mockMenuItems: MenuItem[] = [
     name: 'Chicken Shawarma Wrap',
     description: 'Marinated chicken with fresh veggies in warm pita',
     price: 8.99,
-    imageUrl: 'menu/chicken-shawarma.jpg',
+    imageUrl: '/images/chicken_shawarma.avif',
     isAvailable: true,
     isPreOrder: false,
     preparationTime: 10,
@@ -108,7 +108,7 @@ export const mockMenuItems: MenuItem[] = [
     name: 'Fresh Lemonade',
     description: 'Homemade lemonade with mint',
     price: 3.99,
-    imageUrl: 'menu/lemonade.jpg',
+    imageUrl: '/images/fresh_lemonade.jpg',
     isAvailable: true,
     isPreOrder: false,
     preparationTime: 5,
@@ -120,7 +120,7 @@ export const mockMenuItems: MenuItem[] = [
     name: 'Hearty Beef Stew Bowl',
     description: 'Slow-cooked beef stew with vegetables and rice',
     price: 14.99,
-    imageUrl: 'menu/beef-stew-bowl.jpg',
+    imageUrl: '/images/hearty_beef_and_stew.jpg',
     isAvailable: true,
     isPreOrder: true,
     preparationTime: 30,
@@ -172,6 +172,13 @@ export const mockOrders: Order[] = [
     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
   },
 ]
+
+export const heroBannerBackgroundImages: string[] = [
+  '/images/hero_background/hero_one.avif', 
+  '/images/hero_background/hero_two.jpg', 
+  '/images/hero_background/hero_three.jpg'
+]
+
 
 export const getS3ImageUrl = (path: string): string => {
   const config = useRuntimeConfig()
