@@ -4,6 +4,8 @@ import (
 	// "database/sql"
 	// "fmt"
 	"log"
+	"time"
+
 	// "os"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/database" // Add this import
@@ -12,11 +14,18 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq" // PostgreSQL driver
 
+	// "github.com/ulule/limiter"
+	// "github.com/ulule/limiter/drivers/store/memory"
+
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 	v1 "funkey-grab-and-bite/funkey-bite-api/internal/handlers/v1"
 	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
+
+	"github.com/ulule/limiter/v3"
+	ginLimiter "github.com/ulule/limiter/v3/drivers/middleware/gin"
+	"github.com/ulule/limiter/v3/drivers/store/memory"
 )
 
 func main() {
@@ -74,6 +83,13 @@ func main() {
 	promotionHandler := v1.NewPromotionHandler(promotionService)
 	inventoryHandler := v1.NewInventoryHandler(inventoryService)
 
+	store := memory.NewStore()
+	rate := limiter.Rate{
+		Period: time.Hour,
+		Limit:  100,
+	}
+	limiterInstance := limiter.New(store, rate)
+
 	// Setup router
 	r := gin.Default()
 
@@ -83,15 +99,17 @@ func main() {
 
 	// Public routes
 	public := r.Group("/api/v1")
-	public.GET("/order/track/:phone/:orderNumber", orderHandler.TrackOrderPublic)
+	public.Use(ginLimiter.NewMiddleware(limiterInstance))
+
+	public.GET("/order/track/:phone/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrderPublic)
 
 	{
-		public.GET("/menu", menuHandler.GetMenu)
-		public.GET("/menu/:id", menuHandler.GetMenuItem)
-		public.GET("/categories", menuHandler.GetCategories)
-		public.GET("/menu/category", menuHandler.GetMenuByCategory)
-		public.GET("/menu/search", menuHandler.SearchMenu)
-		public.GET("/menu/featured", menuHandler.GetFeaturedItems)
+		// public.GET("/menu", menuHandler.GetMenu)
+		// public.GET("/menu/:id", menuHandler.GetMenuItem)
+		// public.GET("/categories", menuHandler.GetCategories)
+		// public.GET("/menu/category", menuHandler.GetMenuByCategory)
+		// public.GET("/menu/search", menuHandler.SearchMenu)
+		// public.GET("/menu/featured", menuHandler.GetFeaturedItems)
 
 		// Auth routes
 		public.POST("/auth/register", authHandler.Register)
@@ -114,13 +132,23 @@ func main() {
 		public.GET("/promotions/active", promotionHandler.GetActivePromotions)
 	}
 
+	// Add new menu routes
+	menuRoutes := public.Group("/menu")
+	{
+		menuRoutes.GET("/", menuHandler.GetMenu)
+		menuRoutes.GET("/search", menuHandler.SearchMenu)
+		menuRoutes.GET("/featured", menuHandler.GetFeaturedItems)
+		menuRoutes.GET("/tags", menuHandler.GetMenuByTags)
+		menuRoutes.GET("/:id", menuHandler.GetMenuItem)
+		menuRoutes.GET("/category", menuHandler.GetMenuByCategory)
+	}
 	// To this (already exists):
 	orderGroup := public.Group("/orders")
 	orderGroup.Use(middleware.OptionalAuthMiddleware())
 	{
 		orderGroup.POST("/", orderHandler.CreateOrder)
 		// Add guest order tracking
-		orderGroup.GET("/track/:orderNumber", orderHandler.TrackOrder)
+		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrder)
 		orderGroup.PATCH("/:id/cancel", orderHandler.CancelOrder) // Add this line
 
 		// orderGroup.GET("/track/:phone/:orderNumber", orderHandler.TrackOrderPublic)
