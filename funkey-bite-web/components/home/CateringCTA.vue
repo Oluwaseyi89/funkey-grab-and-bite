@@ -23,7 +23,7 @@
           <div class="relative">
             <div class="bg-gradient-to-br from-brand-100 to-accent-100 dark:from-brand-900/30 dark:to-accent-900/20 rounded-3xl p-8">
               <img
-                :src="imageUrl"
+                src="/images/catering_event"
                 alt="Catering Event"
                 class="rounded-2xl shadow-2xl w-full h-auto"
                 loading="lazy"
