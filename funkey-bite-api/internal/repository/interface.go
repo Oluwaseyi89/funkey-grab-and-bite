@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"database/sql"
+
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
@@ -17,4 +19,21 @@ type IAdminRepository interface {
 	UpdateUserStatus(userID int, isActive bool) error
 	GetOrdersCount(status string) (int, error) // Add this
 	GetUsersCount() (int, error)               // Add this
+}
+
+// Add these to IAdminRepository or create new interface
+type IOrderRepository interface {
+	Create(order *models.Order) (*models.Order, error)
+	CreateOrderItem(item *models.OrderItem) (*models.OrderItem, error)
+	GetOrderWithItems(id int) (*models.Order, error)
+	GetOrdersByUserID(userID int) ([]models.Order, error)
+	UpdateOrderStatus(id int, status string) error
+	GetOrderByOrderNumber(orderNumber string) (*models.Order, error)
+	GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error)
+	CancelOrder(id int) error
+
+	// Transaction methods
+	BeginTransaction() (*sql.Tx, error)
+	CreateOrderWithTransaction(tx *sql.Tx, order *models.Order) (*models.Order, error)
+	CreateOrderItemWithTransaction(tx *sql.Tx, item *models.OrderItem) (*models.OrderItem, error)
 }

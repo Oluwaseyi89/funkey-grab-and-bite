@@ -293,3 +293,83 @@ func (r *CateringRepository) Delete(id int) error {
 	_, err := r.db.Exec(query, id)
 	return err
 }
+
+// Add these methods to CateringRepository:
+
+// GetAllWithPagination gets all catering requests with pagination
+func (r *CateringRepository) GetAllWithPagination(limit, offset int, status string) ([]models.CateringRequest, error) {
+	query := `
+        SELECT id, user_id, event_name, contact_name, contact_phone, contact_email,
+               event_date, event_time, guest_count, event_type, package,
+               budget, special_requests, status, created_at
+        FROM catering_requests
+        WHERE ($1 = '' OR status = $1)
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
+    `
+
+	rows, err := r.db.Query(query, status, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get catering requests: %w", err)
+	}
+	defer rows.Close()
+
+	return r.scanCateringRequests(rows)
+}
+
+// GetCount gets total count of catering requests
+func (r *CateringRepository) GetCount(status string) (int, error) {
+	query := `SELECT COUNT(*) FROM catering_requests WHERE ($1 = '' OR status = $1)`
+
+	var count int
+	err := r.db.QueryRow(query, status).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get catering count: %w", err)
+	}
+
+	return count, nil
+}
+
+// Helper method to scan rows
+func (r *CateringRepository) scanCateringRequests(rows *sql.Rows) ([]models.CateringRequest, error) {
+	var requests []models.CateringRequest
+
+	for rows.Next() {
+		var request models.CateringRequest
+		var userID sql.NullInt64
+		var eventTime sql.NullString
+
+		err := rows.Scan(
+			&request.ID,
+			&userID,
+			&request.EventName,
+			&request.ContactName,
+			&request.ContactPhone,
+			&request.ContactEmail,
+			&request.EventDate,
+			&eventTime,
+			&request.GuestCount,
+			&request.EventType,
+			&request.Package,
+			&request.Budget,
+			&request.SpecialRequests,
+			&request.Status,
+			&request.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan catering request: %w", err)
+		}
+
+		if userID.Valid {
+			val := int(userID.Int64)
+			request.UserID = &val
+		}
+		if eventTime.Valid {
+			request.EventTime = &eventTime.String
+		}
+
+		requests = append(requests, request)
+	}
+
+	return requests, nil
+}

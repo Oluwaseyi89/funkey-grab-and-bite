@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"funkey-grab-and-bite/funkey-bite-api/internal/handlers"
+
 	"github.com/gin-gonic/gin"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
@@ -31,14 +33,12 @@ func NewMenuHandler(menuService services.MenuService) *MenuHandler {
 func (h *MenuHandler) GetMenu(c *gin.Context) {
 	menuItems, err := h.menuService.GetMenuItems()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to fetch menu items",
-			"details": err.Error(),
-		})
+		handlers.ErrorWithDetails(c, http.StatusInternalServerError,
+			"MENU_FETCH_FAILED", "Failed to fetch menu items", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, menuItems)
+	handlers.Success(c, menuItems)
 }
 
 // GetMenuItem returns a specific menu item by ID

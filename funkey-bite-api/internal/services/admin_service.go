@@ -178,11 +178,66 @@ func (s *adminService) GetMenuItemByID(id int) (*models.MenuItem, error) {
 	return s.menuRepo.GetByID(id)
 }
 
+// func (s *adminService) GetAllCateringRequests(page, limit int, status string) ([]models.CateringRequest, int, error) {
+// 	// TODO: Implement when catering repository has pagination methods
+// 	// For now, return empty
+// 	return []models.CateringRequest{}, 0, nil
+// }
+
+// Add this method to adminService:
+
 func (s *adminService) GetAllCateringRequests(page, limit int, status string) ([]models.CateringRequest, int, error) {
-	// TODO: Implement when catering repository has pagination methods
-	// For now, return empty
-	return []models.CateringRequest{}, 0, nil
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+
+	// TODO: Need to add these methods to CateringRepository interface
+	// For now, use GetAll() as fallback
+	requests, err := s.cateringRepo.GetAll()
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get catering requests: %w", err)
+	}
+
+	// Simple filtering by status
+	if status != "" {
+		filtered := []models.CateringRequest{}
+		for _, req := range requests {
+			if string(req.Status) == status {
+				filtered = append(filtered, req)
+			}
+		}
+		requests = filtered
+	}
+
+	total := len(requests)
+
+	// Simple pagination
+	start := offset
+	if start > total {
+		start = total
+	}
+	end := start + limit
+	if end > total {
+		end = total
+	}
+
+	if start >= total {
+		return []models.CateringRequest{}, total, nil
+	}
+
+	return requests[start:end], total, nil
 }
+
+// Add to AdminService interface:
+// type AdminService interface {
+//     // ... existing methods ...
+//     GetAllCateringRequests(page, limit int, status string) ([]models.CateringRequest, int, error)
+//     // We'll add more methods for business settings, promotions, etc.
+// }
 
 // package services
 

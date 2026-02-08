@@ -84,23 +84,6 @@ type OrderWithAuth struct {
 	Password      *string            `json:"password,omitempty" validate:"omitempty,min=8"`
 }
 
-// CateringRequest for catering service
-// type CateringRequest struct {
-// 	ID              int       `json:"id" db:"id"`
-// 	EventName       *string   `json:"eventName,omitempty" db:"event_name"`
-// 	ContactName     string    `json:"contactName" db:"contact_name"`
-// 	ContactPhone    string    `json:"contactPhone" db:"contact_phone"`
-// 	ContactEmail    *string   `json:"contactEmail,omitempty" db:"contact_email"`
-// 	EventDate       string    `json:"eventDate" db:"event_date"`
-// 	EventTime       *string   `json:"eventTime,omitempty" db:"event_time"`
-// 	GuestCount      int       `json:"guestCount" db:"guest_count"`
-// 	EventType       string    `json:"eventType" db:"event_type"`
-// 	Budget          *float64  `json:"budget,omitempty" db:"budget"`
-// 	SpecialRequests *string   `json:"specialRequests,omitempty" db:"special_requests"`
-// 	Status          string    `json:"status" db:"status"`
-// 	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
-// }
-
 // Helper functions for type conversion
 func (o *Order) ToFrontendFormat() map[string]interface{} {
 	return map[string]interface{}{

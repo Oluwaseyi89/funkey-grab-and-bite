@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
@@ -18,12 +19,15 @@ type CateringService interface {
 }
 
 type cateringService struct {
-	cateringRepo repository.CateringRepository
+	cateringRepo        repository.CateringRepository
+	notificationService NotificationService // Add this
+
 }
 
-func NewCateringService(cateringRepo repository.CateringRepository) CateringService {
+func NewCateringService(cateringRepo repository.CateringRepository, notificationService NotificationService) CateringService {
 	return &cateringService{
-		cateringRepo: cateringRepo,
+		cateringRepo:        cateringRepo,
+		notificationService: notificationService, // Add this
 	}
 }
 
@@ -68,6 +72,12 @@ func (s *cateringService) CreateRequest(input models.CateringRequestInput, userI
 	if err != nil {
 		return nil, fmt.Errorf("failed to create catering request: %w", err)
 	}
+
+	go func() {
+		if err := s.notificationService.SendCateringConfirmation(createdRequest); err != nil {
+			log.Printf("Failed to send catering confirmation notification: %v", err)
+		}
+	}()
 
 	return createdRequest, nil
 }

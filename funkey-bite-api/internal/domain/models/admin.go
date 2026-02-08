@@ -40,7 +40,19 @@ type AdminUser struct {
 }
 
 // BusinessSettings represents business configuration
+// type BusinessSettings struct {
+// 	BusinessName   string         `json:"businessName" db:"business_name"`
+// 	PhoneNumber    string         `json:"phoneNumber" db:"phone_number"`
+// 	Email          string         `json:"email" db:"email"`
+// 	Address        string         `json:"address" db:"address"`
+// 	OpeningHours   []OpeningHours `json:"openingHours" db:"opening_hours"`
+// 	DeliveryFee    float64        `json:"deliveryFee" db:"delivery_fee"`
+// 	MinOrderAmount float64        `json:"minOrderAmount" db:"min_order_amount"`
+// 	TaxRate        float64        `json:"taxRate" db:"tax_rate"`
+// }
+
 type BusinessSettings struct {
+	ID             int            `json:"id" db:"id"`
 	BusinessName   string         `json:"businessName" db:"business_name"`
 	PhoneNumber    string         `json:"phoneNumber" db:"phone_number"`
 	Email          string         `json:"email" db:"email"`
@@ -49,6 +61,10 @@ type BusinessSettings struct {
 	DeliveryFee    float64        `json:"deliveryFee" db:"delivery_fee"`
 	MinOrderAmount float64        `json:"minOrderAmount" db:"min_order_amount"`
 	TaxRate        float64        `json:"taxRate" db:"tax_rate"`
+	IsDeliveryOpen bool           `json:"isDeliveryOpen" db:"is_delivery_open"`
+	IsPickupOpen   bool           `json:"isPickupOpen" db:"is_pickup_open"`
+	CreatedAt      time.Time      `json:"createdAt" db:"created_at"`
+	UpdatedAt      time.Time      `json:"updatedAt" db:"updated_at"`
 }
 
 type OpeningHours struct {
