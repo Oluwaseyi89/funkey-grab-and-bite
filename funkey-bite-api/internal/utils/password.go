@@ -36,3 +36,7 @@ func ValidatePasswordStrength(password string) bool {
 
 	return hasUpper && hasLower && hasDigit
 }
+
+func VerifyPassword(password, hash string) bool {
+	return CheckPasswordHash(password, hash)
+}

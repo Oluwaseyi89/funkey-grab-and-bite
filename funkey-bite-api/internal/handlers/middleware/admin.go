@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"database/sql"
+	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
 	"net/http"
 
 	// "funkey-grab-and-bite/funkey-bite-api/internal/utils"
@@ -10,44 +11,87 @@ import (
 )
 
 // AdminMiddleware checks if the authenticated user is an admin
+// func AdminMiddleware() gin.HandlerFunc {
+// 	return func(c *gin.Context) {
+// 		// Get user ID from context (set by AuthMiddleware)
+// 		userID, exists := c.Get("user_id")
+// 		if !exists {
+// 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+// 			c.Abort()
+// 			return
+// 		}
+
+// 		// Get database from context or use a global connection
+// 		dbInterface, exists := c.Get("db")
+// 		if !exists {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection not available"})
+// 			c.Abort()
+// 			return
+// 		}
+
+// 		db, ok := dbInterface.(*sql.DB)
+// 		if !ok {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid database connection"})
+// 			c.Abort()
+// 			return
+// 		}
+
+// 		// Check if user is admin
+// 		isAdmin, err := isUserAdmin(db, userID.(int))
+// 		if err != nil {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify admin status"})
+// 			c.Abort()
+// 			return
+// 		}
+
+// 		if !isAdmin {
+// 			c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+// 			c.Abort()
+// 			return
+// 		}
+
+// 		c.Next()
+// 	}
+// }
+
 func AdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get user ID from context (set by AuthMiddleware)
-		userID, exists := c.Get("user_id")
-		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		// Get auth token from header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
 			c.Abort()
 			return
 		}
 
-		// Get database from context or use a global connection
-		dbInterface, exists := c.Get("db")
-		if !exists {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection not available"})
+		// Extract token (format: "Bearer <token>")
+		if len(authHeader) <= 7 || authHeader[:7] != "Bearer " {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization format"})
 			c.Abort()
 			return
 		}
 
-		db, ok := dbInterface.(*sql.DB)
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid database connection"})
+		tokenString := authHeader[7:]
+
+		// Validate token and get claims
+		claims, err := utils.ValidateToken(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
 
 		// Check if user is admin
-		isAdmin, err := isUserAdmin(db, userID.(int))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify admin status"})
-			c.Abort()
-			return
-		}
-
-		if !isAdmin {
+		if !claims.IsAdmin {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 			c.Abort()
 			return
 		}
+
+		// Set user info in context for downstream handlers
+		c.Set("user_id", claims.UserID)
+		c.Set("phone", claims.Phone)
+		c.Set("is_admin", claims.IsAdmin)
 
 		c.Next()
 	}
@@ -77,17 +121,61 @@ func isUserAdmin(db *sql.DB, userID int) (bool, error) {
 }
 
 // AdminAuthMiddleware combines authentication and admin check
+// func AdminAuthMiddleware() gin.HandlerFunc {
+// 	return func(c *gin.Context) {
+// 		// First authenticate
+// 		AuthMiddleware()(c)
+
+// 		// If authentication passed, check admin status
+// 		if c.IsAborted() {
+// 			return
+// 		}
+
+// 		// Then check admin
+// 		AdminMiddleware()(c)
+// 	}
+// }
+
+// AdminAuthMiddleware combines authentication and admin check in one middleware
 func AdminAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// First authenticate
-		AuthMiddleware()(c)
-
-		// If authentication passed, check admin status
-		if c.IsAborted() {
+		// Get auth token from header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+			c.Abort()
 			return
 		}
 
-		// Then check admin
-		AdminMiddleware()(c)
+		// Extract token
+		if len(authHeader) <= 7 || authHeader[:7] != "Bearer " {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization format"})
+			c.Abort()
+			return
+		}
+
+		tokenString := authHeader[7:]
+
+		// Validate token
+		claims, err := utils.ValidateToken(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		// Check admin status
+		if !claims.IsAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+			c.Abort()
+			return
+		}
+
+		// Set context values
+		c.Set("user_id", claims.UserID)
+		c.Set("phone", claims.Phone)
+		c.Set("is_admin", claims.IsAdmin)
+
+		c.Next()
 	}
 }

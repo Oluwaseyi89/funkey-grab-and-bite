@@ -70,51 +70,21 @@ func SetSecret(secret string) {
 	jwtSecret = []byte(secret)
 }
 
-// package utils
+// GenerateAdminJWT creates a JWT token specifically for admin dashboard access
+func GenerateAdminJWT(adminID int, email, role string) (string, error) {
+	expirationTime := time.Now().Add(24 * time.Hour)
 
-// import (
-// 	"time"
+	claims := &Claims{
+		UserID:  adminID,
+		Phone:   email, // Using email as phone field for admin
+		IsAdmin: true,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(),
+			IssuedAt:  time.Now().Unix(),
+			Issuer:    "funkey-admin-dashboard",
+		},
+	}
 
-// 	"github.com/dgrijalva/jwt-go"
-// )
-
-// var jwtSecret = []byte("your-secret-key-change-in-production")
-
-// type Claims struct {
-// 	UserID int    `json:"user_id"`
-// 	Phone  string `json:"phone"`
-// 	jwt.StandardClaims
-// }
-
-// func GenerateToken(userID int, phone string) (string, error) {
-// 	expirationTime := time.Now().Add(24 * time.Hour)
-
-// 	claims := &Claims{
-// 		UserID: userID,
-// 		Phone:  phone,
-// 		StandardClaims: jwt.StandardClaims{
-// 			ExpiresAt: expirationTime.Unix(),
-// 			IssuedAt:  time.Now().Unix(),
-// 			Issuer:    "funkey-grab-bite",
-// 		},
-// 	}
-
-// 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-// 	return token.SignedString(jwtSecret)
-// }
-
-// func ValidateToken(tokenString string) (*Claims, error) {
-// 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-// 		return jwtSecret, nil
-// 	})
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-// 		return claims, nil
-// 	}
-
-// 	return nil, jwt.ErrSignatureInvalid
-// }
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}

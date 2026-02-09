@@ -352,3 +352,342 @@ func (h *AdminHandler) DeleteMenuItem(c *gin.Context) {
 		"itemId":  itemID,
 	})
 }
+
+// Add to the existing AdminHandler struct and methods...
+
+// AdminLogin authenticates admin users
+// @Summary Admin login
+// @Description Authenticate admin user and return JWT token
+// @Tags admin-auth
+// @Accept json
+// @Produce json
+// @Param credentials body AdminLoginRequest true "Admin credentials"
+// @Success 200 {object} AdminLoginResponse
+// @Router /admin/auth/login [post]
+func (h *AdminHandler) AdminLogin(c *gin.Context) {
+	var req AdminLoginRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request body",
+		})
+		return
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	admin, token, err := h.adminService.AdminLogin(req.Email, req.Password)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// Clear sensitive data
+	admin.PasswordHash = ""
+
+	c.JSON(http.StatusOK, AdminLoginResponse{
+		Admin: admin,
+		Token: token,
+	})
+}
+
+// AdminLogout logs out admin user
+// @Summary Admin logout
+// @Description Logout admin user (client-side token invalidation)
+// @Tags admin-auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string
+// @Router /admin/auth/logout [post]
+func (h *AdminHandler) AdminLogout(c *gin.Context) {
+	// For JWT tokens, logout is client-side
+	// Could implement token blacklist here if needed
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logged out successfully",
+	})
+}
+
+// GetAdminUsers returns all admin users with pagination
+// @Summary Get admin users
+// @Description Get all admin users with pagination
+// @Tags admin-users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(20)
+// @Success 200 {object} map[string]interface{}
+// @Router /admin/users/admins [get]
+func (h *AdminHandler) GetAdminUsers(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	admins, total, err := h.adminService.GetAdminUsers(page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get admin users",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"admins": admins,
+		"pagination": gin.H{
+			"page":       page,
+			"limit":      limit,
+			"total":      total,
+			"totalPages": (total + limit - 1) / limit,
+		},
+	})
+}
+
+// CreateAdminUser creates a new admin user
+// @Summary Create admin user
+// @Description Create a new admin user (requires super-admin privileges)
+// @Tags admin-users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param admin body CreateAdminUserRequest true "Admin user details"
+// @Success 201 {object} models.AdminUser
+// @Router /admin/users/admins [post]
+func (h *AdminHandler) CreateAdminUser(c *gin.Context) {
+	var req CreateAdminUserRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request body",
+		})
+		return
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	admin := &models.AdminUser{
+		Username: req.Username,
+		Email:    req.Email,
+		Role:     req.Role,
+		IsActive: req.IsActive,
+	}
+
+	createdAdmin, err := h.adminService.CreateAdminUser(admin, req.Password)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, createdAdmin)
+}
+
+// UpdateAdminUser updates an admin user
+// @Summary Update admin user
+// @Description Update an existing admin user
+// @Tags admin-users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Admin User ID"
+// @Param admin body UpdateAdminUserRequest true "Admin user updates"
+// @Success 200 {object} models.AdminUser
+// @Router /admin/users/admins/{id} [put]
+func (h *AdminHandler) UpdateAdminUser(c *gin.Context) {
+	adminID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid admin user ID",
+		})
+		return
+	}
+
+	// Prevent self-modification of role/status
+	currentAdminID, _ := c.Get("user_id")
+	if adminID == currentAdminID.(int) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Cannot modify your own account",
+		})
+		return
+	}
+
+	var updates models.AdminUser
+	if err := c.ShouldBindJSON(&updates); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request body",
+		})
+		return
+	}
+
+	err = h.adminService.UpdateAdminUser(adminID, &updates)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// Return updated admin
+	updatedAdmin, err := h.adminService.GetAdminUserByID(adminID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch updated admin",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedAdmin)
+}
+
+// DeleteAdminUser deletes an admin user
+// @Summary Delete admin user
+// @Description Delete an admin user (cannot delete self)
+// @Tags admin-users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Admin User ID"
+// @Success 200 {object} map[string]string
+// @Router /admin/users/admins/{id} [delete]
+func (h *AdminHandler) DeleteAdminUser(c *gin.Context) {
+	adminID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid admin user ID",
+		})
+		return
+	}
+
+	// Prevent self-deletion
+	currentAdminID, _ := c.Get("user_id")
+	if adminID == currentAdminID.(int) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Cannot delete your own account",
+		})
+		return
+	}
+
+	err = h.adminService.DeleteAdminUser(adminID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to delete admin user",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Admin user deleted successfully",
+		"adminId": adminID,
+	})
+}
+
+// UpdateAdminPassword changes admin password
+// @Summary Change admin password
+// @Description Change admin user password
+// @Tags admin-auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param password body ChangeAdminPasswordRequest true "Password change details"
+// @Success 200 {object} map[string]string
+// @Router /admin/auth/password [patch]
+func (h *AdminHandler) UpdateAdminPassword(c *gin.Context) {
+	adminID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Authentication required",
+		})
+		return
+	}
+
+	var req ChangeAdminPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request body",
+		})
+		return
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	err := h.adminService.UpdateAdminPassword(adminID.(int), req.CurrentPassword, req.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password updated successfully",
+	})
+}
+
+// GetTodayStats returns today's dashboard statistics
+// @Summary Get today's statistics
+// @Description Get dashboard statistics for today
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} models.AdminStats
+// @Router /admin/dashboard/stats/today [get]
+func (h *AdminHandler) GetTodayStats(c *gin.Context) {
+	stats, err := h.adminService.GetTodayStats()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get today's statistics",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
+// Request/Response structs
+type AdminLoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+}
+
+type AdminLoginResponse struct {
+	Admin *models.AdminUser `json:"admin"`
+	Token string            `json:"token"`
+}
+
+type CreateAdminUserRequest struct {
+	Username string `json:"username" validate:"required,min=3"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+	Role     string `json:"role" validate:"required,oneof=admin manager staff"`
+	IsActive bool   `json:"isActive"`
+}
+
+type UpdateAdminUserRequest struct {
+	Username string `json:"username,omitempty" validate:"omitempty,min=3"`
+	Email    string `json:"email,omitempty" validate:"omitempty,email"`
+	Role     string `json:"role,omitempty" validate:"omitempty,oneof=admin manager staff"`
+	IsActive *bool  `json:"isActive,omitempty"`
+}
+
+type ChangeAdminPasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" validate:"required,min=8"`
+	NewPassword     string `json:"newPassword" validate:"required,min=8"`
+}

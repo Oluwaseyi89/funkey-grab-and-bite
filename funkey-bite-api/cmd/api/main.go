@@ -130,6 +130,8 @@ func main() {
 		public.POST("/catering/requests", cateringHandler.CreateRequest)
 		public.GET("/promotions/validate", promotionHandler.ValidatePromotion)
 		public.GET("/promotions/active", promotionHandler.GetActivePromotions)
+		public.POST("/admin/auth/login", adminHandler.AdminLogin)
+
 	}
 
 	// Add new menu routes
@@ -167,12 +169,15 @@ func main() {
 	}
 
 	// Protected routes (for admin dashboard)
+	// admin := public.Group("/admin")
+	// admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
 	admin := public.Group("/admin")
-	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
+	admin.Use(middleware.AdminAuthMiddleware())
 	{
 		// Admin endpoints for managing orders, menu, etc.
 		// Dashboard
 		admin.GET("/dashboard/stats", adminHandler.GetDashboardStats)
+		admin.GET("/dashboard/stats/today", adminHandler.GetTodayStats)
 
 		// Reports
 		admin.GET("/reports/sales", adminHandler.GetSalesReport)
@@ -202,6 +207,16 @@ func main() {
 		admin.GET("/promotions/:id", promotionHandler.GetPromotion)
 		admin.PUT("/promotions/:id", promotionHandler.UpdatePromotion)
 		admin.DELETE("/promotions/:id", promotionHandler.DeletePromotion)
+
+		// Admin Auth (protected)
+		admin.POST("/auth/logout", adminHandler.AdminLogout)
+		admin.PATCH("/auth/password", adminHandler.UpdateAdminPassword)
+
+		// Admin User Management
+		admin.GET("/users/admins", adminHandler.GetAdminUsers)
+		admin.POST("/users/admins", adminHandler.CreateAdminUser)
+		admin.PUT("/users/admins/:id", adminHandler.UpdateAdminUser)
+		admin.DELETE("/users/admins/:id", adminHandler.DeleteAdminUser)
 
 	}
 
