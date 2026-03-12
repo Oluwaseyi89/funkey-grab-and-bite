@@ -17,7 +17,6 @@ func NewSettingsRepository(db *sql.DB) *SettingsRepository {
 	return &SettingsRepository{db: db}
 }
 
-// GetSettings gets the business settings
 func (r *SettingsRepository) GetSettings() (*models.BusinessSettings, error) {
 	query := `
         SELECT id, business_name, phone_number, email, address, opening_hours,
@@ -29,7 +28,7 @@ func (r *SettingsRepository) GetSettings() (*models.BusinessSettings, error) {
     `
 
 	var settings models.BusinessSettings
-	var openingHoursJSON string // Store JSON as string from DB
+	var openingHoursJSON string
 
 	row := r.db.QueryRow(query)
 
@@ -39,7 +38,7 @@ func (r *SettingsRepository) GetSettings() (*models.BusinessSettings, error) {
 		&settings.PhoneNumber,
 		&settings.Email,
 		&settings.Address,
-		&openingHoursJSON, // Scan into string
+		&openingHoursJSON,
 		&settings.DeliveryFee,
 		&settings.MinOrderAmount,
 		&settings.TaxRate,
@@ -50,14 +49,12 @@ func (r *SettingsRepository) GetSettings() (*models.BusinessSettings, error) {
 	)
 
 	if err == sql.ErrNoRows {
-		// Return default settings if none exist
 		return r.createDefaultSettings()
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get settings: %w", err)
 	}
 
-	// Parse JSON into slice
 	if err := json.Unmarshal([]byte(openingHoursJSON), &settings.OpeningHours); err != nil {
 		return nil, fmt.Errorf("failed to parse opening hours JSON: %w", err)
 	}
@@ -65,15 +62,12 @@ func (r *SettingsRepository) GetSettings() (*models.BusinessSettings, error) {
 	return &settings, nil
 }
 
-// UpdateSettings updates business settings
 func (r *SettingsRepository) UpdateSettings(updates *models.BusinessSettingsUpdate) (*models.BusinessSettings, error) {
-	// Start by getting current settings
 	current, err := r.GetSettings()
 	if err != nil {
 		return nil, err
 	}
 
-	// Build update query dynamically
 	query := "UPDATE business_settings SET "
 	params := []interface{}{}
 	paramCount := 1
@@ -99,7 +93,6 @@ func (r *SettingsRepository) UpdateSettings(updates *models.BusinessSettingsUpda
 		paramCount++
 	}
 	if updates.OpeningHours != nil {
-		// Convert slice to JSON string
 		openingHoursJSON, err := json.Marshal(updates.OpeningHours)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal opening hours: %w", err)
@@ -134,7 +127,6 @@ func (r *SettingsRepository) UpdateSettings(updates *models.BusinessSettingsUpda
 		paramCount++
 	}
 
-	// Add updated_at and WHERE clause
 	query += fmt.Sprintf("updated_at = $%d WHERE id = $%d", paramCount, paramCount+1)
 	params = append(params, time.Now(), current.ID)
 
@@ -143,11 +135,9 @@ func (r *SettingsRepository) UpdateSettings(updates *models.BusinessSettingsUpda
 		return nil, fmt.Errorf("failed to update settings: %w", err)
 	}
 
-	// Return updated settings
 	return r.GetSettings()
 }
 
-// createDefaultSettings creates default business settings
 func (r *SettingsRepository) createDefaultSettings() (*models.BusinessSettings, error) {
 	defaultHours := []models.OpeningHours{
 		{Day: "Monday", OpenTime: "08:00", CloseTime: "22:00", IsOpen: true},
@@ -159,7 +149,6 @@ func (r *SettingsRepository) createDefaultSettings() (*models.BusinessSettings, 
 		{Day: "Sunday", OpenTime: "10:00", CloseTime: "21:00", IsOpen: true},
 	}
 
-	// Convert to JSON for database storage
 	openingHoursJSON, err := json.Marshal(defaultHours)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal default opening hours: %w", err)
@@ -185,11 +174,11 @@ func (r *SettingsRepository) createDefaultSettings() (*models.BusinessSettings, 
 		"contact@funkeygrabandbite.com",
 		"123 Fast Food Street, Food City",
 		string(openingHoursJSON),
-		2.99,  // delivery_fee
-		10.00, // min_order_amount
-		8.5,   // tax_rate
-		true,  // is_delivery_open
-		true,  // is_pickup_open
+		2.99,
+		10.00,
+		8.5,
+		true,
+		true,
 		now,
 		now,
 	).Scan(&settings.ID, &settings.CreatedAt, &settings.UpdatedAt)
@@ -198,12 +187,11 @@ func (r *SettingsRepository) createDefaultSettings() (*models.BusinessSettings, 
 		return nil, fmt.Errorf("failed to create default settings: %w", err)
 	}
 
-	// Set the other fields
 	settings.BusinessName = "Funkey Grab & Bite"
 	settings.PhoneNumber = "+1234567890"
 	settings.Email = "contact@funkeygrabandbite.com"
 	settings.Address = "123 Fast Food Street, Food City"
-	settings.OpeningHours = defaultHours // Use the slice, not JSON string
+	settings.OpeningHours = defaultHours
 	settings.DeliveryFee = 2.99
 	settings.MinOrderAmount = 10.00
 	settings.TaxRate = 8.5

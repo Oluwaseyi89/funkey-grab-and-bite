@@ -136,35 +136,6 @@ func (h *MenuHandler) GetMenuByCategory(c *gin.Context) {
 	c.JSON(http.StatusOK, menuItems)
 }
 
-// // SearchMenu searches for menu items
-// // @Summary Search menu items
-// // @Description Search for menu items by name or description
-// // @Tags menu
-// // @Accept json
-// // @Produce json
-// // @Param query query string true "Search query"
-// // @Success 200 {array} models.MenuItem
-// // @Router /menu/search [get]
-// func (h *MenuHandler) SearchMenu(c *gin.Context) {
-// 	query := c.Query("query")
-// 	if query == "" {
-// 		c.JSON(http.StatusBadRequest, gin.H{
-// 			"error": "query parameter is required",
-// 		})
-// 		return
-// 	}
-
-// 	menuItems, err := h.menuService.SearchMenuItems(query)
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"error": "Failed to search menu items",
-// 		})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, menuItems)
-// }
-
 // Update SearchMenu to support advanced search
 // @Summary Search menu items
 // @Description Search for menu items with filters and pagination
@@ -193,17 +164,14 @@ func (h *MenuHandler) SearchMenu(c *gin.Context) {
 		}
 	}
 
-	// Parse tags
 	var tags []string
 	if tagsStr != "" {
 		tags = strings.Split(tagsStr, ",")
-		// Trim whitespace
 		for i, tag := range tags {
 			tags[i] = strings.TrimSpace(tag)
 		}
 	}
 
-	// Use advanced search if query or filters are provided
 	if query != "" || categoryID != nil || len(tags) > 0 {
 		items, total, err := h.menuService.SearchMenuItems(query, categoryID, page, limit)
 		if err != nil {
@@ -216,7 +184,6 @@ func (h *MenuHandler) SearchMenu(c *gin.Context) {
 		return
 	}
 
-	// If no filters, return all items with pagination
 	allItems, err := h.menuService.GetMenuItems()
 	if err != nil {
 		handlers.ErrorWithDetails(c, http.StatusInternalServerError,
@@ -265,25 +232,6 @@ func (h *MenuHandler) GetFeaturedItems(c *gin.Context) {
 
 	handlers.Success(c, items)
 }
-
-// func (h *MenuHandler) GetFeaturedItems(c *gin.Context) {
-// 	// For now, return all items. You can implement proper featured logic later
-// 	menuItems, err := h.menuService.GetMenuItems()
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"error": "Failed to fetch featured items",
-// 		})
-// 		return
-// 	}
-
-// 	// Limit to 6 featured items for now
-// 	limit := 6
-// 	if len(menuItems) > limit {
-// 		menuItems = menuItems[:limit]
-// 	}
-
-// 	c.JSON(http.StatusOK, menuItems)
-// }
 
 // Add new endpoint for filtering by tags
 // @Summary Get menu items by tags

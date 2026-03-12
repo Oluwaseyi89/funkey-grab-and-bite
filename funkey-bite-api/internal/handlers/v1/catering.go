@@ -99,10 +99,8 @@ func (h *CateringHandler) GetRequest(c *gin.Context) {
 		return
 	}
 
-	// Check if user can access this request
 	userID, _ := c.Get("user_id")
 	if request.UserID != nil && *request.UserID != userID {
-		// User can only access their own requests unless admin
 		isAdmin, _ := c.Get("is_admin")
 		if isAdmin == nil || !isAdmin.(bool) {
 			c.JSON(http.StatusForbidden, gin.H{
@@ -172,7 +170,6 @@ func (h *CateringHandler) GetPackages(c *gin.Context) {
 // @Success 200 {object} map[string]string
 // @Router /catering/requests/{id}/status [patch]
 func (h *CateringHandler) UpdateRequestStatus(c *gin.Context) {
-	// Check if user is admin
 	isAdmin, _ := c.Get("is_admin")
 	if isAdmin == nil || !isAdmin.(bool) {
 		c.JSON(http.StatusForbidden, gin.H{
@@ -227,7 +224,6 @@ func (h *CateringHandler) UpdateRequestStatus(c *gin.Context) {
 // @Success 200 {array} models.CateringRequest
 // @Router /catering/requests [get]
 func (h *CateringHandler) GetAllRequests(c *gin.Context) {
-	// Check if user is admin
 	isAdmin, _ := c.Get("is_admin")
 	if isAdmin == nil || !isAdmin.(bool) {
 		c.JSON(http.StatusForbidden, gin.H{

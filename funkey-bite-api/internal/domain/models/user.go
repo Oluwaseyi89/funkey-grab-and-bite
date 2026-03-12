@@ -36,7 +36,6 @@ type AuthResponse struct {
 	IsNewUser    bool   `json:"is_new_user,omitempty"`
 }
 
-// ProfileUpdate struct for profile updates (defined here since it's not in models)
 type ProfileUpdate struct {
 	FullName *string `json:"full_name,omitempty"`
 	Email    *string `json:"email,omitempty"`

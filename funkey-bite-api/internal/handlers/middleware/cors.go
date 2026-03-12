@@ -10,15 +10,13 @@ func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 
-		// Allow specific origins in production
 		allowedOrigins := map[string]bool{
-			"http://localhost:3000":         true, // Nuxt dev
-			"http://localhost:5173":         true, // Vite dev
-			"http://localhost:3001":         true, // React admin
-			"https://funkeygrabandbite.com": true, // Production
+			"http://localhost:3000":         true,
+			"http://localhost:5173":         true,
+			"http://localhost:3001":         true,
+			"https://funkeygrabandbite.com": true,
 		}
 
-		// Allow all in development, specific in production
 		if origin != "" {
 			if allowedOrigins[origin] || strings.Contains(origin, "localhost") {
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)

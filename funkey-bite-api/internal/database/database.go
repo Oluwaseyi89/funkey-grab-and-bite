@@ -6,12 +6,10 @@ import (
 	"log"
 	"os"
 
-	_ "github.com/lib/pq" // PostgreSQL driver
+	_ "github.com/lib/pq"
 )
 
-// InitializeDatabase creates and returns a database connection
 func InitializeDatabase() *sql.DB {
-	// Get database connection string from environment variables
 	host := getEnv("DB_HOST", "localhost")
 	port := getEnv("DB_PORT", "5432")
 	user := getEnv("DB_USER", "postgres")
@@ -19,36 +17,30 @@ func InitializeDatabase() *sql.DB {
 	dbname := getEnv("DB_NAME", "funkey_grab_bite")
 	sslmode := getEnv("DB_SSLMODE", "disable")
 
-	// Construct connection string
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		host, port, user, password, dbname, sslmode)
 
-	// Open database connection
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Test the connection
 	err = db.Ping()
 	if err != nil {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * 60) // 5 minutes
+	db.SetConnMaxLifetime(5 * 60)
 
 	log.Println("✅ Database connection established successfully")
 
-	// Run migrations (optional)
 	runMigrations(db)
 
 	return db
 }
 
-// getEnv helper function to get environment variables with defaults
 func getEnv(key, defaultValue string) string {
 	value := os.Getenv(key)
 	if value == "" {
@@ -57,11 +49,8 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
-// runMigrations creates database tables if they don't exist
 func runMigrations(db *sql.DB) {
-	// Create tables if they don't exist
 	migrations := []string{
-		// Users table
 		`CREATE TABLE IF NOT EXISTS users (
 			id SERIAL PRIMARY KEY,
 			phone VARCHAR(20) UNIQUE NOT NULL,
@@ -75,7 +64,6 @@ func runMigrations(db *sql.DB) {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Menu categories
 		`CREATE TABLE IF NOT EXISTS menu_categories (
 			id SERIAL PRIMARY KEY,
 			name VARCHAR(100) NOT NULL,
@@ -85,7 +73,6 @@ func runMigrations(db *sql.DB) {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Menu items
 		`CREATE TABLE IF NOT EXISTS menu_items (
 			id SERIAL PRIMARY KEY,
 			category_id INTEGER REFERENCES menu_categories(id),
@@ -101,7 +88,6 @@ func runMigrations(db *sql.DB) {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Orders table
 		`CREATE TABLE IF NOT EXISTS orders (
 			id SERIAL PRIMARY KEY,
 			order_number VARCHAR(50) UNIQUE NOT NULL,
@@ -118,7 +104,6 @@ func runMigrations(db *sql.DB) {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Order items
 		`CREATE TABLE IF NOT EXISTS order_items (
 			id SERIAL PRIMARY KEY,
 			order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
@@ -130,7 +115,6 @@ func runMigrations(db *sql.DB) {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Catering requests
 		`CREATE TABLE IF NOT EXISTS catering_requests (
 			id SERIAL PRIMARY KEY,
 			user_id INTEGER REFERENCES users(id),
@@ -148,7 +132,6 @@ func runMigrations(db *sql.DB) {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Admin users (for admin dashboard)
 		`CREATE TABLE IF NOT EXISTS admin_users (
 			id SERIAL PRIMARY KEY,
 			username VARCHAR(100) UNIQUE NOT NULL,
@@ -160,8 +143,6 @@ func runMigrations(db *sql.DB) {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Add to runMigrations function:
-		// Business settings table
 		`CREATE TABLE IF NOT EXISTS business_settings (
 			id SERIAL PRIMARY KEY,
 			business_name VARCHAR(200) NOT NULL,
@@ -177,9 +158,7 @@ func runMigrations(db *sql.DB) {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
-		// Add to runMigrations function:
 
-		// Promotions table
 		`CREATE TABLE IF NOT EXISTS promotions (
 			id SERIAL PRIMARY KEY,
 			code VARCHAR(50) UNIQUE NOT NULL,
@@ -198,7 +177,6 @@ func runMigrations(db *sql.DB) {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Promotion usage table
 		`CREATE TABLE IF NOT EXISTS promotion_usage (
 			id SERIAL PRIMARY KEY,
 			promotion_id INTEGER REFERENCES promotions(id),
@@ -208,7 +186,6 @@ func runMigrations(db *sql.DB) {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Inventory items table
 		`CREATE TABLE IF NOT EXISTS inventory_items (
 			id SERIAL PRIMARY KEY,
 			menu_item_id INTEGER REFERENCES menu_items(id) UNIQUE,
@@ -223,7 +200,6 @@ func runMigrations(db *sql.DB) {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Inventory history table
 		`CREATE TABLE IF NOT EXISTS inventory_history (
 			id SERIAL PRIMARY KEY,
 			inventory_item_id INTEGER REFERENCES inventory_items(id),
@@ -236,7 +212,6 @@ func runMigrations(db *sql.DB) {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// Inventory alerts table
 		`CREATE TABLE IF NOT EXISTS inventory_alerts (
 			id SERIAL PRIMARY KEY,
 			inventory_item_id INTEGER REFERENCES inventory_items(id),
@@ -248,8 +223,6 @@ func runMigrations(db *sql.DB) {
 			UNIQUE(inventory_item_id, alert_type)
 		)`,
 
-		// Add to runMigrations function:
-		// Notifications table
 		`CREATE TABLE IF NOT EXISTS notifications (
 			id SERIAL PRIMARY KEY,
 			user_id INTEGER REFERENCES users(id),
@@ -263,8 +236,6 @@ func runMigrations(db *sql.DB) {
 			read_at TIMESTAMP
 		)`,
 
-		// Add to runMigrations function in database.go:
-		// Full-text search index for menu items
 		`ALTER TABLE menu_items 
 		ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (
 			setweight(to_tsvector('english', COALESCE(name, '')), 'A') ||
@@ -276,7 +247,6 @@ func runMigrations(db *sql.DB) {
 		ON menu_items USING GIN(search_vector)`,
 	}
 
-	// Execute migrations
 	for i, migration := range migrations {
 		_, err := db.Exec(migration)
 		if err != nil {
@@ -287,7 +257,6 @@ func runMigrations(db *sql.DB) {
 	log.Println("✅ Database migrations completed")
 }
 
-// CloseDatabase safely closes the database connection
 func CloseDatabase(db *sql.DB) {
 	if db != nil {
 		db.Close()

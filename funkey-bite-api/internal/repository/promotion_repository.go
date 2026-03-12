@@ -16,7 +16,6 @@ func NewPromotionRepository(db *sql.DB) *PromotionRepository {
 	return &PromotionRepository{db: db}
 }
 
-// Create creates a new promotion
 func (r *PromotionRepository) Create(promotion *models.Promotion) (*models.Promotion, error) {
 	query := `
         INSERT INTO promotions (
@@ -54,7 +53,6 @@ func (r *PromotionRepository) Create(promotion *models.Promotion) (*models.Promo
 	return promotion, nil
 }
 
-// GetByID gets a promotion by ID
 func (r *PromotionRepository) GetByID(id int) (*models.Promotion, error) {
 	query := `
         SELECT id, code, title, description, promotion_type, discount_value, max_discount,
@@ -95,7 +93,6 @@ func (r *PromotionRepository) GetByID(id int) (*models.Promotion, error) {
 	return &promotion, nil
 }
 
-// GetByCode gets a promotion by code
 func (r *PromotionRepository) GetByCode(code string) (*models.Promotion, error) {
 	query := `
         SELECT id, code, title, description, promotion_type, discount_value, max_discount,
@@ -136,9 +133,7 @@ func (r *PromotionRepository) GetByCode(code string) (*models.Promotion, error) 
 	return &promotion, nil
 }
 
-// GetAll gets all promotions with pagination
 func (r *PromotionRepository) GetAll(limit, offset int, status string) ([]models.Promotion, int, error) {
-	// Get total count
 	countQuery := `SELECT COUNT(*) FROM promotions WHERE ($1 = '' OR is_active = $1::boolean)`
 	var total int
 	err := r.db.QueryRow(countQuery, status).Scan(&total)
@@ -146,7 +141,6 @@ func (r *PromotionRepository) GetAll(limit, offset int, status string) ([]models
 		return nil, 0, fmt.Errorf("failed to get promotion count: %w", err)
 	}
 
-	// Get promotions
 	query := `
         SELECT id, code, title, description, promotion_type, discount_value, max_discount,
                min_order_amount, valid_from, valid_until, usage_limit, used_count,
@@ -192,7 +186,6 @@ func (r *PromotionRepository) GetAll(limit, offset int, status string) ([]models
 	return promotions, total, nil
 }
 
-// Update updates a promotion
 func (r *PromotionRepository) Update(promotion *models.Promotion) error {
 	query := `
         UPDATE promotions SET
@@ -233,21 +226,18 @@ func (r *PromotionRepository) Update(promotion *models.Promotion) error {
 	return nil
 }
 
-// Delete deletes a promotion
 func (r *PromotionRepository) Delete(id int) error {
 	query := `DELETE FROM promotions WHERE id = $1`
 	_, err := r.db.Exec(query, id)
 	return err
 }
 
-// IncrementUsage increments the used count of a promotion
 func (r *PromotionRepository) IncrementUsage(id int) error {
 	query := `UPDATE promotions SET used_count = used_count + 1, updated_at = $1 WHERE id = $2`
 	_, err := r.db.Exec(query, time.Now(), id)
 	return err
 }
 
-// RecordUsage records a promotion usage
 func (r *PromotionRepository) RecordUsage(usage *models.PromotionUsage) error {
 	query := `
         INSERT INTO promotion_usage (promotion_id, order_id, customer_id, discount_applied, created_at)

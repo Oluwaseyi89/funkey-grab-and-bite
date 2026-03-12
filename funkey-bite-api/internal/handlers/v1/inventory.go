@@ -368,7 +368,6 @@ func (h *InventoryHandler) GetDashboard(c *gin.Context) {
 	handlers.Success(c, dashboard)
 }
 
-// RestockRequest struct for restock endpoint
 type RestockRequest struct {
 	MenuItemID int    `json:"menuItemId" binding:"required"`
 	Quantity   int    `json:"quantity" binding:"required,min=1"`

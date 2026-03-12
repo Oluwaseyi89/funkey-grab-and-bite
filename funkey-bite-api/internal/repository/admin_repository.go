@@ -17,48 +17,40 @@ func NewAdminRepository(db *sql.DB) *AdminRepository {
 	return &AdminRepository{db: db}
 }
 
-// Dashboard Statistics
-
 func (r *AdminRepository) GetDashboardStats(fromDate, toDate time.Time) (*models.AdminStats, error) {
 	var stats models.AdminStats
 	var query string
 
-	// Total orders
 	query = `SELECT COUNT(*) FROM orders WHERE created_at BETWEEN $1 AND $2`
 	err := r.db.QueryRow(query, fromDate, toDate).Scan(&stats.TotalOrders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get total orders: %w", err)
 	}
 
-	// Total revenue
 	query = `SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE created_at BETWEEN $1 AND $2`
 	err = r.db.QueryRow(query, fromDate, toDate).Scan(&stats.TotalRevenue)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get total revenue: %w", err)
 	}
 
-	// Pending orders
 	query = `SELECT COUNT(*) FROM orders WHERE status = 'pending'`
 	err = r.db.QueryRow(query).Scan(&stats.PendingOrders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pending orders: %w", err)
 	}
 
-	// Active catering requests
 	query = `SELECT COUNT(*) FROM catering_requests WHERE status IN ('pending', 'confirmed')`
 	err = r.db.QueryRow(query).Scan(&stats.ActiveCatering)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active catering: %w", err)
 	}
 
-	// New customers (last 7 days)
 	query = `SELECT COUNT(*) FROM users WHERE created_at >= $1`
 	err = r.db.QueryRow(query, time.Now().AddDate(0, 0, -7)).Scan(&stats.NewCustomers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get new customers: %w", err)
 	}
 
-	// Popular items
 	query = `
 		SELECT oi.menu_item_id, mi.name, 
 		       SUM(oi.quantity) as total_sold,
@@ -89,7 +81,6 @@ func (r *AdminRepository) GetDashboardStats(fromDate, toDate time.Time) (*models
 	return &stats, nil
 }
 
-// Sales Reports
 func (r *AdminRepository) GetSalesReport(fromDate, toDate time.Time) ([]models.SalesReport, error) {
 	query := `
 		SELECT DATE(created_at) as date,
@@ -121,7 +112,6 @@ func (r *AdminRepository) GetSalesReport(fromDate, toDate time.Time) ([]models.S
 	return reports, nil
 }
 
-// Menu Management
 func (r *AdminRepository) CreateMenuItem(item *models.MenuItem) (*models.MenuItem, error) {
 	tagsJSON, _ := json.Marshal(item.Tags)
 	var nutritionalInfoJSON []byte
@@ -208,7 +198,6 @@ func (r *AdminRepository) DeleteMenuItem(id int) error {
 	return err
 }
 
-// Order Management
 func (r *AdminRepository) GetAllOrders(limit, offset int, status string) ([]models.Order, error) {
 	query := `
 		SELECT id, order_number, user_id, customer_name, customer_phone, 
@@ -258,7 +247,6 @@ func (r *AdminRepository) GetAllOrders(limit, offset int, status string) ([]mode
 			order.PickupTime = &pickupTime.Time
 		}
 
-		// Get order items
 		items, err := r.getOrderItems(order.ID)
 		if err != nil {
 			return nil, err
@@ -323,7 +311,6 @@ func (r *AdminRepository) GetOrdersCount(status string) (int, error) {
 	return count, nil
 }
 
-// User Management
 func (r *AdminRepository) GetAllUsers(limit, offset int) ([]models.User, error) {
 	query := `
 		SELECT id, phone, email, full_name, is_verified, is_active, 
@@ -389,9 +376,6 @@ func (r *AdminRepository) UpdateUserStatus(userID int, isActive bool) error {
 	return err
 }
 
-// Add to admin_repository.go
-
-// Admin Authentication Methods
 func (r *AdminRepository) GetAdminByEmail(email string) (*models.AdminUser, error) {
 	query := `
 		SELECT id, username, email, password_hash, role, is_active, last_login, created_at
@@ -433,7 +417,6 @@ func (r *AdminRepository) UpdateAdminLastLogin(adminID int) error {
 	return err
 }
 
-// Admin User Management
 func (r *AdminRepository) GetAdminUsers(limit, offset int) ([]models.AdminUser, error) {
 	query := `
 		SELECT id, username, email, role, is_active, last_login, created_at
@@ -557,14 +540,12 @@ func (r *AdminRepository) GetAdminUserByID(adminID int) (*models.AdminUser, erro
 	return &admin, nil
 }
 
-// Add password hash update method
 func (r *AdminRepository) UpdateAdminPassword(adminID int, passwordHash string) error {
 	query := `UPDATE admin_users SET password_hash = $1 WHERE id = $2`
 	_, err := r.db.Exec(query, passwordHash, adminID)
 	return err
 }
 
-// Dashboard Stats - Today's specific metrics
 func (r *AdminRepository) GetTodayStats() (*models.AdminStats, error) {
 	today := time.Now().Truncate(24 * time.Hour)
 	startOfDay := today

@@ -76,7 +76,6 @@ func (r *OrderRepository) CreateOrderItem(item *models.OrderItem) (*models.Order
 }
 
 func (r *OrderRepository) GetOrderWithItems(id int) (*models.Order, error) {
-	// First, get the order
 	orderQuery := `
 		SELECT id, order_number, user_id, customer_name, customer_phone, 
 		       customer_email, order_type, status, total_amount, notes, 
@@ -119,7 +118,6 @@ func (r *OrderRepository) GetOrderWithItems(id int) (*models.Order, error) {
 		order.PickupTime = &pickupTime.Time
 	}
 
-	// Get order items
 	itemsQuery := `
 		SELECT id, order_id, menu_item_id, name, quantity, unit_price, special_instructions
 		FROM order_items
@@ -210,7 +208,6 @@ func (r *OrderRepository) GetOrdersByUserID(userID int) ([]models.Order, error) 
 			order.PickupTime = &pickupTime.Time
 		}
 
-		// Get items for this order
 		items, err := r.getOrderItems(order.ID)
 		if err != nil {
 			return nil, err
@@ -324,7 +321,6 @@ func (r *OrderRepository) GetOrderByOrderNumber(orderNumber string) (*models.Ord
 		order.PickupTime = &pickupTime.Time
 	}
 
-	// Get order items
 	items, err := r.getOrderItems(order.ID)
 	if err != nil {
 		return nil, err
@@ -383,7 +379,6 @@ func (r *OrderRepository) GetOrderByPhoneAndOrderNumber(phone, orderNumber strin
 		order.EstimatedReadyTime = &estimatedReadyTime.Time
 	}
 
-	// Get order items
 	items, err := r.getOrderItems(order.ID)
 	if err != nil {
 		return nil, err
@@ -412,7 +407,6 @@ func (r *OrderRepository) CancelOrder(id int) error {
 	return nil
 }
 
-// Add these transaction methods to the struct:
 func (r *OrderRepository) BeginTransaction() (*sql.Tx, error) {
 	return r.db.Begin()
 }

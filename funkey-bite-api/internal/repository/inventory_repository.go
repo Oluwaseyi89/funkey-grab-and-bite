@@ -16,7 +16,6 @@ func NewInventoryRepository(db *sql.DB) *InventoryRepository {
 	return &InventoryRepository{db: db}
 }
 
-// GetByID gets an inventory item by ID
 func (r *InventoryRepository) GetByID(id int) (*models.InventoryItem, error) {
 	query := `
         SELECT id, menu_item_id, name, current_stock, minimum_stock, reorder_point,
@@ -52,7 +51,6 @@ func (r *InventoryRepository) GetByID(id int) (*models.InventoryItem, error) {
 	return &item, nil
 }
 
-// GetByMenuItemID gets inventory by menu item ID
 func (r *InventoryRepository) GetByMenuItemID(menuItemID int) (*models.InventoryItem, error) {
 	query := `
         SELECT id, menu_item_id, name, current_stock, minimum_stock, reorder_point,
@@ -88,7 +86,6 @@ func (r *InventoryRepository) GetByMenuItemID(menuItemID int) (*models.Inventory
 	return &item, nil
 }
 
-// GetAll gets all inventory items
 func (r *InventoryRepository) GetAll() ([]models.InventoryItem, error) {
 	query := `
         SELECT id, menu_item_id, name, current_stock, minimum_stock, reorder_point,
@@ -128,7 +125,6 @@ func (r *InventoryRepository) GetAll() ([]models.InventoryItem, error) {
 	return items, nil
 }
 
-// GetLowStock gets inventory items below reorder point
 func (r *InventoryRepository) GetLowStock() ([]models.InventoryItem, error) {
 	query := `
         SELECT id, menu_item_id, name, current_stock, minimum_stock, reorder_point,
@@ -169,7 +165,6 @@ func (r *InventoryRepository) GetLowStock() ([]models.InventoryItem, error) {
 	return items, nil
 }
 
-// UpdateStock updates inventory stock
 func (r *InventoryRepository) UpdateStock(itemID int, newStock int, operation string, reason string) error {
 	tx, err := r.db.Begin()
 	if err != nil {
@@ -182,14 +177,12 @@ func (r *InventoryRepository) UpdateStock(itemID int, newStock int, operation st
 		}
 	}()
 
-	// Get current stock for history
 	var currentStock int
 	err = tx.QueryRow("SELECT current_stock FROM inventory_items WHERE id = $1", itemID).Scan(&currentStock)
 	if err != nil {
 		return fmt.Errorf("failed to get current stock: %w", err)
 	}
 
-	// Update inventory
 	query := `
         UPDATE inventory_items 
         SET current_stock = $1, 
@@ -204,7 +197,6 @@ func (r *InventoryRepository) UpdateStock(itemID int, newStock int, operation st
 		return fmt.Errorf("failed to update inventory: %w", err)
 	}
 
-	// Record history
 	historyQuery := `
         INSERT INTO inventory_history 
         (inventory_item_id, previous_stock, new_stock, change, operation, reason, created_at)
@@ -217,7 +209,6 @@ func (r *InventoryRepository) UpdateStock(itemID int, newStock int, operation st
 		return fmt.Errorf("failed to record inventory history: %w", err)
 	}
 
-	// Check for alerts
 	if newStock <= 0 {
 		alertQuery := `
             INSERT INTO inventory_alerts (inventory_item_id, alert_type, message, created_at)
@@ -228,7 +219,7 @@ func (r *InventoryRepository) UpdateStock(itemID int, newStock int, operation st
         `
 		message := fmt.Sprintf("Item %d is out of stock", itemID)
 		tx.Exec(alertQuery, itemID, message, now)
-	} else if newStock <= 10 { // Adjust threshold as needed
+	} else if newStock <= 10 {
 		alertQuery := `
             INSERT INTO inventory_alerts (inventory_item_id, alert_type, message, created_at)
             VALUES ($1, 'low_stock', $2, $3)
@@ -243,7 +234,6 @@ func (r *InventoryRepository) UpdateStock(itemID int, newStock int, operation st
 	return tx.Commit()
 }
 
-// CreateInventoryItem creates a new inventory item
 func (r *InventoryRepository) CreateInventoryItem(item *models.InventoryItem) (*models.InventoryItem, error) {
 	query := `
         INSERT INTO inventory_items 
@@ -274,7 +264,6 @@ func (r *InventoryRepository) CreateInventoryItem(item *models.InventoryItem) (*
 	return item, nil
 }
 
-// GetAlerts gets active inventory alerts
 func (r *InventoryRepository) GetAlerts(resolved bool) ([]models.InventoryAlert, error) {
 	query := `
         SELECT id, inventory_item_id, alert_type, message, is_resolved, created_at, resolved_at
@@ -314,7 +303,6 @@ func (r *InventoryRepository) GetAlerts(resolved bool) ([]models.InventoryAlert,
 	return alerts, nil
 }
 
-// ResolveAlert resolves an inventory alert
 func (r *InventoryRepository) ResolveAlert(alertID int) error {
 	query := `UPDATE inventory_alerts SET is_resolved = true, resolved_at = $1 WHERE id = $2`
 	_, err := r.db.Exec(query, time.Now(), alertID)
