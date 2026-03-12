@@ -19,7 +19,6 @@ type APIError struct {
 	Details string `json:"details,omitempty"`
 }
 
-// Success response helper
 func Success(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -27,7 +26,6 @@ func Success(c *gin.Context, data interface{}) {
 	})
 }
 
-// Created response helper
 func Created(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
@@ -35,7 +33,6 @@ func Created(c *gin.Context, data interface{}) {
 	})
 }
 
-// Error response helper
 func Error(c *gin.Context, status int, code, message string) {
 	c.JSON(status, APIResponse{
 		Success: false,
@@ -46,7 +43,6 @@ func Error(c *gin.Context, status int, code, message string) {
 	})
 }
 
-// ErrorWithDetails response helper
 func ErrorWithDetails(c *gin.Context, status int, code, message, details string) {
 	c.JSON(status, APIResponse{
 		Success: false,
@@ -58,7 +54,6 @@ func ErrorWithDetails(c *gin.Context, status int, code, message, details string)
 	})
 }
 
-// Paginated response helper
 func Paginated(c *gin.Context, data interface{}, page, limit, total int) {
 	totalPages := 0
 	if limit > 0 {

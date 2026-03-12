@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	// "time"
-
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 )
 
@@ -294,9 +292,6 @@ func (r *CateringRepository) Delete(id int) error {
 	return err
 }
 
-// Add these methods to CateringRepository:
-
-// GetAllWithPagination gets all catering requests with pagination
 func (r *CateringRepository) GetAllWithPagination(limit, offset int, status string) ([]models.CateringRequest, error) {
 	query := `
         SELECT id, user_id, event_name, contact_name, contact_phone, contact_email,
@@ -317,7 +312,6 @@ func (r *CateringRepository) GetAllWithPagination(limit, offset int, status stri
 	return r.scanCateringRequests(rows)
 }
 
-// GetCount gets total count of catering requests
 func (r *CateringRepository) GetCount(status string) (int, error) {
 	query := `SELECT COUNT(*) FROM catering_requests WHERE ($1 = '' OR status = $1)`
 
@@ -330,7 +324,6 @@ func (r *CateringRepository) GetCount(status string) (int, error) {
 	return count, nil
 }
 
-// Helper method to scan rows
 func (r *CateringRepository) scanCateringRequests(rows *sql.Rows) ([]models.CateringRequest, error) {
 	var requests []models.CateringRequest
 

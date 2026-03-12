@@ -1,4 +1,3 @@
-// internal/handlers/v1/auth.go
 package v1
 
 import (
@@ -14,14 +13,14 @@ import (
 
 type AuthHandler struct {
 	authService services.AuthService
-	userService services.UserService // Add this
+	userService services.UserService
 	validate    *validator.Validate
 }
 
 func NewAuthHandler(authService services.AuthService, userService services.UserService) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
-		userService: userService, // Add this
+		userService: userService,
 		validate:    validator.New(),
 	}
 }
@@ -39,7 +38,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Validate password strength
 	if !utils.ValidatePasswordStrength(req.Password) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Password must be at least 8 characters with uppercase, lowercase, and numbers",
@@ -99,19 +97,6 @@ func (h *AuthHandler) CheckUser(c *gin.Context) {
 	})
 }
 
-// func (h *AuthHandler) GetProfile(c *gin.Context) {
-// 	userID, exists := c.Get("user_id")
-// 	if !exists {
-// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
-// 		return
-// 	}
-
-// 	// Fetch user from service
-// 	// user, err := h.userService.GetByID(userID.(int))
-// 	// Handle response...
-// }
-
-// Then use the proper GetProfile method:
 func (h *AuthHandler) GetProfile(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -119,7 +104,6 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	// Cast userID to int
 	uid, ok := userID.(int)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
@@ -222,7 +206,6 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	})
 }
 
-// ChangePasswordRequest struct
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"currentPassword" validate:"required,min=8"`
 	NewPassword     string `json:"newPassword" validate:"required,min=8"`

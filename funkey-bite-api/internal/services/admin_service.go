@@ -109,33 +109,8 @@ func (s *adminService) AdminLogin(email, password string) (*models.AdminUser, st
 }
 
 func (s *adminService) AdminLogout(adminID int) error {
-	// For JWT, logout is client-side (token invalidation)
-	// Could implement token blacklist if needed
 	return nil
 }
-
-// Admin User Management Methods
-
-// func (s *adminService) GetAdminUsers(page, limit int) ([]models.AdminUser, int, error) {
-// 	if page < 1 {
-// 		page = 1
-// 	}
-// 	if limit < 1 {
-// 		limit = 20
-// 	}
-// 	offset := (page - 1) * limit
-
-// 	admins, err := s.adminRepo.GetAdminUsers(limit, offset)
-// 	if err != nil {
-// 		return nil, 0, fmt.Errorf("failed to get admin users: %w", err)
-// 	}
-
-// 	// TODO: Need to add GetAdminUsersCount method to repository
-// 	// For now, return length as total
-// 	total := len(admins)
-
-// 	return admins, total, nil
-// }
 
 func (s *adminService) GetAdminUsers(page, limit int) ([]models.AdminUser, int, error) {
 	if page < 1 {

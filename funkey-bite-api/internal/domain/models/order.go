@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// OrderStatus and OrderType constants for better type safety
 type OrderStatus string
 type OrderType string
 
@@ -21,8 +20,6 @@ const (
 	OrderTypeCatering OrderType = "catering"
 )
 
-// Order struct - Merged version that works with both backend and frontend
-// Using json tags for frontend compatibility and db tags for database mapping
 type Order struct {
 	ID                 int         `json:"id" db:"id"`
 	OrderNumber        string      `json:"orderNumber" db:"order_number"`
@@ -41,7 +38,6 @@ type Order struct {
 	Items              []OrderItem `json:"items"`
 }
 
-// OrderItem for database operations and response
 type OrderItem struct {
 	ID                  int     `json:"-" db:"id"`
 	OrderID             int     `json:"-" db:"order_id"`
@@ -52,7 +48,6 @@ type OrderItem struct {
 	SpecialInstructions *string `json:"specialInstructions,omitempty" db:"special_instructions"`
 }
 
-// OrderItemRequest for incoming order requests from frontend
 type OrderItemRequest struct {
 	MenuItemID          int     `json:"menuItemId" validate:"required"`
 	Name                string  `json:"name" validate:"required"`
@@ -61,7 +56,6 @@ type OrderItemRequest struct {
 	SpecialInstructions *string `json:"specialInstructions,omitempty"`
 }
 
-// OrderRequest for incoming order data (without auth)
 type OrderRequest struct {
 	CustomerName  string             `json:"customerName" validate:"required" db:"customer_name"`
 	CustomerPhone string             `json:"customerPhone" validate:"required" db:"customer_phone"`
@@ -72,7 +66,6 @@ type OrderRequest struct {
 	Items         []OrderItemRequest `json:"items" validate:"required,min=1"`
 }
 
-// OrderWithAuth includes password for authentication
 type OrderWithAuth struct {
 	CustomerName  string             `json:"customerName" validate:"required"`
 	CustomerPhone string             `json:"customerPhone" validate:"required"`
@@ -84,7 +77,6 @@ type OrderWithAuth struct {
 	Password      *string            `json:"password,omitempty" validate:"omitempty,min=8"`
 }
 
-// Helper functions for type conversion
 func (o *Order) ToFrontendFormat() map[string]interface{} {
 	return map[string]interface{}{
 		"id":            o.ID,
@@ -102,7 +94,6 @@ func (o *Order) ToFrontendFormat() map[string]interface{} {
 	}
 }
 
-// Convert string to OrderStatus
 func ParseOrderStatus(status string) OrderStatus {
 	switch status {
 	case "confirmed":
@@ -120,7 +111,6 @@ func ParseOrderStatus(status string) OrderStatus {
 	}
 }
 
-// Convert string to OrderType
 func ParseOrderType(orderType string) OrderType {
 	switch orderType {
 	case "delivery":

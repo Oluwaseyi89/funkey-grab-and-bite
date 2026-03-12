@@ -11,7 +11,7 @@ type InventoryItem struct {
 	CurrentStock  int       `json:"currentStock" db:"current_stock"`
 	MinimumStock  int       `json:"minimumStock" db:"minimum_stock"`
 	ReorderPoint  int       `json:"reorderPoint" db:"reorder_point"`
-	Unit          string    `json:"unit" db:"unit"` // pieces, kg, liters, etc.
+	Unit          string    `json:"unit" db:"unit"` 
 	IsActive      bool      `json:"isActive" db:"is_active"`
 	LastRestocked time.Time `json:"lastRestocked" db:"last_restocked"`
 	CreatedAt     time.Time `json:"createdAt" db:"created_at"`
@@ -29,7 +29,7 @@ type InventoryUpdate struct {
 type InventoryAlert struct {
 	ID              int        `json:"id" db:"id"`
 	InventoryItemID int        `json:"inventoryItemId" db:"inventory_item_id"`
-	AlertType       string     `json:"alertType" db:"alert_type"` // low_stock, out_of_stock
+	AlertType       string     `json:"alertType" db:"alert_type"`
 	Message         string     `json:"message" db:"message"`
 	IsResolved      bool       `json:"isResolved" db:"is_resolved"`
 	CreatedAt       time.Time  `json:"createdAt" db:"created_at"`
