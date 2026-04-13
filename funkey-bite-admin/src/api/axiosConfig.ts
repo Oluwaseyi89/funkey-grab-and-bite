@@ -10,11 +10,18 @@ const api = axios.create({
   timeout: 10000, // 10 second timeout
 });
 
+const isLoginEndpoint = (url?: string) => {
+  if (!url) return false;
+  return url.includes('/api/v1/admin/auth/login');
+};
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('admin_token');
-    if (token) {
+    if (token && !isLoginEndpoint(config.url)) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (config.headers?.Authorization) {
+      delete config.headers.Authorization;
     }
     return config;
   },
@@ -45,9 +52,27 @@ api.interceptors.response.use(
   (error) => {
     if (axios.isAxiosError(error)) {
       if (error.response?.status === 401) {
+        const requestUrl = error.config?.url;
+        const apiError = error.response?.data;
+
+        if (isLoginEndpoint(requestUrl)) {
+          let loginErrorMessage = 'Invalid email or password';
+          if (apiError?.error?.message) {
+            loginErrorMessage = apiError.error.message;
+          } else if (apiError?.error) {
+            loginErrorMessage = apiError.error;
+          } else if (apiError?.message) {
+            loginErrorMessage = apiError.message;
+          }
+          return Promise.reject(new Error(loginErrorMessage));
+        }
+
         localStorage.removeItem('admin_token');
         localStorage.removeItem('admin_user');
-        window.location.href = '/login';
+        localStorage.removeItem('admin-auth-storage');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(new Error('Session expired. Please login again.'));
       }
       

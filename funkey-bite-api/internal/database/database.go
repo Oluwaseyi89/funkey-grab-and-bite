@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
+
 	_ "github.com/lib/pq"
 )
 
@@ -254,7 +256,47 @@ func runMigrations(db *sql.DB) {
 		}
 	}
 
+	ensureDefaultAdminUser(db)
+
 	log.Println("✅ Database migrations completed")
+}
+
+func ensureDefaultAdminUser(db *sql.DB) {
+	defaultEmail := getEnv("DEFAULT_ADMIN_EMAIL", "admin@funkey.com")
+	defaultUsername := getEnv("DEFAULT_ADMIN_USERNAME", "admin")
+	defaultPassword := getEnv("DEFAULT_ADMIN_PASSWORD", "admin123")
+	defaultRole := getEnv("DEFAULT_ADMIN_ROLE", "admin")
+
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM admin_users WHERE email = $1)", defaultEmail).Scan(&exists)
+	if err != nil {
+		log.Printf("Warning: failed checking default admin existence: %v", err)
+		return
+	}
+
+	if exists {
+		return
+	}
+
+	hashedPassword, err := utils.HashPassword(defaultPassword)
+	if err != nil {
+		log.Printf("Warning: failed hashing default admin password: %v", err)
+		return
+	}
+
+	_, err = db.Exec(
+		`INSERT INTO admin_users (username, email, password_hash, role, is_active) VALUES ($1, $2, $3, $4, true)`,
+		defaultUsername,
+		defaultEmail,
+		hashedPassword,
+		defaultRole,
+	)
+	if err != nil {
+		log.Printf("Warning: failed creating default admin user: %v", err)
+		return
+	}
+
+	log.Printf("✅ Created default admin user: %s", defaultEmail)
 }
 
 func CloseDatabase(db *sql.DB) {
