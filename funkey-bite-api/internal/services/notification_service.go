@@ -58,7 +58,6 @@ func NewNotificationService(
 }
 
 func (s *notificationService) SendOrderConfirmation(order *models.Order) error {
-	// Determine recipient info
 	var email, phone, name string
 	name = order.CustomerName
 	phone = order.CustomerPhone
@@ -67,21 +66,18 @@ func (s *notificationService) SendOrderConfirmation(order *models.Order) error {
 		email = *order.CustomerEmail
 	}
 
-	// Send SMS notification
 	if phone != "" {
 		if err := s.smsService.SendOrderConfirmation(phone, order.OrderNumber, order.TotalAmount); err != nil {
 			log.Printf("Failed to send order confirmation SMS: %v", err)
 		}
 	}
 
-	// Send email notification if email is provided
 	if email != "" {
 		if err := s.emailService.SendOrderConfirmation(email, name, order.OrderNumber, order.TotalAmount); err != nil {
 			log.Printf("Failed to send order confirmation email: %v", err)
 		}
 	}
 
-	// Record notification in database
 	if order.UserID != nil {
 		notification := &models.Notification{
 			UserID:        *order.UserID,
@@ -99,13 +95,11 @@ func (s *notificationService) SendOrderConfirmation(order *models.Order) error {
 }
 
 func (s *notificationService) SendOrderStatusUpdate(orderID int, newStatus string) error {
-	// Get order details
 	order, err := s.orderRepo.GetOrderWithItems(orderID)
 	if err != nil || order == nil {
 		return fmt.Errorf("failed to get order: %w", err)
 	}
 
-	// Determine recipient info
 	var email, phone, name string
 	name = order.CustomerName
 	phone = order.CustomerPhone
@@ -114,21 +108,18 @@ func (s *notificationService) SendOrderStatusUpdate(orderID int, newStatus strin
 		email = *order.CustomerEmail
 	}
 
-	// Send SMS notification
 	if phone != "" {
 		if err := s.smsService.SendOrderStatusUpdate(phone, order.OrderNumber, newStatus); err != nil {
 			log.Printf("Failed to send order status update SMS: %v", err)
 		}
 	}
 
-	// Send email notification if email is provided
 	if email != "" {
 		if err := s.emailService.SendOrderStatusUpdate(email, name, order.OrderNumber, newStatus); err != nil {
 			log.Printf("Failed to send order status update email: %v", err)
 		}
 	}
 
-	// Record notification in database
 	if order.UserID != nil {
 		notification := &models.Notification{
 			UserID:        *order.UserID,
@@ -146,7 +137,6 @@ func (s *notificationService) SendOrderStatusUpdate(orderID int, newStatus strin
 }
 
 func (s *notificationService) SendCateringConfirmation(request *models.CateringRequest) error {
-	// Determine recipient info
 	var email, phone, name, eventName string
 	name = request.ContactName
 	phone = request.ContactPhone
@@ -161,21 +151,18 @@ func (s *notificationService) SendCateringConfirmation(request *models.CateringR
 
 	requestID := fmt.Sprintf("CATER-%d", request.ID)
 
-	// Send SMS notification
 	if phone != "" {
 		if err := s.smsService.SendCateringConfirmation(phone, requestID); err != nil {
 			log.Printf("Failed to send catering confirmation SMS: %v", err)
 		}
 	}
 
-	// Send email notification if email is provided
 	if email != "" {
 		if err := s.emailService.SendCateringConfirmation(email, name, requestID, eventName); err != nil {
 			log.Printf("Failed to send catering confirmation email: %v", err)
 		}
 	}
 
-	// Record notification in database
 	if request.UserID != nil {
 		notification := &models.Notification{
 			UserID:        *request.UserID,
@@ -193,13 +180,11 @@ func (s *notificationService) SendCateringConfirmation(request *models.CateringR
 }
 
 func (s *notificationService) SendPasswordReset(email, resetToken string) error {
-	// Send email notification
 	if err := s.emailService.SendPasswordReset(email, resetToken); err != nil {
 		log.Printf("Failed to send password reset email: %v", err)
 		return err
 	}
 
-	// Record notification in database (need to get user by email)
 	user, err := s.userRepo.FindByPhoneOrEmail("", email)
 	if err == nil && user != nil {
 		notification := &models.Notification{
@@ -218,7 +203,6 @@ func (s *notificationService) SendPasswordReset(email, resetToken string) error 
 }
 
 func (s *notificationService) SendPhoneVerification(phoneNumber, code string) error {
-	// Send SMS notification
 	if err := s.smsService.SendVerificationCode(phoneNumber, code); err != nil {
 		log.Printf("Failed to send verification code SMS: %v", err)
 		return err
@@ -235,9 +219,6 @@ func (s *notificationService) MarkNotificationAsRead(notificationID int) error {
 	return s.notificationRepo.MarkAsRead(notificationID)
 }
 
-// Helper method to schedule order ready notifications
 func (s *notificationService) ScheduleOrderReadyNotification(orderID int, readyTime time.Time) {
-	// This would be implemented with a task queue (e.g., Redis, SQS)
-	// For now, just log it
 	log.Printf("Scheduled order ready notification for order %d at %v", orderID, readyTime)
 }

@@ -106,7 +106,6 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 func (h *OrderHandler) GetOrder(c *gin.Context) {
 	orderID := c.Param("id")
-	// TODO: Implement order retrieval
 	c.JSON(http.StatusOK, gin.H{"message": "Get order " + orderID})
 }
 
@@ -312,7 +311,6 @@ func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement status update (admin only)
 	c.JSON(http.StatusOK, gin.H{
 		"orderId": orderID,
 		"status":  req.Status,

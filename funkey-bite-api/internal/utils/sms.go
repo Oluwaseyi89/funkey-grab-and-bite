@@ -26,7 +26,6 @@ type TwilioSMSService struct {
 }
 
 func NewSMSService() SMSService {
-	// For local development, use mock service
 	if os.Getenv("ENVIRONMENT") == "development" || os.Getenv("TWILIO_ACCOUNT_SID") == "" {
 		return &MockSMSService{}
 	}
@@ -82,19 +81,16 @@ func (s *TwilioSMSService) SendVerificationCode(phoneNumber, code string) error 
 }
 
 func (s *TwilioSMSService) sendSMS(to, body string) error {
-	// Format phone number (remove spaces, add + if needed)
 	to = strings.ReplaceAll(to, " ", "")
 	if !strings.HasPrefix(to, "+") {
 		to = "+" + to
 	}
 
-	// Prepare form data
 	data := url.Values{}
 	data.Set("To", to)
 	data.Set("From", s.fromNumber)
 	data.Set("Body", body)
 
-	// Create request
 	urlStr := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Messages.json", s.accountSID)
 	req, err := http.NewRequest("POST", urlStr, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -104,7 +100,6 @@ func (s *TwilioSMSService) sendSMS(to, body string) error {
 	req.SetBasicAuth(s.accountSID, s.authToken)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	// Send request
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send SMS: %w", err)
@@ -120,7 +115,6 @@ func (s *TwilioSMSService) sendSMS(to, body string) error {
 	return nil
 }
 
-// MockSMSService for development/testing
 type MockSMSService struct{}
 
 func (m *MockSMSService) SendOrderConfirmation(phoneNumber, orderNumber string, totalAmount float64) error {

@@ -31,7 +31,6 @@ func NewPromotionService(promotionRepo repository.PromotionRepository) Promotion
 }
 
 func (s *promotionService) CreatePromotion(create *models.PromotionCreate) (*models.Promotion, error) {
-	// Check if code already exists
 	existing, err := s.promotionRepo.GetByCode(create.Code)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check promotion code: %w", err)
@@ -40,7 +39,6 @@ func (s *promotionService) CreatePromotion(create *models.PromotionCreate) (*mod
 		return nil, fmt.Errorf("promotion code already exists")
 	}
 
-	// Validate dates
 	if create.ValidFrom.After(create.ValidUntil) {
 		return nil, fmt.Errorf("valid from date must be before valid until date")
 	}
@@ -80,7 +78,6 @@ func (s *promotionService) GetAllPromotions(page, limit int, status string) ([]m
 	}
 	offset := (page - 1) * limit
 
-	// Convert status string to boolean for query
 	var statusFilter string
 	switch status {
 	case "active":
@@ -95,7 +92,6 @@ func (s *promotionService) GetAllPromotions(page, limit int, status string) ([]m
 }
 
 func (s *promotionService) UpdatePromotion(id int, updates *models.PromotionUpdate) (*models.Promotion, error) {
-	// Get existing promotion
 	promotion, err := s.promotionRepo.GetByID(id)
 	if err != nil {
 		return nil, err
@@ -104,7 +100,6 @@ func (s *promotionService) UpdatePromotion(id int, updates *models.PromotionUpda
 		return nil, fmt.Errorf("promotion not found")
 	}
 
-	// Apply updates
 	if updates.Title != nil {
 		promotion.Title = *updates.Title
 	}
@@ -133,7 +128,6 @@ func (s *promotionService) UpdatePromotion(id int, updates *models.PromotionUpda
 		promotion.IsActive = *updates.IsActive
 	}
 
-	// Validate dates
 	if promotion.ValidFrom.After(promotion.ValidUntil) {
 		return nil, fmt.Errorf("valid from date must be before valid until date")
 	}
@@ -160,12 +154,10 @@ func (s *promotionService) ValidatePromotion(code string, orderAmount float64, c
 		return &models.PromotionValidation{IsValid: false, Message: "Promotion code not found"}, nil
 	}
 
-	// Check if promotion is active
 	if !promotion.IsActive {
 		return &models.PromotionValidation{IsValid: false, Message: "Promotion is not active"}, nil
 	}
 
-	// Check validity period
 	now := time.Now()
 	if now.Before(promotion.ValidFrom) {
 		return &models.PromotionValidation{IsValid: false, Message: "Promotion not yet valid"}, nil
@@ -174,12 +166,10 @@ func (s *promotionService) ValidatePromotion(code string, orderAmount float64, c
 		return &models.PromotionValidation{IsValid: false, Message: "Promotion has expired"}, nil
 	}
 
-	// Check usage limit
 	if promotion.UsageLimit != nil && promotion.UsedCount >= *promotion.UsageLimit {
 		return &models.PromotionValidation{IsValid: false, Message: "Promotion usage limit reached"}, nil
 	}
 
-	// Check minimum order amount
 	if promotion.MinOrderAmount != nil && orderAmount < *promotion.MinOrderAmount {
 		return &models.PromotionValidation{
 			IsValid: false,
@@ -187,7 +177,6 @@ func (s *promotionService) ValidatePromotion(code string, orderAmount float64, c
 		}, nil
 	}
 
-	// Calculate discount
 	discount := s.calculateDiscount(promotion, orderAmount)
 
 	return &models.PromotionValidation{
@@ -204,16 +193,13 @@ func (s *promotionService) ApplyPromotion(promotionID, orderID int, customerID *
 		return 0, fmt.Errorf("promotion not found")
 	}
 
-	// Validate promotion again
 	validation, err := s.ValidatePromotion(promotion.Code, orderAmount, customerID)
 	if err != nil || !validation.IsValid {
 		return 0, fmt.Errorf("promotion validation failed: %s", validation.Message)
 	}
 
-	// Calculate discount
 	discount := s.calculateDiscount(promotion, orderAmount)
 
-	// Record usage
 	usage := &models.PromotionUsage{
 		PromotionID:     promotionID,
 		OrderID:         orderID,
@@ -225,7 +211,6 @@ func (s *promotionService) ApplyPromotion(promotionID, orderID int, customerID *
 		return 0, fmt.Errorf("failed to record promotion usage: %w", err)
 	}
 
-	// Increment usage count
 	if err := s.promotionRepo.IncrementUsage(promotionID); err != nil {
 		return 0, fmt.Errorf("failed to increment promotion usage: %w", err)
 	}
@@ -239,7 +224,6 @@ func (s *promotionService) GetActivePromotions() ([]models.Promotion, error) {
 		return nil, err
 	}
 
-	// Filter for currently valid promotions
 	now := time.Now()
 	var activePromotions []models.Promotion
 	for _, promotion := range promotions {
@@ -268,8 +252,6 @@ func (s *promotionService) calculateDiscount(promotion *models.Promotion, orderA
 		}
 
 	case models.PromotionTypeBOGO:
-		// Buy One Get One - implement based on your business logic
-		// For now, return 0
 		discount = 0
 	}
 
