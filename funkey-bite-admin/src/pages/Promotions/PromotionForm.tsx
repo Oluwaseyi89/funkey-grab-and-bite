@@ -1,4 +1,3 @@
-// src/pages/Promotions/PromotionForm.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
@@ -32,7 +31,6 @@ import { getPromotions, createPromotion, updatePromotion, getPromotionByID } fro
 import type { Promotion, PromotionType } from '../../types';
 import { usePromotionStore } from '../../stores/promotionStore';
 
-// Validation schema
 const promotionSchema = z.object({
   code: z.string()
     .min(3, 'Code must be at least 3 characters')
@@ -108,7 +106,6 @@ const PromotionForm: React.FC = () => {
   
   const { setSelectedPromotion, addPromotion, updatePromotion: updateStorePromotion } = usePromotionStore();
 
-  // Fetch existing promotion for editing
   const { data: existingPromotion, isLoading: loadingPromotion } = useQuery({
     queryKey: ['promotion', id],
     queryFn: async () => {
@@ -125,7 +122,6 @@ const PromotionForm: React.FC = () => {
     enabled: isEditing,
   });
 
-  // Fetch all promotions to check for duplicate codes
   const { data: allPromotions = [] } = useQuery({
     queryKey: ['all-promotions'],
     queryFn: async () => {
@@ -165,7 +161,6 @@ const PromotionForm: React.FC = () => {
     },
   });
 
-  // Set form values when editing
   useEffect(() => {
     if (existingPromotion) {
       const formData = {
@@ -181,14 +176,12 @@ const PromotionForm: React.FC = () => {
     }
   }, [existingPromotion, reset]);
 
-  // Watch form values
   const promotionType = watch('promotionType');
   const discountValue = watch('discountValue');
   const code = watch('code');
   const validFrom = watch('validFrom');
   const validUntil = watch('validUntil');
 
-  // Generate promotion code
   const generatePromoCode = () => {
     setIsGeneratingCode(true);
     
@@ -198,14 +191,12 @@ const PromotionForm: React.FC = () => {
     
     const generatedCode = `${prefix}${suffix}`;
     
-    // Check if code exists
     const exists = allPromotions.some(promo => 
       promo.code.toLowerCase() === generatedCode.toLowerCase() && 
       (!isEditing || promo.id !== parseInt(id!))
     );
     
     if (exists) {
-      // Retry once more
       const retrySuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
       const retryCode = `${prefix}${retrySuffix}`;
       setValue('code', retryCode);
@@ -218,7 +209,6 @@ const PromotionForm: React.FC = () => {
     setTimeout(() => setIsGeneratingCode(false), 500);
   };
 
-  // Calculate end date based on duration
   const setDuration = (days: number) => {
     const fromDate = new Date(validFrom);
     const untilDate = new Date(fromDate);
@@ -226,7 +216,6 @@ const PromotionForm: React.FC = () => {
     setValue('validUntil', untilDate.toISOString().split('T')[0]);
   };
 
-  // Calculate days remaining
   const getDaysRemaining = () => {
     const from = new Date(validFrom);
     const until = new Date(validUntil);
@@ -238,7 +227,6 @@ const PromotionForm: React.FC = () => {
     mutationFn: async (data: PromotionFormOutput) => {
       const promotionData: any = {
         ...data,
-        // Convert empty strings to null for optional fields
         maxDiscount: data.maxDiscount || null,
         minOrderAmount: data.minOrderAmount || null,
         usageLimit: data.usageLimit || null,
@@ -272,7 +260,6 @@ const PromotionForm: React.FC = () => {
   });
 
   const onSubmit = (data: PromotionFormOutput) => {
-    // Check for duplicate code (except for current promotion)
     const duplicate = allPromotions.find(promo => 
       promo.code.toLowerCase() === data.code.toLowerCase() && 
       (!isEditing || promo.id !== parseInt(id!))
@@ -289,7 +276,6 @@ const PromotionForm: React.FC = () => {
     mutation.mutate(data);
   };
 
-  // Preview calculations
   const getDiscountPreview = () => {
     const orderAmount = 50; // Sample order amount
     let discount = 0;
@@ -329,7 +315,7 @@ const PromotionForm: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <button
@@ -367,16 +353,16 @@ const PromotionForm: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Basic Info */}
+        
         <div className="lg:col-span-2 space-y-6">
-          {/* Promotion Details */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Promotion Details
             </h2>
             
             <div className="space-y-6">
-              {/* Code & Title */}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -437,7 +423,7 @@ const PromotionForm: React.FC = () => {
                 </div>
               </div>
 
-              {/* Description */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description
@@ -453,7 +439,7 @@ const PromotionForm: React.FC = () => {
                 )}
               </div>
 
-              {/* Promotion Type */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
                   Promotion Type *
@@ -502,7 +488,7 @@ const PromotionForm: React.FC = () => {
                 </div>
               </div>
 
-              {/* Discount Value */}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -557,7 +543,7 @@ const PromotionForm: React.FC = () => {
                 )}
               </div>
 
-              {/* Minimum Order Amount */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Minimum Order Amount ($)
@@ -580,7 +566,7 @@ const PromotionForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Validity Period */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Validity Period
@@ -625,7 +611,7 @@ const PromotionForm: React.FC = () => {
                 </div>
               </div>
 
-              {/* Quick Duration Buttons */}
+              
               <div>
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Quick Duration
@@ -644,7 +630,7 @@ const PromotionForm: React.FC = () => {
                 </div>
               </div>
 
-              {/* Days Remaining Display */}
+              
               <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
@@ -661,7 +647,7 @@ const PromotionForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Advanced Settings */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -678,7 +664,7 @@ const PromotionForm: React.FC = () => {
 
             {showAdvanced && (
               <div className="space-y-6">
-                {/* Usage Limit */}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Usage Limit
@@ -698,7 +684,7 @@ const PromotionForm: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Active Status */}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
                     Status
@@ -754,16 +740,16 @@ const PromotionForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column - Preview & Tips */}
+        
         <div className="space-y-6">
-          {/* Live Preview */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Live Preview
             </h2>
             
             <div className="space-y-6">
-              {/* Promotion Card Preview */}
+              
               <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-6 text-white">
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -803,7 +789,7 @@ const PromotionForm: React.FC = () => {
                 </div>
               </div>
 
-              {/* Discount Calculator */}
+              
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <h3 className="font-medium text-gray-900 dark:text-white mb-3">
                   Discount Calculator
@@ -833,7 +819,7 @@ const PromotionForm: React.FC = () => {
                 </div>
               </div>
 
-              {/* Status Badges */}
+              
               <div className="space-y-3">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Promotion Status
@@ -869,7 +855,7 @@ const PromotionForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Tips & Best Practices */}
+          
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
             <div className="flex items-start space-x-3">
               <Info className="h-5 w-5 text-blue-500 mt-0.5" />
@@ -903,7 +889,7 @@ const PromotionForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Form Summary */}
+          
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h3 className="font-medium text-gray-900 dark:text-white mb-4">
               Form Summary

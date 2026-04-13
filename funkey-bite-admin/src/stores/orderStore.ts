@@ -3,25 +3,21 @@ import { persist } from 'zustand/middleware';
 import type { Order, OrderStatus, OrderType } from '../types';
 
 interface OrderState {
-  // Orders
   orders: Order[];
   filteredOrders: Order[];
   selectedOrder: Order | null;
   isLoading: boolean;
   error: string | null;
   
-  // Filters
   statusFilter: OrderStatus | 'all';
   typeFilter: OrderType | 'all';
   dateRange: { start: string | null; end: string | null };
   searchQuery: string;
   
-  // Pagination
   currentPage: number;
   itemsPerPage: number;
   totalItems: number;
   
-  // Actions
   setOrders: (orders: Order[]) => void;
   setSelectedOrder: (order: Order | null) => void;
   addOrder: (order: Order) => void;
@@ -29,7 +25,6 @@ interface OrderState {
   deleteOrder: (id: number) => void;
   updateOrderStatus: (id: number, status: OrderStatus) => void;
   
-  // Filtering
   setStatusFilter: (status: OrderStatus | 'all') => void;
   setTypeFilter: (type: OrderType | 'all') => void;
   setDateRange: (start: string | null, end: string | null) => void;
@@ -37,12 +32,10 @@ interface OrderState {
   applyFilters: () => void;
   clearFilters: () => void;
   
-  // Pagination
   setCurrentPage: (page: number) => void;
   setItemsPerPage: (items: number) => void;
   setTotalItems: (total: number) => void;
   
-  // Loading & Error
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -51,25 +44,21 @@ interface OrderState {
 export const useOrderStore = create<OrderState>()(
   persist(
     (set, get) => ({
-      // Initial state
       orders: [],
       filteredOrders: [],
       selectedOrder: null,
       isLoading: false,
       error: null,
       
-      // Filters
       statusFilter: 'all',
       typeFilter: 'all',
       dateRange: { start: null, end: null },
       searchQuery: '',
       
-      // Pagination
       currentPage: 1,
       itemsPerPage: 20,
       totalItems: 0,
       
-      // Actions
       setOrders: (orders) => {
         set({ orders, filteredOrders: orders });
       },
@@ -111,7 +100,6 @@ export const useOrderStore = create<OrderState>()(
         updateOrder(id, { status });
       },
       
-      // Filtering
       setStatusFilter: (status) => set({ statusFilter: status }),
       setTypeFilter: (type) => set({ typeFilter: type }),
       setDateRange: (start, end) => set({ dateRange: { start, end } }),
@@ -122,17 +110,14 @@ export const useOrderStore = create<OrderState>()(
         
         let filtered = [...orders];
         
-        // Filter by status
         if (statusFilter !== 'all') {
           filtered = filtered.filter(order => order.status === statusFilter);
         }
         
-        // Filter by type
         if (typeFilter !== 'all') {
           filtered = filtered.filter(order => order.orderType === typeFilter);
         }
         
-        // Filter by date range
         if (dateRange.start && dateRange.end) {
           const startDate = new Date(dateRange.start);
           const endDate = new Date(dateRange.end);
@@ -144,7 +129,6 @@ export const useOrderStore = create<OrderState>()(
           });
         }
         
-        // Filter by search query
         if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase().trim();
           filtered = filtered.filter(order =>
@@ -167,12 +151,10 @@ export const useOrderStore = create<OrderState>()(
           filteredOrders: get().orders,
         }),
       
-      // Pagination
       setCurrentPage: (page) => set({ currentPage: page }),
       setItemsPerPage: (items) => set({ itemsPerPage: items }),
       setTotalItems: (total) => set({ totalItems: total }),
       
-      // Loading & Error
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),

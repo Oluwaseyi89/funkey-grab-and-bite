@@ -1,4 +1,3 @@
-// src/pages/Catering/CateringDetails.tsx
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -37,7 +36,6 @@ const CateringDetails: React.FC = () => {
   const navigate = useNavigate();
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Fetch catering request details
   const { data: cateringRequest, isLoading, refetch } = useQuery({
     queryKey: ['catering-request', id],
     queryFn: async () => {
@@ -141,7 +139,6 @@ const CateringDetails: React.FC = () => {
       return cateringRequest.budget;
     }
     
-    // Estimate based on guest count and package
     const perPersonRate = cateringRequest.package ? 
       (cateringRequest.package.includes('premium') ? 35 : 
        cateringRequest.package.includes('standard') ? 25 : 20) : 20;
@@ -216,7 +213,7 @@ const CateringDetails: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <button
@@ -254,7 +251,7 @@ const CateringDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* Status Banner */}
+      
       <div className={`p-4 rounded-xl border ${statusInfo.color}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -317,9 +314,9 @@ const CateringDetails: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Event Details */}
+        
         <div className="lg:col-span-2 space-y-6">
-          {/* Event Information */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Event Information
@@ -408,7 +405,7 @@ const CateringDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Contact Information */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Contact Information
@@ -472,7 +469,7 @@ const CateringDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Special Requests & Notes */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Special Requests & Notes
@@ -499,7 +496,7 @@ const CateringDetails: React.FC = () => {
                 </div>
               )}
               
-              {/* Internal Notes Section */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Internal Notes
@@ -520,9 +517,9 @@ const CateringDetails: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column - Summary & Actions */}
+        
         <div className="space-y-6">
-          {/* Financial Summary */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Financial Summary
@@ -569,7 +566,7 @@ const CateringDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Actions */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Quick Actions
@@ -610,7 +607,7 @@ const CateringDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Event Timeline */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Event Timeline
@@ -685,7 +682,7 @@ const CateringDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Related Documents */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">

@@ -1,4 +1,3 @@
-// src/pages/Settings/GeneralSettings.tsx
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,7 +27,6 @@ import { getSettings, updateSettings } from '../../api/adminApi';
 import { useSettingsStore } from '../../stores/settingsStore';
 import type { BusinessSettings, OpeningHours } from '../../types';
 
-// Validation schema
 const settingsSchema = z.object({
   businessName: z.string().min(2, 'Business name must be at least 2 characters'),
   phoneNumber: z.string().min(5, 'Phone number is required'),
@@ -43,7 +41,6 @@ const settingsSchema = z.object({
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
 
-// Days of week for opening hours
 const DAYS_OF_WEEK = [
   { id: 'Monday', label: 'Monday' },
   { id: 'Tuesday', label: 'Tuesday' },
@@ -54,7 +51,6 @@ const DAYS_OF_WEEK = [
   { id: 'Sunday', label: 'Sunday' },
 ];
 
-// Time options for dropdown
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   const hour = Math.floor(i / 2);
   const minute = i % 2 === 0 ? '00' : '30';
@@ -71,7 +67,6 @@ const GeneralSettings: React.FC = () => {
   const [openingHours, setOpeningHours] = useState<OpeningHours[]>([]);
   const { setSettings, updateSettings: updateStoreSettings } = useSettingsStore();
 
-  // Fetch settings
   const { data: settings, isLoading, refetch } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
@@ -109,7 +104,6 @@ const GeneralSettings: React.FC = () => {
     },
   });
 
-  // Reset form when settings load
   useEffect(() => {
     if (settings) {
       reset({
@@ -127,28 +121,24 @@ const GeneralSettings: React.FC = () => {
     }
   }, [settings, reset]);
 
-  // Watch form values
   const isDeliveryOpen = watch('isDeliveryOpen');
   const isPickupOpen = watch('isPickupOpen');
   const deliveryFee = watch('deliveryFee');
   const minOrderAmount = watch('minOrderAmount');
   const taxRate = watch('taxRate');
 
-  // Update opening hours
   const updateDayHours = (day: string, field: keyof OpeningHours, value: any) => {
     setOpeningHours(prev => prev.map(hour => 
       hour.day === day ? { ...hour, [field]: value } : hour
     ));
   };
 
-  // Toggle day open/closed
   const toggleDayOpen = (day: string) => {
     setOpeningHours(prev => prev.map(hour =>
       hour.day === day ? { ...hour, isOpen: !hour.isOpen } : hour
     ));
   };
 
-  // Reset to default hours
   const resetToDefaultHours = () => {
     const defaultHours: OpeningHours[] = DAYS_OF_WEEK.map((day, index) => ({
       day: day.id,
@@ -159,10 +149,8 @@ const GeneralSettings: React.FC = () => {
     setOpeningHours(defaultHours);
   };
 
-  // Mutation for saving settings
   const mutation = useMutation({
     mutationFn: async (data: SettingsFormData) => {
-      // Combine form data with opening hours
       const settingsData = {
         ...data,
         openingHours: openingHours,
@@ -184,7 +172,6 @@ const GeneralSettings: React.FC = () => {
     mutation.mutate(data);
   };
 
-  // Format time for display
   const formatTime = (time: string) => {
     const [hour, minute] = time.split(':');
     const hourNum = parseInt(hour);
@@ -204,7 +191,7 @@ const GeneralSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">General Settings</h1>
@@ -233,7 +220,7 @@ const GeneralSettings: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Business Information */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3 mb-6">
             <Building className="h-5 w-5 text-primary-500" />
@@ -243,7 +230,7 @@ const GeneralSettings: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Business Name */}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Business Name *
@@ -262,7 +249,7 @@ const GeneralSettings: React.FC = () => {
               )}
             </div>
 
-            {/* Phone Number */}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Phone Number *
@@ -281,7 +268,7 @@ const GeneralSettings: React.FC = () => {
               )}
             </div>
 
-            {/* Email */}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Email Address *
@@ -300,7 +287,7 @@ const GeneralSettings: React.FC = () => {
               )}
             </div>
 
-            {/* Address */}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Business Address *
@@ -321,7 +308,7 @@ const GeneralSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Opening Hours */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
@@ -375,7 +362,7 @@ const GeneralSettings: React.FC = () => {
                   </div>
                   
                   <div className="flex items-center space-x-3">
-                    {/* Open Time */}
+                    
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-500 dark:text-gray-400">Open:</span>
                       <select
@@ -392,7 +379,7 @@ const GeneralSettings: React.FC = () => {
                       </select>
                     </div>
                     
-                    {/* Close Time */}
+                    
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-500 dark:text-gray-400">Close:</span>
                       <select
@@ -409,7 +396,7 @@ const GeneralSettings: React.FC = () => {
                       </select>
                     </div>
                     
-                    {/* Status Badge */}
+                    
                     <span className={`px-2 py-1 text-xs rounded-full ${
                       dayHours.isOpen 
                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -424,7 +411,7 @@ const GeneralSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Order Settings */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3 mb-6">
             <Package className="h-5 w-5 text-primary-500" />
@@ -434,7 +421,7 @@ const GeneralSettings: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Delivery Fee */}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Delivery Fee ($)
@@ -455,7 +442,7 @@ const GeneralSettings: React.FC = () => {
               )}
             </div>
 
-            {/* Minimum Order Amount */}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Minimum Order Amount ($)
@@ -476,7 +463,7 @@ const GeneralSettings: React.FC = () => {
               )}
             </div>
 
-            {/* Tax Rate */}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Tax Rate (%)
@@ -500,7 +487,7 @@ const GeneralSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Service Availability */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3 mb-6">
             <Truck className="h-5 w-5 text-primary-500" />
@@ -510,7 +497,7 @@ const GeneralSettings: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Delivery Service */}
+            
             <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
@@ -552,7 +539,7 @@ const GeneralSettings: React.FC = () => {
               )}
             </div>
 
-            {/* Pickup Service */}
+            
             <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
@@ -596,7 +583,7 @@ const GeneralSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Order Summary Preview */}
+        
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3 mb-6">
             <Info className="h-5 w-5 text-primary-500" />
@@ -665,7 +652,7 @@ const GeneralSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
+        
         <div className="flex items-center justify-end space-x-3">
           <button
             type="button"

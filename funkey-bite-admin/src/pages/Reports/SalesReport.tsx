@@ -1,4 +1,3 @@
-// src/pages/Reports/SalesReport.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Download,
@@ -26,7 +25,6 @@ import { getSalesReport, getDashboardStats } from '../../api/adminApi';
 import { useReportsStore } from '../../stores/reportsStore';
 import type { SalesReport } from '../../types/admin.types';
 
-// Charting library - using Recharts (install: npm install recharts)
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -43,7 +41,6 @@ import {
   Cell
 } from 'recharts';
 
-// Color palette for charts
 const CHART_COLORS = {
   revenue: '#3b82f6', // blue-500
   orders: '#10b981', // green-500
@@ -71,7 +68,6 @@ const SalesReport: React.FC = () => {
     setError
   } = useReportsStore();
 
-  // Fetch sales report
   const { data: reportData, isLoading, refetch } = useQuery({
     queryKey: ['sales-report', dateRange.startDate, dateRange.endDate],
     queryFn: async () => {
@@ -94,7 +90,6 @@ const SalesReport: React.FC = () => {
     enabled: !!dateRange.startDate && !!dateRange.endDate,
   });
 
-  // Fetch dashboard stats for comparison
   const { data: dashboardStats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
@@ -107,7 +102,6 @@ const SalesReport: React.FC = () => {
     },
   });
 
-  // Update store date range
   useEffect(() => {
     setStoreDateRange({
       ...dateRange,
@@ -115,7 +109,6 @@ const SalesReport: React.FC = () => {
     });
   }, [dateRange, groupBy, setStoreDateRange]);
 
-  // Quick date range presets
   const quickDateRanges = [
     { label: 'Today', days: 1 },
     { label: 'Last 7 days', days: 7 },
@@ -141,11 +134,9 @@ const SalesReport: React.FC = () => {
     });
   };
 
-  // Calculate statistics
   const revenueSummary = getRevenueSummary();
   const ordersSummary = getOrdersSummary();
 
-  // Prepare chart data
   const chartData = filteredSalesReports.map(report => ({
     date: formatChartDate(report.date, groupBy),
     revenue: report.totalRevenue,
@@ -167,13 +158,11 @@ const SalesReport: React.FC = () => {
     }
   }
 
-  // Calculate percentage changes
   const calculatePercentageChange = (current: number, previous: number) => {
     if (previous === 0) return 0;
     return ((current - previous) / previous) * 100;
   };
 
-  // Export to CSV
   const exportToCSV = () => {
     if (filteredSalesReports.length === 0) {
       toast.error('No data to export');
@@ -202,7 +191,6 @@ const SalesReport: React.FC = () => {
     toast.success('Report exported successfully');
   };
 
-  // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -231,7 +219,7 @@ const SalesReport: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales Report</h1>
@@ -265,7 +253,7 @@ const SalesReport: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters Panel */}
+      
       {showFilters && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
@@ -279,7 +267,7 @@ const SalesReport: React.FC = () => {
           </div>
           
           <div className="space-y-6">
-            {/* Quick Date Ranges */}
+            
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quick Date Ranges</p>
               <div className="flex flex-wrap gap-2">
@@ -295,7 +283,7 @@ const SalesReport: React.FC = () => {
               </div>
             </div>
 
-            {/* Custom Date Range */}
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -343,7 +331,7 @@ const SalesReport: React.FC = () => {
               </div>
             </div>
 
-            {/* Chart Type */}
+            
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Chart Display</p>
               <div className="flex space-x-4">
@@ -371,9 +359,9 @@ const SalesReport: React.FC = () => {
         </div>
       )}
 
-      {/* Summary Cards */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Revenue */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
@@ -411,7 +399,7 @@ const SalesReport: React.FC = () => {
           </div>
         </div>
         
-        {/* Total Orders */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
@@ -437,7 +425,7 @@ const SalesReport: React.FC = () => {
           </div>
         </div>
         
-        {/* Average Order Value */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
@@ -462,7 +450,7 @@ const SalesReport: React.FC = () => {
           </div>
         </div>
         
-        {/* Period Summary */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
@@ -498,9 +486,9 @@ const SalesReport: React.FC = () => {
         </div>
       </div>
 
-      {/* Charts */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Chart */}
+        
         <div className="lg:col-span-2">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
@@ -617,7 +605,7 @@ const SalesReport: React.FC = () => {
           </div>
         </div>
 
-        {/* Average Order Value Chart */}
+        
         <div>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 h-full">
             <div className="mb-6">
@@ -663,7 +651,7 @@ const SalesReport: React.FC = () => {
               )}
             </div>
             
-            {/* Stats */}
+            
             {chartData.length > 0 && (
               <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-2 gap-4">
@@ -686,7 +674,7 @@ const SalesReport: React.FC = () => {
         </div>
       </div>
 
-      {/* Data Table */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -780,7 +768,7 @@ const SalesReport: React.FC = () => {
         )}
       </div>
 
-      {/* Insights */}
+      
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
         <div className="flex items-start space-x-3">
           <Eye className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />

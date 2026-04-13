@@ -67,7 +67,7 @@ const MenuList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Menu Management</h1>
@@ -87,10 +87,10 @@ const MenuList: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
+          
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -104,7 +104,7 @@ const MenuList: React.FC = () => {
             </div>
           </div>
 
-          {/* Filters */}
+          
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
@@ -134,7 +134,7 @@ const MenuList: React.FC = () => {
         </div>
       </div>
 
-      {/* Menu Items */}
+      
       {isLoading ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mx-auto"></div>
@@ -158,14 +158,13 @@ const MenuList: React.FC = () => {
           </Link>
         </div>
       ) : viewMode === 'grid' ? (
-        // Grid View
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {menuItems?.map((item) => (
             <div
               key={item.id}
               className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow"
             >
-              {/* Item Image */}
+              
               <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
                 {item.imageUrl ? (
                   <img
@@ -179,7 +178,7 @@ const MenuList: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Availability Badge */}
+                
                 <div className="absolute top-3 right-3">
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                     item.isAvailable 
@@ -190,7 +189,7 @@ const MenuList: React.FC = () => {
                   </span>
                 </div>
                 
-                {/* Pre-order Badge */}
+                
                 {item.isPreOrder && (
                   <div className="absolute top-3 left-3">
                     <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
@@ -200,7 +199,7 @@ const MenuList: React.FC = () => {
                 )}
               </div>
 
-              {/* Item Details */}
+              
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-semibold text-gray-900 dark:text-white truncate">
@@ -215,7 +214,7 @@ const MenuList: React.FC = () => {
                   {item.description}
                 </p>
                 
-                {/* Tags */}
+                
                 {item.tags && item.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-3">
                     {item.tags.slice(0, 3).map((tag, index) => (
@@ -234,13 +233,13 @@ const MenuList: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Prep Time */}
+                
                 <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-4">
                   <Clock className="h-4 w-4 mr-1" />
                   <span>{item.preparationTime} min</span>
                 </div>
                 
-                {/* Actions */}
+                
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex items-center space-x-2">
                     <Link
@@ -270,7 +269,6 @@ const MenuList: React.FC = () => {
           ))}
         </div>
       ) : (
-        // List View
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -383,7 +381,7 @@ const MenuList: React.FC = () => {
         </div>
       )}
 
-      {/* Pagination */}
+      
       {menuItems && menuItems.length > 0 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500 dark:text-gray-400">

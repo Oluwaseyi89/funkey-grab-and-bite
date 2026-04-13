@@ -1,4 +1,3 @@
-// src/api/apiHelpers.ts
 import api from './axiosConfig';
 
 export const apiGet = async <T>(url: string, params?: any): Promise<T> => {
@@ -26,7 +25,6 @@ export const apiDelete = async <T>(url: string): Promise<T> => {
   return response.data;
 };
 
-// Helper for file uploads
 export const apiUpload = async <T>(url: string, formData: FormData): Promise<T> => {
   const response = await api.post(url, formData, {
     headers: {

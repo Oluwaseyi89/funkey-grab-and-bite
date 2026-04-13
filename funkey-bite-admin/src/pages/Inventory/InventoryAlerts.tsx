@@ -1,4 +1,3 @@
-// src/pages/Inventory/InventoryAlerts.tsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -46,7 +45,6 @@ const InventoryAlerts: React.FC = () => {
 
   const { markAlertAsRead, markAllAlertsAsRead, updateAlert } = useInventoryStore();
 
-  // Fetch inventory alerts
   const { data: alertsData, isLoading, refetch } = useQuery({
     queryKey: ['inventory-alerts-admin', page, limit, statusFilter, typeFilter, searchQuery],
     queryFn: async () => {
@@ -85,7 +83,6 @@ const InventoryAlerts: React.FC = () => {
   const pagedAlerts = filteredAlerts.slice((page - 1) * limit, page * limit);
   const totalPages = Math.ceil(filteredAlerts.length / limit);
 
-  // Stats
   const unreadAlerts = alerts.filter(a => !a.readAt).length;
   const unresolvedAlerts = alerts.filter(a => !a.isResolved).length;
   const criticalAlerts = alerts.filter(a => a.alertType === 'critical').length;
@@ -161,12 +158,10 @@ const InventoryAlerts: React.FC = () => {
       return;
     }
     
-    // In a real app, this would trigger email/SMS notifications
     toast.success(`Notifications sent for ${selectedAlerts.length} alerts`);
   };
 
   const handleExportAlerts = () => {
-    // Export functionality
     toast.success('Export started');
   };
 
@@ -278,7 +273,7 @@ const InventoryAlerts: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -307,7 +302,7 @@ const InventoryAlerts: React.FC = () => {
         </div>
       </div>
 
-      {/* Alert Stats */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -378,7 +373,7 @@ const InventoryAlerts: React.FC = () => {
         </div>
       </div>
 
-      {/* Bulk Actions */}
+      
       {selectedAlerts.length > 0 && (
         <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -432,10 +427,10 @@ const InventoryAlerts: React.FC = () => {
         </div>
       )}
 
-      {/* Filters & Controls */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
+          
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -449,7 +444,7 @@ const InventoryAlerts: React.FC = () => {
             </div>
           </div>
 
-          {/* Filters */}
+          
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
               <Filter className="h-5 w-5 text-gray-400" />
@@ -499,7 +494,7 @@ const InventoryAlerts: React.FC = () => {
         </div>
       </div>
 
-      {/* Alerts Table */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {filteredAlerts.length === 0 ? (
           <div className="p-8 text-center">
@@ -652,7 +647,7 @@ const InventoryAlerts: React.FC = () => {
               </table>
             </div>
 
-            {/* Pagination */}
+            
             {totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -708,7 +703,7 @@ const InventoryAlerts: React.FC = () => {
         )}
       </div>
 
-      {/* Alert Settings & Configuration */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -720,7 +715,7 @@ const InventoryAlerts: React.FC = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Notification Settings */}
+          
           <div className="space-y-4">
             <h3 className="font-medium text-gray-900 dark:text-white">Notification Settings</h3>
             <div className="space-y-3">
@@ -754,7 +749,7 @@ const InventoryAlerts: React.FC = () => {
             </div>
           </div>
 
-          {/* Threshold Settings */}
+          
           <div className="space-y-4">
             <h3 className="font-medium text-gray-900 dark:text-white">Alert Thresholds</h3>
             <div className="space-y-4">
@@ -781,7 +776,7 @@ const InventoryAlerts: React.FC = () => {
             </div>
           </div>
 
-          {/* Staff Notification */}
+          
           <div className="space-y-4">
             <h3 className="font-medium text-gray-900 dark:text-white">Staff Notifications</h3>
             <div className="space-y-3">

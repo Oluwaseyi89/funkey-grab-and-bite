@@ -1,4 +1,3 @@
-// src/pages/Customers/CustomerDetails.tsx
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -34,7 +33,6 @@ const CustomerDetails: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'activity'>('overview');
 
-  // Fetch customer details
   const { data: customer, isLoading: customerLoading } = useQuery({
     queryKey: ['customer', id],
     queryFn: async () => {
@@ -59,7 +57,6 @@ const CustomerDetails: React.FC = () => {
     enabled: !!id,
   });
 
-  // Fetch customer orders
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['customer-orders', id],
     queryFn: async () => {
@@ -92,13 +89,11 @@ const CustomerDetails: React.FC = () => {
     const totalSpent = orders.reduce((sum, order) => sum + order.totalAmount, 0);
     const avgOrderValue = totalSpent / orders.length;
     
-    // Get favorite category (mock data for now)
     const favoriteCategory = 'Shawarma'; // This would come from order items analysis
     
     const lastOrder = orders[0];
     const lastOrderDate = new Date(lastOrder.createdAt).toLocaleDateString();
     
-    // Calculate days between first and last order
     const firstOrder = orders[orders.length - 1];
     const daysBetween = Math.ceil(
       (new Date(lastOrder.createdAt).getTime() - new Date(firstOrder.createdAt).getTime()) / 
@@ -180,7 +175,7 @@ const CustomerDetails: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <button
@@ -211,10 +206,10 @@ const CustomerDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* Customer Profile Card */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left: Customer Info */}
+          
           <div className="space-y-6">
             <div className="flex items-center space-x-4">
               <div className="h-20 w-20 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
@@ -244,7 +239,7 @@ const CustomerDetails: React.FC = () => {
               </div>
             </div>
 
-            {/* Contact Info */}
+            
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Contact Information
@@ -294,7 +289,7 @@ const CustomerDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Middle: Stats */}
+          
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Customer Stats
@@ -350,7 +345,7 @@ const CustomerDetails: React.FC = () => {
               </div>
             </div>
 
-            {/* Favorite Category */}
+            
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -372,7 +367,7 @@ const CustomerDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: Quick Actions */}
+          
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Quick Actions
@@ -418,7 +413,7 @@ const CustomerDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs */}
+      
       <div className="border-b border-gray-200 dark:border-gray-700">
         <nav className="flex space-x-8">
           <button
@@ -454,10 +449,10 @@ const CustomerDetails: React.FC = () => {
         </nav>
       </div>
 
-      {/* Tab Content */}
+      
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Orders */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -521,7 +516,7 @@ const CustomerDetails: React.FC = () => {
             )}
           </div>
 
-          {/* Customer Notes */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -682,14 +677,14 @@ const CustomerDetails: React.FC = () => {
           </h3>
           
           <div className="space-y-6">
-            {/* Activity Timeline */}
+            
             <div className="relative">
-              {/* Timeline Line */}
+              
               <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
               
-              {/* Activity Items */}
+              
               <div className="space-y-8">
-                {/* Registration */}
+                
                 <div className="relative flex items-start">
                   <div className="absolute left-5 h-3 w-3 rounded-full bg-green-500 mt-2"></div>
                   <div className="ml-12">
@@ -708,7 +703,7 @@ const CustomerDetails: React.FC = () => {
                   </div>
                 </div>
 
-                {/* First Order */}
+                
                 {orders.length > 0 && (
                   <div className="relative flex items-start">
                     <div className="absolute left-5 h-3 w-3 rounded-full bg-blue-500 mt-2"></div>
@@ -729,7 +724,7 @@ const CustomerDetails: React.FC = () => {
                   </div>
                 )}
 
-                {/* Last Login */}
+                
                 {customer.lastLogin && (
                   <div className="relative flex items-start">
                     <div className="absolute left-5 h-3 w-3 rounded-full bg-purple-500 mt-2"></div>
@@ -750,7 +745,7 @@ const CustomerDetails: React.FC = () => {
                   </div>
                 )}
 
-                {/* Latest Order */}
+                
                 {orders.length > 0 && (
                   <div className="relative flex items-start">
                     <div className="absolute left-5 h-3 w-3 rounded-full bg-primary-500 mt-2"></div>

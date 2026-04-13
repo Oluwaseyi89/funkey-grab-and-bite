@@ -1,4 +1,3 @@
-// src/pages/Catering/CateringList.tsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -126,10 +125,8 @@ const CateringList: React.FC = () => {
   };
 
   const getTotalRevenue = () => {
-    // Calculate estimated revenue (budget * guest count or average)
     return cateringRequests.reduce((sum, request) => {
       if (request.budget) return sum + request.budget;
-      // If no budget, estimate based on guest count
       const estimate = request.guestCount * 25; // $25 per person estimate
       return sum + estimate;
     }, 0);
@@ -137,7 +134,7 @@ const CateringList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Catering Management</h1>
@@ -161,7 +158,7 @@ const CateringList: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats */}
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -220,10 +217,10 @@ const CateringList: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
+          
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -237,7 +234,7 @@ const CateringList: React.FC = () => {
             </div>
           </div>
 
-          {/* Filters */}
+          
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
               <Filter className="h-5 w-5 text-gray-400" />
@@ -276,7 +273,7 @@ const CateringList: React.FC = () => {
         </div>
       </div>
 
-      {/* Catering Requests Table */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center">
@@ -450,7 +447,7 @@ const CateringList: React.FC = () => {
               </table>
             </div>
 
-            {/* Pagination */}
+            
             {pagination.totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -506,7 +503,7 @@ const CateringList: React.FC = () => {
         )}
       </div>
 
-      {/* Status Summary */}
+      
       {cateringRequests.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">

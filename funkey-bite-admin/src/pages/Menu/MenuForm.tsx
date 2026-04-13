@@ -50,7 +50,6 @@ const MenuForm: React.FC = () => {
   const [tagInput, setTagInput] = useState('');
   const [showNutrition, setShowNutrition] = useState(false);
 
-  // Fetch categories
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -64,7 +63,6 @@ const MenuForm: React.FC = () => {
     },
   });
 
-  // Fetch existing menu item for editing
   const { data: existingItem, isLoading: loadingItem } = useQuery({
     queryKey: ['menu-item', id],
     queryFn: async () => {
@@ -103,7 +101,6 @@ const MenuForm: React.FC = () => {
     },
   });
 
-  // Set form values when editing
   useEffect(() => {
     if (existingItem) {
       reset({
@@ -143,7 +140,6 @@ const MenuForm: React.FC = () => {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // In a real app, you would upload to your backend
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -189,7 +185,7 @@ const MenuForm: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -219,16 +215,16 @@ const MenuForm: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Basic Info */}
+        
         <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Basic Information
             </h2>
             
             <div className="space-y-6">
-              {/* Name */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Item Name *
@@ -244,7 +240,7 @@ const MenuForm: React.FC = () => {
                 )}
               </div>
 
-              {/* Description */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description *
@@ -260,7 +256,7 @@ const MenuForm: React.FC = () => {
                 )}
               </div>
 
-              {/* Category & Price */}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -303,7 +299,7 @@ const MenuForm: React.FC = () => {
                 </div>
               </div>
 
-              {/* Prep Time & Availability */}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -375,7 +371,7 @@ const MenuForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Tags */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Tags
@@ -423,7 +419,7 @@ const MenuForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Nutritional Information */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -496,16 +492,16 @@ const MenuForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column - Image & Preview */}
+        
         <div className="space-y-6">
-          {/* Image Upload */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Item Image
             </h2>
             
             <div className="space-y-4">
-              {/* Image Preview */}
+              
               <div className="relative h-64 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
                 {imagePreview ? (
                   <img
@@ -520,7 +516,7 @@ const MenuForm: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Remove Image Button */}
+                
                 {imagePreview && (
                   <button
                     type="button"
@@ -532,7 +528,7 @@ const MenuForm: React.FC = () => {
                 )}
               </div>
 
-              {/* Upload Button */}
+              
               <label className="block">
                 <input
                   type="file"
@@ -554,7 +550,7 @@ const MenuForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Live Preview */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Live Preview
@@ -575,7 +571,7 @@ const MenuForm: React.FC = () => {
                   {watch('description') || 'Item description will appear here...'}
                 </p>
                 
-                {/* Status Badges */}
+                
                 <div className="flex flex-wrap gap-2">
                   {watch('isPreOrder') && (
                     <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
@@ -601,7 +597,7 @@ const MenuForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Tips */}
+          
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
             <div className="flex items-start space-x-3">
               <Info className="h-5 w-5 text-blue-500 mt-0.5" />

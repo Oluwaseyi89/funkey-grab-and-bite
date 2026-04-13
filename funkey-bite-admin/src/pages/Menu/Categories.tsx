@@ -34,7 +34,6 @@ const Categories: React.FC = () => {
   });
 
   const handleReorder = (categoryId: number, direction: 'up' | 'down') => {
-    // Implement reorder logic
     toast('Reordering feature coming soon!');
   };
 
@@ -42,7 +41,6 @@ const Categories: React.FC = () => {
     if (!confirm('Are you sure you want to delete this category? This will affect all menu items in this category.')) return;
     
     try {
-      // await deleteCategory(id);
       toast.success('Category deleted successfully');
       refetch();
     } catch (error) {
@@ -56,7 +54,7 @@ const Categories: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Menu Categories</h1>
@@ -83,7 +81,7 @@ const Categories: React.FC = () => {
         </div>
       </div>
 
-      {/* Categories */}
+      
       {isLoading ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mx-auto"></div>
@@ -104,7 +102,6 @@ const Categories: React.FC = () => {
           </button>
         </div>
       ) : viewMode === 'grid' ? (
-        // Grid View
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map((category) => (
             <div
@@ -171,7 +168,6 @@ const Categories: React.FC = () => {
           ))}
         </div>
       ) : (
-        // List View
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">

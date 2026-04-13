@@ -3,17 +3,14 @@ import { persist } from 'zustand/middleware';
 import type { MenuItem, MenuCategory } from '../types';
 
 interface MenuState {
-  // Menu Items
   menuItems: MenuItem[];
   selectedMenuItem: MenuItem | null;
   isLoading: boolean;
   error: string | null;
   
-  // Categories
   categories: MenuCategory[];
   selectedCategory: MenuCategory | null;
   
-  // Actions
   setMenuItems: (items: MenuItem[]) => void;
   setCategories: (categories: MenuCategory[]) => void;
   setSelectedMenuItem: (item: MenuItem | null) => void;
@@ -32,7 +29,6 @@ interface MenuState {
 export const useMenuStore = create<MenuState>()(
   persist(
     (set) => ({
-      // Initial state
       menuItems: [],
       selectedMenuItem: null,
       categories: [],
@@ -40,7 +36,6 @@ export const useMenuStore = create<MenuState>()(
       isLoading: false,
       error: null,
       
-      // Actions
       setMenuItems: (items) => set({ menuItems: items }),
       setCategories: (categories) => set({ categories }),
       setSelectedMenuItem: (item) => set({ selectedMenuItem: item }),

@@ -3,22 +3,18 @@ import { persist } from 'zustand/middleware';
 import type { CateringRequest, CateringStatus } from '../types';
 
 interface CateringState {
-  // Catering Requests
   requests: CateringRequest[];
   selectedRequest: CateringRequest | null;
   isLoading: boolean;
   error: string | null;
   
-  // Filters
   statusFilter: CateringStatus | 'all';
   dateFilter: string | null;
   searchQuery: string;
   
-  // Calendar view
   calendarView: 'month' | 'week' | 'day';
   selectedDate: string;
   
-  // Actions
   setRequests: (requests: CateringRequest[]) => void;
   setSelectedRequest: (request: CateringRequest | null) => void;
   addRequest: (request: CateringRequest) => void;
@@ -26,20 +22,17 @@ interface CateringState {
   deleteRequest: (id: number) => void;
   updateRequestStatus: (id: number, status: CateringStatus) => void;
   
-  // Filtering
   setStatusFilter: (status: CateringStatus | 'all') => void;
   setDateFilter: (date: string | null) => void;
   setSearchQuery: (query: string) => void;
   applyFilters: () => CateringRequest[];
   clearFilters: () => void;
   
-  // Calendar
   setCalendarView: (view: 'month' | 'week' | 'day') => void;
   setSelectedDate: (date: string) => void;
   getEventsForDate: (date: string) => CateringRequest[];
   getUpcomingEvents: (limit?: number) => CateringRequest[];
   
-  // Loading & Error
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -48,22 +41,18 @@ interface CateringState {
 export const useCateringStore = create<CateringState>()(
   persist(
     (set, get) => ({
-      // Initial state
       requests: [],
       selectedRequest: null,
       isLoading: false,
       error: null,
       
-      // Filters
       statusFilter: 'all',
       dateFilter: null,
       searchQuery: '',
       
-      // Calendar
       calendarView: 'month',
       selectedDate: new Date().toISOString().split('T')[0],
       
-      // Actions
       setRequests: (requests) => set({ requests }),
       
       setSelectedRequest: (request) => set({ selectedRequest: request }),
@@ -95,7 +84,6 @@ export const useCateringStore = create<CateringState>()(
         updateRequest(id, { status });
       },
       
-      // Filtering
       setStatusFilter: (status) => set({ statusFilter: status }),
       setDateFilter: (date) => set({ dateFilter: date }),
       setSearchQuery: (query) => set({ searchQuery: query }),
@@ -105,12 +93,10 @@ export const useCateringStore = create<CateringState>()(
         
         let filtered = [...requests];
         
-        // Filter by status
         if (statusFilter !== 'all') {
           filtered = filtered.filter(request => request.status === statusFilter);
         }
         
-        // Filter by date
         if (dateFilter) {
           const filterDate = new Date(dateFilter);
           filterDate.setHours(0, 0, 0, 0);
@@ -123,7 +109,6 @@ export const useCateringStore = create<CateringState>()(
           });
         }
         
-        // Filter by search query
         if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase().trim();
           filtered = filtered.filter(request =>
@@ -144,7 +129,6 @@ export const useCateringStore = create<CateringState>()(
         searchQuery: '',
       }),
       
-      // Calendar
       setCalendarView: (view) => set({ calendarView: view }),
       setSelectedDate: (date) => set({ selectedDate: date }),
       
@@ -174,7 +158,6 @@ export const useCateringStore = create<CateringState>()(
           .slice(0, limit);
       },
       
-      // Loading & Error
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),

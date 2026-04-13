@@ -18,7 +18,6 @@ interface SalesChartProps {
 }
 
 const SalesChart: React.FC<SalesChartProps> = ({ data = [], loading = false }) => {
-  // Mock data for now - will be replaced with real API data
   const mockData = [
     { date: 'Mon', sales: 1200, orders: 24 },
     { date: 'Tue', sales: 1800, orders: 32 },

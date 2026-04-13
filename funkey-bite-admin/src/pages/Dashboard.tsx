@@ -13,7 +13,6 @@ const Dashboard: React.FC = () => {
   const { socket } = useSocket();
   const [realtimeOrders, setRealtimeOrders] = useState<Order[]>([]);
 
-  // Fetch dashboard stats
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
@@ -28,7 +27,6 @@ const Dashboard: React.FC = () => {
     refetchInterval: 300000, // Refetch every 5 minutes
   });
 
-  // Fetch recent orders
   const { data: ordersData, refetch: refetchOrders } = useQuery({
     queryKey: ['recent-orders'],
     queryFn: async () => {
@@ -42,7 +40,6 @@ const Dashboard: React.FC = () => {
     },
   });
 
-  // Setup WebSocket listeners for real-time updates
   useEffect(() => {
     if (!socket) return;
 
@@ -97,12 +94,11 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  // Combine real-time orders with fetched orders
   const allOrders = [...realtimeOrders, ...(ordersData || [])].slice(0, 10);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
           Dashboard
@@ -112,7 +108,7 @@ const Dashboard: React.FC = () => {
         </p>
       </div>
 
-      {/* Real-time Orders Banner */}
+      
       {realtimeOrders.length > 0 && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <div className="flex items-center space-x-2 mb-2">
@@ -127,7 +123,7 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Stats Grid */}
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {statCards.map((card, index) => (
           <StatCard
@@ -138,14 +134,14 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Charts and Tables Grid */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sales Chart */}
+        
         <div className="lg:col-span-2">
           <SalesChart loading={statsLoading} />
         </div>
 
-        {/* Recent Orders */}
+        
         <div>
           <RecentOrders 
             orders={allOrders} 
@@ -154,7 +150,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Popular Items Section */}
+      
       {stats?.popularItems && stats.popularItems.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
@@ -195,7 +191,7 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Quick Actions */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <button className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 transition-colors text-left group">
           <div className="flex items-center space-x-3">
@@ -261,167 +257,20 @@ export default Dashboard;
 
 
 
-// // src/pages/Dashboard.tsx
-// import React, { useEffect, useState } from 'react';
-// import {
-//   TrendingUp,
-//   Users,
-//   Package,
-//   AlertCircle,
-//   Clock,
-//   DollarSign,
-// } from 'lucide-react';
-// import { useQuery } from '@tanstack/react-query';
-// import { useSocket } from '../contexts/SocketContext';
-// import toast from 'react-hot-toast';
-// import api from '../api/axiosConfig';
-// import StatCard from '../components/dashboard/StatCard';
-// import RecentOrders from '../components/dashboard/RecentOrders';
-// import SalesChart from '../components/dashboard/SalesChart';
-// import LowStockAlert from '../components/dashboard/LowStockAlert';
 
-// const Dashboard: React.FC = () => {
-//   const { socket } = useSocket();
-//   const [realtimeOrders, setRealtimeOrders] = useState<any[]>([]);
 
-//   // Fetch dashboard stats
-//   const { data: stats, isLoading: statsLoading } = useQuery({
-//     queryKey: ['dashboard-stats'],
-//     queryFn: async () => {
-//       const response = await api.get('/api/v1/admin/dashboard/stats');
-//       return response.data;
-//     },
-//     refetchInterval: 60000, // Refetch every minute
-//   });
 
-//   // Fetch recent orders
-//   const { data: orders, refetch: refetchOrders } = useQuery({
-//     queryKey: ['recent-orders'],
-//     queryFn: async () => {
-//       const response = await api.get('/api/v1/admin/orders?limit=10');
-//       return response.data;
-//     },
-//   });
 
-//   // Fetch low stock items
-//   const { data: lowStock } = useQuery({
-//     queryKey: ['low-stock'],
-//     queryFn: async () => {
-//       const response = await api.get('/api/v1/admin/inventory/low-stock');
-//       return response.data;
-//     },
-//   });
 
-//   // Setup WebSocket listeners
-//   useEffect(() => {
-//     if (!socket) return;
 
-//     socket.on('new_order', (order) => {
-//       toast.success(`New order received: #${order.orderNumber}`);
-//       setRealtimeOrders((prev) => [order, ...prev.slice(0, 4)]);
-//       refetchOrders();
-//     });
 
-//     socket.on('order_updated', (order) => {
-//       toast.info(`Order #${order.orderNumber} updated: ${order.status}`);
-//       refetchOrders();
-//     });
 
-//     socket.on('low_stock_alert', (alert) => {
-//       toast.error(`Low stock: ${alert.itemName} (${alert.currentStock} left)`);
-//     });
 
-//     return () => {
-//       socket.off('new_order');
-//       socket.off('order_updated');
-//       socket.off('low_stock_alert');
-//     };
-//   }, [socket, refetchOrders]);
 
-//   const statCards = [
-//     {
-//       title: 'Today\'s Revenue',
-//       value: `$${stats?.todayRevenue?.toFixed(2) || '0.00'}`,
-//       icon: DollarSign,
-//       change: stats?.revenueChange || 0,
-//       color: 'primary',
-//     },
-//     {
-//       title: 'Today\'s Orders',
-//       value: stats?.todayOrders || 0,
-//       icon: Package,
-//       change: stats?.ordersChange || 0,
-//       color: 'blue',
-//     },
-//     {
-//       title: 'Pending Orders',
-//       value: stats?.pendingOrders || 0,
-//       icon: Clock,
-//       change: 0,
-//       color: 'yellow',
-//     },
-//     {
-//       title: 'New Customers',
-//       value: stats?.newCustomers || 0,
-//       icon: Users,
-//       change: stats?.customersChange || 0,
-//       color: 'green',
-//     },
-//   ];
 
-//   return (
-//     <div className="space-y-6">
-//       {/* Header */}
-//       <div>
-//         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-//           Dashboard
-//         </h1>
-//         <p className="text-gray-600 dark:text-gray-400 mt-2">
-//           Welcome back! Here's what's happening with your business today.
-//         </p>
-//       </div>
 
-//       {/* Real-time Orders Banner */}
-//       {realtimeOrders.length > 0 && (
-//         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-//           <div className="flex items-center space-x-2 mb-2">
-//             <TrendingUp className="h-5 w-5 text-blue-500" />
-//             <span className="font-medium text-blue-800 dark:text-blue-300">
-//               Real-time Updates
-//             </span>
-//           </div>
-//           <div className="text-sm text-blue-700 dark:text-blue-400">
-//             {realtimeOrders.length} new order(s) received in real-time
-//           </div>
-//         </div>
-//       )}
 
-//       {/* Stats Grid */}
-//       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-//         {statCards.map((card, index) => (
-//           <StatCard key={index} {...card} loading={statsLoading} />
-//         ))}
-//       </div>
 
-//       {/* Charts and Tables Grid */}
-//       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-//         {/* Sales Chart */}
-//         <div className="lg:col-span-2">
-//           <SalesChart />
-//         </div>
 
-//         {/* Low Stock Alerts */}
-//         <div>
-//           <LowStockAlert items={lowStock} />
-//         </div>
-//       </div>
 
-//       {/* Recent Orders */}
-//       <div>
-//         <RecentOrders orders={orders} />
-//       </div>
-//     </div>
-//   );
-// };
 
-// export default Dashboard;

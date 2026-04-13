@@ -8,7 +8,6 @@ interface NotificationState {
   isLoading: boolean;
   error: string | null;
   
-  // Actions
   setNotifications: (notifications: Notification[]) => void;
   addNotification: (notification: Notification) => void;
   markAsRead: (id: number) => void;
@@ -16,12 +15,10 @@ interface NotificationState {
   deleteNotification: (id: number) => void;
   clearAll: () => void;
   
-  // Filtering
   getUnreadNotifications: () => Notification[];
   getNotificationsByType: (type: string) => Notification[];
   getRecentNotifications: (limit?: number) => Notification[];
   
-  // Loading & Error
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -30,13 +27,11 @@ interface NotificationState {
 export const useNotificationStore = create<NotificationState>()(
   persist(
     (set, get) => ({
-      // Initial state
       notifications: [],
       unreadCount: 0,
       isLoading: false,
       error: null,
       
-      // Actions
       setNotifications: (notifications) => {
         const unreadCount = notifications.filter(n => !n.isRead).length;
         set({ notifications, unreadCount });
@@ -90,7 +85,6 @@ export const useNotificationStore = create<NotificationState>()(
       
       clearAll: () => set({ notifications: [], unreadCount: 0 }),
       
-      // Filtering
       getUnreadNotifications: () => {
         const { notifications } = get();
         return notifications.filter(notif => !notif.isRead);
@@ -108,7 +102,6 @@ export const useNotificationStore = create<NotificationState>()(
           .slice(0, limit);
       },
       
-      // Loading & Error
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),

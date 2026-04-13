@@ -1,4 +1,3 @@
-// src/pages/Inventory/InventoryList.tsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -40,7 +39,6 @@ const InventoryList: React.FC = () => {
   
   const { setItems, setAlerts } = useInventoryStore();
 
-  // Fetch all inventory items
   const { data: inventoryData, isLoading, refetch } = useQuery({
     queryKey: ['inventory', page, limit, statusFilter, searchQuery],
     queryFn: async () => {
@@ -58,7 +56,6 @@ const InventoryList: React.FC = () => {
     },
   });
 
-  // Fetch low stock items
   const { data: lowStockData } = useQuery({
     queryKey: ['low-stock'],
     queryFn: async () => {
@@ -71,7 +68,6 @@ const InventoryList: React.FC = () => {
     },
   });
 
-  // Fetch inventory alerts
   const { data: alertsData } = useQuery({
     queryKey: ['inventory-alerts'],
     queryFn: async () => {
@@ -94,7 +90,6 @@ const InventoryList: React.FC = () => {
   const alerts = alertsData || [];
   const unreadAlerts = alerts.filter(a => !a.isResolved && !a.readAt).length;
 
-  // Filter items based on active tab and search
   const getFilteredItems = () => {
     let items = [...inventoryItems];
     
@@ -194,8 +189,6 @@ const InventoryList: React.FC = () => {
   };
 
   const calculateTotalValue = () => {
-    // This would need actual cost data from your API
-    // For now, we'll estimate based on stock levels
     return inventoryItems.reduce((sum, item) => sum + (item.currentStock * 10), 0);
   };
 
@@ -225,7 +218,7 @@ const InventoryList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventory Management</h1>
@@ -256,7 +249,7 @@ const InventoryList: React.FC = () => {
         </div>
       </div>
 
-      {/* Inventory Stats */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -315,7 +308,7 @@ const InventoryList: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs */}
+      
       <div className="border-b border-gray-200 dark:border-gray-700">
         <nav className="flex space-x-8">
           <button
@@ -356,10 +349,10 @@ const InventoryList: React.FC = () => {
         </nav>
       </div>
 
-      {/* Filters */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
+          
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -373,7 +366,7 @@ const InventoryList: React.FC = () => {
             </div>
           </div>
 
-          {/* Status Filter */}
+          
           <div className="flex items-center space-x-4">
             <Filter className="h-5 w-5 text-gray-400" />
             <select
@@ -389,9 +382,9 @@ const InventoryList: React.FC = () => {
         </div>
       </div>
 
-      {/* Content based on active tab */}
+      
       {activeTab === 'alerts' ? (
-        /* Alerts Tab */
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           {alerts.length === 0 ? (
             <div className="p-8 text-center">
@@ -494,7 +487,7 @@ const InventoryList: React.FC = () => {
           )}
         </div>
       ) : (
-        /* Inventory Items Tab */
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           {filteredItems.length === 0 ? (
             <div className="p-8 text-center">
@@ -662,7 +655,7 @@ const InventoryList: React.FC = () => {
                 </table>
               </div>
 
-              {/* Pagination */}
+              
               {pagination.totalPages > 1 && (
                 <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -719,7 +712,7 @@ const InventoryList: React.FC = () => {
         </div>
       )}
 
-      {/* Quick Restock Summary for Low Stock Items */}
+      
       {lowStockItems.length > 0 && activeTab !== 'alerts' && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
