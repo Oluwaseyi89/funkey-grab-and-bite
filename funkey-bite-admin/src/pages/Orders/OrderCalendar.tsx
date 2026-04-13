@@ -1,4 +1,3 @@
-// src/pages/Orders/OrderCalendar.tsx
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -23,7 +22,6 @@ const OrderCalendar: React.FC = () => {
   const [selectedType, setSelectedType] = useState<'all' | 'orders' | 'catering'>('all');
   const [selectedEvent, setSelectedEvent] = useState<{ type: 'order' | 'catering', data: any } | null>(null);
 
-  // Fetch orders
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['calendar-orders'],
     queryFn: async () => {
@@ -32,7 +30,6 @@ const OrderCalendar: React.FC = () => {
     },
   });
 
-  // Fetch catering requests
   const { data: cateringData, isLoading: cateringLoading } = useQuery({
     queryKey: ['calendar-catering'],
     queryFn: async () => {
@@ -45,7 +42,6 @@ const OrderCalendar: React.FC = () => {
   const orders = ordersData || [];
   const cateringRequests = cateringData || [];
 
-  // Navigation functions
   const goToPrevious = () => {
     const newDate = new Date(currentDate);
     if (view === 'month') {
@@ -74,13 +70,11 @@ const OrderCalendar: React.FC = () => {
     setCurrentDate(new Date());
   };
 
-  // Get events for a specific date
   const getEventsForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
     
     const events: any[] = [];
     
-    // Get orders for the date
     if (selectedType === 'all' || selectedType === 'orders') {
       const dayOrders = orders.filter(order => {
         const orderDate = new Date(order.createdAt).toISOString().split('T')[0];
@@ -100,7 +94,6 @@ const OrderCalendar: React.FC = () => {
       });
     }
     
-    // Get catering events for the date
     if (selectedType === 'all' || selectedType === 'catering') {
       const dayCatering = cateringRequests.filter(catering => {
         const eventDate = new Date(catering.eventDate).toISOString().split('T')[0];
@@ -127,17 +120,14 @@ const OrderCalendar: React.FC = () => {
     });
   };
 
-  // Get days in month
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate();
   };
 
-  // Get first day of month
   const getFirstDayOfMonth = (year: number, month: number) => {
     return new Date(year, month, 1).getDay();
   };
 
-  // Generate calendar days
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -146,7 +136,6 @@ const OrderCalendar: React.FC = () => {
     
     const days = [];
     
-    // Previous month days
     const prevMonthDays = getDaysInMonth(year, month - 1);
     for (let i = firstDay - 1; i >= 0; i--) {
       const day = new Date(year, month - 1, prevMonthDays - i);
@@ -157,7 +146,6 @@ const OrderCalendar: React.FC = () => {
       });
     }
     
-    // Current month days
     for (let i = 1; i <= daysInMonth; i++) {
       const day = new Date(year, month, i);
       days.push({
@@ -168,7 +156,6 @@ const OrderCalendar: React.FC = () => {
       });
     }
     
-    // Next month days (to fill 42 slots total)
     const totalCells = 42; // 6 weeks
     const nextMonthDays = totalCells - days.length;
     for (let i = 1; i <= nextMonthDays; i++) {
@@ -210,7 +197,6 @@ const OrderCalendar: React.FC = () => {
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const monthYear = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Get today's events summary
   const todayEvents = getEventsForDate(new Date());
   const todaySummary = {
     orders: todayEvents.filter(e => e.type === 'order').length,
@@ -238,7 +224,7 @@ const OrderCalendar: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Order Calendar</h1>
@@ -274,7 +260,7 @@ const OrderCalendar: React.FC = () => {
         </div>
       </div>
 
-      {/* Today's Summary */}
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -319,7 +305,7 @@ const OrderCalendar: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
@@ -359,9 +345,9 @@ const OrderCalendar: React.FC = () => {
         </div>
       </div>
 
-      {/* Calendar */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {/* Weekday Headers */}
+        
         <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
           {weekDays.map((day) => (
             <div key={day} className="p-4 text-center font-medium text-gray-500 dark:text-gray-400">
@@ -370,7 +356,7 @@ const OrderCalendar: React.FC = () => {
           ))}
         </div>
 
-        {/* Calendar Days */}
+        
         <div className="grid grid-cols-7">
           {calendarDays.map((day, index) => (
             <div
@@ -428,7 +414,7 @@ const OrderCalendar: React.FC = () => {
         </div>
       </div>
 
-      {/* Legend */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center space-x-2">
@@ -446,7 +432,7 @@ const OrderCalendar: React.FC = () => {
         </div>
       </div>
 
-      {/* Event Details Modal */}
+      
       {selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">

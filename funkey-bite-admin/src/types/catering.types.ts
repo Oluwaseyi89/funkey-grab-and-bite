@@ -16,6 +16,7 @@ export interface CateringRequest {
   specialRequests?: string;
   status: CateringStatus;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface CateringPackage {

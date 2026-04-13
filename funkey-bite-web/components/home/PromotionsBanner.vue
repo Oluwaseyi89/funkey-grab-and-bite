@@ -1,18 +1,17 @@
 <template>
-  <!-- Only show if there are active promotions -->
+
   <section 
     v-if="activePromotions.length > 0"
     class="section-padding mt-8 mb-8 md:mt-12 md:mb-12 mx-5"
   >
     <div class="container-narrow">
       <div class="bg-gradient-to-r from-brand-500 to-accent-500 rounded-3xl p-6 md:p-10 relative overflow-hidden shadow-xl">
-        <!-- Animated background elements -->
+
         <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
         <div class="absolute bottom-0 left-0 w-96 h-96 bg-white/5 rounded-full translate-y-48 -translate-x-48"></div>
 
-        <!-- Promotion Carousel -->
         <div class="relative z-10">
-          <!-- Header with count -->
+
           <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 text-white">
             <div>
               <h2 class="text-2xl md:text-3xl font-bold">🔥 Hot Promotions</h2>
@@ -25,16 +24,15 @@
             </div>
           </div>
 
-          <!-- Current Promotion -->
           <div 
             v-if="currentPromotion"
             class="bg-white/15 backdrop-blur-sm rounded-2xl p-6 md:p-8 mb-8 transition-all duration-500"
             :key="currentIndex"
           >
             <div class="text-white">
-              <!-- Promotion Header with Image -->
+
               <div class="flex flex-col lg:flex-row gap-8 mb-8">
-                <!-- Product Image -->
+
                 <div class="lg:w-1/3">
                   <div class="relative h-48 lg:h-64 rounded-xl overflow-hidden shadow-2xl border-2 border-white/20">
                     <img 
@@ -42,14 +40,14 @@
                       :alt="currentPromotion.title"
                       class="w-full h-full object-cover"
                     />
-                    <!-- Promotion Badge on Image -->
+
                     <div class="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full font-bold shadow-lg">
                       {{ formatDiscountValue(currentPromotion.discountValue, currentPromotion.discountType) }}
                     </div>
                   </div>
                 </div>
                 
-                <!-- Promotion Details -->
+
                 <div class="lg:w-2/3">
                   <div class="inline-block bg-white/30 px-4 py-1 rounded-full text-sm font-semibold mb-4">
                     {{ formatDiscountType(currentPromotion.discountType) }}
@@ -63,7 +61,7 @@
                     {{ currentPromotion.description }}
                   </p>
                   
-                  <!-- Promotion Stats -->
+
                   <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div class="bg-white/10 rounded-xl p-4 text-center">
                       <div class="text-2xl font-bold">
@@ -98,7 +96,7 @@
                 </div>
               </div>
               
-              <!-- Applicable Items with Thumbnails -->
+
               <div v-if="getApplicableItems(currentPromotion).length > 0" class="mt-8 pt-8 border-t border-white/20">
                 <h4 class="font-bold mb-4 text-xl">🎯 Applicable Items:</h4>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -128,7 +126,7 @@
                 </div>
               </div>
               
-              <!-- Status & Call to Action -->
+
               <div class="mt-8 pt-8 border-t border-white/20">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div>
@@ -162,9 +160,8 @@
             </div>
           </div>
 
-          <!-- Navigation & Actions -->
           <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <!-- Carousel Controls -->
+
             <div class="flex items-center gap-4">
               <button
                 @click="prevPromotion"
@@ -174,7 +171,7 @@
                 ←
               </button>
               
-              <!-- Carousel Dots -->
+
               <div class="flex gap-2">
                 <button
                   v-for="(_, index) in activePromotions"
@@ -199,7 +196,7 @@
               </button>
             </div>
             
-            <!-- View All Link -->
+
             <NuxtLink
               to="/promotion"
               class="text-white hover:text-gray-200 transition-colors underline flex items-center gap-2"
@@ -234,11 +231,9 @@ const emit = defineEmits<{
   viewDetails: [promotion: Promotion]
 }>()
 
-// State
 const currentIndex = ref(0)
 let autoPlayInterval: NodeJS.Timeout
 
-// Computed - Filter only active promotions
 const activePromotions = computed(() => {
   return props.promotions.filter(promo => promo.isActive)
 })
@@ -247,10 +242,8 @@ const currentPromotion = computed(() => {
   return activePromotions.value[currentIndex.value] || null
 })
 
-// Helper methods
 const getApplicableItems = (promotion: Promotion): MenuItem[] => {
   if (!promotion.applicableItems?.length) {
-    // If no specific items, get all menu items
     return props.menuItems
   }
   
@@ -290,7 +283,6 @@ const getDiscountAmount = (promotion: Promotion, originalPrice: number): string 
   }
 }
 
-// Existing methods (keep from previous version)
 const formatDiscountType = (type: string) => {
   return type === 'bogo' ? 'BOGO' : type.toUpperCase()
 }
@@ -328,7 +320,6 @@ const getTimeRemaining = (validUntil: string) => {
   return `Valid until ${formatDate(validUntil)}`
 }
 
-// Navigation methods
 const navigateToPromotionDetails = (promotion: Promotion) => {
   navigateTo(`/promotion/${promotion.id}`)
 }
@@ -355,7 +346,6 @@ const prevPromotion = () => {
   }
 }
 
-// Auto-play promotions
 onMounted(() => {
   if (activePromotions.value.length > 1) {
     autoPlayInterval = setInterval(nextPromotion, 10000) // 10 seconds
@@ -370,7 +360,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Smooth transition for promotion change */
+
 .promotion-enter-active,
 .promotion-leave-active {
   transition: all 0.5s ease;
@@ -382,7 +372,6 @@ onUnmounted(() => {
   transform: translateX(20px);
 }
 
-/* Custom animations */
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.8; }

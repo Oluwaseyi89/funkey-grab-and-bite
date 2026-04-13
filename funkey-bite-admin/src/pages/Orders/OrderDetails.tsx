@@ -162,7 +162,7 @@ const OrderDetails: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <button
@@ -193,7 +193,7 @@ const OrderDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* Status Banner */}
+      
       <div className={`p-4 rounded-xl border ${statusInfo.color}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -249,9 +249,9 @@ const OrderDetails: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Order Details */}
+        
         <div className="lg:col-span-2 space-y-6">
-          {/* Order Items */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Order Items
@@ -311,7 +311,7 @@ const OrderDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Order Notes */}
+          
           {order.notes && (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -324,9 +324,9 @@ const OrderDetails: React.FC = () => {
           )}
         </div>
 
-        {/* Right Column - Customer & Order Info */}
+        
         <div className="space-y-6">
-          {/* Customer Info */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Customer Information
@@ -358,7 +358,7 @@ const OrderDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Order Info */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Order Information
@@ -391,7 +391,7 @@ const OrderDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Order Timeline */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Order Timeline

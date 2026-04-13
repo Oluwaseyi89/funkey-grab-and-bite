@@ -21,7 +21,7 @@
     overflow-x: hidden;
   }
 
-  /* Custom scrollbar */
+  
   ::-webkit-scrollbar {
     @apply w-2;
   }

@@ -1,4 +1,3 @@
-// src/pages/Reports/Analytics.tsx
 import React, { useState } from 'react';
 import {
   TrendingUp,
@@ -31,7 +30,6 @@ import toast from 'react-hot-toast';
 import { getDashboardStats, getTodayStats } from '../../api/adminApi';
 import { useReportsStore } from '../../stores/reportsStore';
 
-// Charting library
 import {
   ResponsiveContainer,
   LineChart,
@@ -55,7 +53,6 @@ import {
   Area
 } from 'recharts';
 
-// Color palette
 const CHART_COLORS = {
   primary: '#3b82f6',
   secondary: '#10b981',
@@ -74,7 +71,6 @@ const Analytics: React.FC = () => {
   
   const { getRevenueSummary, getOrdersSummary, getCustomersSummary, setLoading, setError } = useReportsStore();
 
-  // Fetch dashboard stats
   const { data: dashboardStats, isLoading: isLoadingStats, refetch: refetchStats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
@@ -92,7 +88,6 @@ const Analytics: React.FC = () => {
     },
   });
 
-  // Fetch today's stats
   const { data: todayStats, refetch: refetchTodayStats } = useQuery({
     queryKey: ['today-stats'],
     queryFn: async () => {
@@ -105,7 +100,6 @@ const Analytics: React.FC = () => {
     },
   });
 
-  // Mock data for charts (replace with actual API data when available)
   const revenueTrendData = [
     { date: 'Jan', revenue: 45000, orders: 320, avgOrder: 140.62 },
     { date: 'Feb', revenue: 52000, orders: 380, avgOrder: 136.84 },
@@ -158,13 +152,11 @@ const Analytics: React.FC = () => {
 
   const popularItems = dashboardStats?.popularItems || [];
 
-  // Calculate metrics
   const calculateGrowth = (current: number, previous: number) => {
     if (previous === 0) return 0;
     return ((current - previous) / previous) * 100;
   };
 
-  // Format numbers
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
@@ -206,7 +198,7 @@ const Analytics: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Business Analytics</h1>
@@ -240,7 +232,7 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Time Range Filters */}
+      
       {showFilters && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap gap-2">
@@ -264,7 +256,7 @@ const Analytics: React.FC = () => {
         </div>
       )}
 
-      {/* Tab Navigation */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-2 border border-gray-200 dark:border-gray-700">
         <div className="flex space-x-2">
           {([
@@ -291,7 +283,7 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Performance Metrics */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {performanceMetrics.map((metric, index) => (
           <div key={index} className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -336,9 +328,9 @@ const Analytics: React.FC = () => {
         ))}
       </div>
 
-      {/* Charts Section */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Trend Chart */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -397,7 +389,7 @@ const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Category Distribution */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -417,7 +409,7 @@ const Analytics: React.FC = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -441,9 +433,9 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Peak Hours & Popular Items */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Peak Hours */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -504,7 +496,7 @@ const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Popular Items */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -573,7 +565,7 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Customer Metrics */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {customerMetrics.map((metric, index) => (
           <div key={index} className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -610,7 +602,7 @@ const Analytics: React.FC = () => {
         ))}
       </div>
 
-      {/* Performance Radar Chart */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -672,9 +664,9 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Insights & Recommendations */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Key Insights */}
+        
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
           <div className="flex items-start space-x-3">
             <Eye className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
@@ -702,7 +694,7 @@ const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Recommendations */}
+        
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6">
           <div className="flex items-start space-x-3">
             <Target className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />

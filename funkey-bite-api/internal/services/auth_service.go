@@ -25,19 +25,16 @@ func NewAuthService(userRepo repository.UserRepository) AuthService {
 }
 
 func (s *authService) Register(userData models.UserRegistration) (*models.AuthResponse, error) {
-	// Check if user already exists
 	existingUser, err := s.userRepo.FindByPhoneOrEmail(userData.Phone, userData.Email)
 	if err == nil && existingUser != nil {
 		return nil, errors.New("user already exists")
 	}
 
-	// Hash password
 	hashedPassword, err := utils.HashPassword(userData.Password)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create user
 	user := &models.User{
 		Phone:        userData.Phone,
 		Email:        &userData.Email,
@@ -54,7 +51,6 @@ func (s *authService) Register(userData models.UserRegistration) (*models.AuthRe
 		return nil, err
 	}
 
-	// Generate token
 	token, err := utils.GenerateToken(user.ID, user.Phone)
 	if err != nil {
 		return nil, err
@@ -77,17 +73,14 @@ func (s *authService) Login(phone, password string) (*models.AuthResponse, error
 		return nil, errors.New("account is disabled")
 	}
 
-	// Check password
 	if !utils.CheckPasswordHash(password, user.PasswordHash) {
 		return nil, errors.New("invalid credentials")
 	}
 
-	// Update last login
 	now := time.Now()
 	user.LastLogin = &now
 	s.userRepo.UpdateLastLogin(user.ID, now)
 
-	// Generate token
 	token, err := utils.GenerateToken(user.ID, user.Phone)
 	if err != nil {
 		return nil, err
@@ -109,23 +102,19 @@ func (s *authService) CheckUserExists(phone, email string) (*models.User, bool, 
 }
 
 func (s *authService) AuthenticateOrder(orderData models.OrderWithAuth) (*models.User, error) {
-	// Check if user exists
 	user, exists, err := s.CheckUserExists(orderData.CustomerPhone, "")
 	if err != nil {
 		return nil, err
 	}
 
 	if !exists {
-		// User doesn't exist - they need to register
 		return nil, errors.New("user_not_found")
 	}
 
-	// User exists - require password
 	if orderData.Password == nil || *orderData.Password == "" {
 		return nil, errors.New("password_required")
 	}
 
-	// Verify password
 	if !utils.CheckPasswordHash(*orderData.Password, user.PasswordHash) {
 		return nil, errors.New("invalid_password")
 	}

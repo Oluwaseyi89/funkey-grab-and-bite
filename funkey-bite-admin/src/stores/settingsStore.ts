@@ -1,4 +1,3 @@
-// src/stores/settingsStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { BusinessSettings, OpeningHours } from '../types';
@@ -8,7 +7,6 @@ interface SettingsState {
   isLoading: boolean;
   error: string | null;
   
-  // Actions
   setSettings: (settings: BusinessSettings) => void;
   updateSettings: (updates: Partial<BusinessSettings>) => void;
   updateOpeningHours: (hours: OpeningHours[]) => void;
@@ -22,12 +20,10 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      // Initial state
       settings: null,
       isLoading: false,
       error: null,
       
-      // Actions
       setSettings: (settings) => set({ settings }),
       
       updateSettings: (updates) =>

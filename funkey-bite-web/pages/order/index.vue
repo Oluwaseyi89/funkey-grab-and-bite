@@ -1,6 +1,6 @@
 <template>
     <div class="mt-[-30px]">
-      <!-- Page Header -->     
+     
       <PageHeader
       title-before="Your"
       highlight-text="Order"
@@ -13,7 +13,7 @@
   
       <div class="section-padding mx-3 md:mx-8 mt-[-60px] md:mt-[-80px] px-3 py-3 md:py-8 md:px-8">
         <div class="container-narrow">
-          <!-- Empty Cart State -->
+
           <div v-if="cart.items.length === 0" class="text-center py-12">
             <ShoppingCart class="w-24 h-24 text-gray-300 dark:text-gray-700 mx-auto mb-6" />
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Your cart is empty</h2>
@@ -26,9 +26,9 @@
             </NuxtLink>
           </div>
   
-          <!-- Order Flow -->
+
           <div v-else>
-            <!-- Step Progress -->
+
             <div class="my-5 md:my-8 px-3 py-3 md:py-8 md:px-8 mt-0">
               <div class="flex items-center justify-center space-x-4 md:space-x-12">
                 <div v-for="(step, index) in steps" :key="step.id" class="flex items-center">
@@ -61,9 +61,9 @@
             </div>
   
             <div class="grid lg:grid-cols-3 gap-8 px-3 py-3 md:px-8 md:py-8">
-              <!-- Left Column: Cart Items -->
+
               <div class="lg:col-span-2">
-                <!-- Step 1: Review Cart -->
+
                 <div v-if="currentStep === 0" class="space-y-4">
                   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Review Your Order</h2>
                   <div class="space-y-4 w-screen md:w-full">
@@ -87,7 +87,7 @@
                   </div>
                 </div>
   
-                <!-- Step 2: Order Type & Details -->
+
                 <div v-if="currentStep === 1" class="space-y-8">
                   <OrderTypeSelector
                     :selected-type="orderData.orderType"
@@ -110,7 +110,7 @@
                   </div>
                 </div>
   
-                <!-- Step 3: Payment -->
+
                 <div v-if="currentStep === 2" class="space-y-8">
                   <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700">
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Payment Method</h3>
@@ -161,7 +161,7 @@
                 </div>
               </div>
   
-              <!-- Right Column: Order Summary -->
+
               <div class="lg:col-span-1">
                 <CartSummary
                   :items="cart.items"
@@ -175,7 +175,7 @@
         </div>
       </div>
   
-      <!-- Order Confirmation Modal -->
+
       <OrderConfirmation
         v-if="showConfirmation"
         :order-number="orderNumber"
@@ -201,7 +201,6 @@
     DollarSign
   } from 'lucide-vue-next'
   
-  // Components
   import PageHeader from '../../components/layout/PageHeader.vue'
   import CartItem from '../../components/order/CartItem.vue'
   import CartSummary from '../../components/order/CartSummary.vue'
@@ -209,10 +208,8 @@
   import CustomerInfoForm from '../../components/order/CustomerInfoForm.vue'
   import OrderConfirmation from '../../components/order/OrderConfirmation.vue'
   
-  // Stores
   const cart = useCartStore()
   
-  // State
   const currentStep = ref(0)
   const isSubmitting = ref(false)
   const showConfirmation = ref(false)
@@ -228,14 +225,12 @@
     notes: ''
   })
   
-  // Steps
   const steps = [
     { id: 'cart', name: 'Cart' },
     { id: 'details', name: 'Details' },
     { id: 'payment', name: 'Payment' }
   ]
   
-  // Payment Methods
   const paymentMethods = [
     {
       id: 'card',
@@ -260,7 +255,6 @@
     }
   ]
   
-  // Computed
   const deliveryFee = computed(() => {
     return orderData.value.orderType === 'delivery' ? 3.99 : 0
   })
@@ -271,7 +265,6 @@
     return subtotal + tax + deliveryFee.value
   })
   
-  // Methods
   const updateQuantity = (item: CartItemType, change: number) => {
     const newQuantity = item.quantity + change
     if (newQuantity > 0) {
@@ -293,25 +286,19 @@
     isSubmitting.value = true
   
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500))
   
-      // Generate order number
       orderNumber.value = `FG-${Date.now().toString().slice(-6)}`
       
-      // Set estimated time
       const now = new Date()
       now.setMinutes(now.getMinutes() + 30)
       estimatedTime.value = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   
-      // Clear cart
       cart.clearCart()
   
-      // Show confirmation
       showConfirmation.value = true
       currentStep.value = 0
   
-      // Reset form
       orderData.value = {
         orderType: 'pickup',
         customerName: '',
@@ -322,15 +309,12 @@
   
     } catch (error) {
       console.error('Order submission failed:', error)
-      // Show error toast
     } finally {
       isSubmitting.value = false
     }
   }
   
-  // Lifecycle
   onMounted(() => {
-    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' })
   })
   </script>

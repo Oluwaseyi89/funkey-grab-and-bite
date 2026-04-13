@@ -3,17 +3,14 @@ import { persist } from 'zustand/middleware';
 import type { User } from '../types';
 
 interface UserState {
-  // Customers
   customers: User[];
   selectedCustomer: User | null;
   isLoading: boolean;
   error: string | null;
   
-  // Filters
   statusFilter: 'all' | 'active' | 'inactive';
   searchQuery: string;
   
-  // Actions
   setCustomers: (customers: User[]) => void;
   setSelectedCustomer: (customer: User | null) => void;
   addCustomer: (customer: User) => void;
@@ -21,13 +18,11 @@ interface UserState {
   deleteCustomer: (id: number) => void;
   toggleCustomerStatus: (id: number) => void;
   
-  // Filtering
   setStatusFilter: (status: 'all' | 'active' | 'inactive') => void;
   setSearchQuery: (query: string) => void;
   applyFilters: () => User[];
   clearFilters: () => void;
   
-  // Analytics
   getActiveCustomers: () => User[];
   getNewCustomers: (days?: number) => User[];
   getCustomerStats: () => {
@@ -37,7 +32,6 @@ interface UserState {
     newThisWeek: number;
   };
   
-  // Loading & Error
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -46,17 +40,14 @@ interface UserState {
 export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
-      // Initial state
       customers: [],
       selectedCustomer: null,
       isLoading: false,
       error: null,
       
-      // Filters
       statusFilter: 'all',
       searchQuery: '',
       
-      // Actions
       setCustomers: (customers) => set({ customers }),
       
       setSelectedCustomer: (customer) => set({ selectedCustomer: customer }),
@@ -91,7 +82,6 @@ export const useUserStore = create<UserState>()(
         }
       },
       
-      // Filtering
       setStatusFilter: (status) => set({ statusFilter: status }),
       setSearchQuery: (query) => set({ searchQuery: query }),
       
@@ -100,13 +90,11 @@ export const useUserStore = create<UserState>()(
         
         let filtered = [...customers];
         
-        // Filter by status
         if (statusFilter !== 'all') {
           const isActive = statusFilter === 'active';
           filtered = filtered.filter(customer => customer.isActive === isActive);
         }
         
-        // Filter by search query
         if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase().trim();
           filtered = filtered.filter(customer =>
@@ -124,7 +112,6 @@ export const useUserStore = create<UserState>()(
         searchQuery: '',
       }),
       
-      // Analytics
       getActiveCustomers: () => {
         const { customers } = get();
         return customers.filter(customer => customer.isActive);
@@ -167,7 +154,6 @@ export const useUserStore = create<UserState>()(
         };
       },
       
-      // Loading & Error
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),

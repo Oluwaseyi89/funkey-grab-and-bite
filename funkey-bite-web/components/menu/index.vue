@@ -1,6 +1,6 @@
 <template>
     <div>
-      <!-- Page Header with Search -->
+      
       <PageHeader>
         <SearchBar @search="handleSearch" />
       </PageHeader>
@@ -8,7 +8,7 @@
       <div class="section-padding">
         <div class="container-narrow">
           <div class="flex flex-col lg:flex-row gap-8">
-            <!-- Sidebar Filters -->
+            
             <div class="lg:w-1/4 space-y-8">
               <CategoryFilter
                 :categories="categoriesWithCount"
@@ -28,9 +28,9 @@
               </div>
             </div>
   
-            <!-- Main Content -->
+            
             <div class="lg:w-3/4">
-              <!-- Active Filters -->
+              
               <div v-if="activeFilters.length" class="mb-6 flex flex-wrap gap-2">
                 <span
                   v-for="filter in activeFilters"
@@ -47,7 +47,7 @@
                 </button>
               </div>
   
-              <!-- Menu Grid -->
+              
               <MenuGrid
                 :filtered-items="paginatedItems"
                 :is-loading="menuStore.isLoading"
@@ -59,7 +59,7 @@
                 @page-change="handlePageChange"
               />
   
-              <!-- Cart Summary (Sticky on Mobile) -->
+              
               <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t shadow-lg p-4">
                 <div class="flex justify-between items-center">
                   <div>
@@ -76,7 +76,7 @@
         </div>
       </div>
   
-      <!-- Item Details Modal -->
+      
       <ItemDetailsModal
         v-if="selectedItem"
         :item="selectedItem"
@@ -94,7 +94,6 @@
   import type { MenuItem } from '../../types/menu'
   import { useNuxtApp } from 'nuxt/app'
   
-  // Components
   import PageHeader from '../layout/PageHeader.vue'
   import SearchBar from './SearchBar.vue'
   import CategoryFilter from './CategoryFilter.vue'
@@ -102,11 +101,9 @@
   import MenuGrid from './MenuGrid.vue'
   import ItemDetailsModal from './ItemDetailsModal.vue'
   
-  // Stores
   const menuStore = useMenuStore()
   const cart = useCartStore()
   
-  // State
   const selectedCategory = ref<string | null>(null)
   const searchQuery = ref('')
   const maxPrice = ref(100)
@@ -114,7 +111,6 @@
   const currentPage = ref(1)
   const itemsPerPage = 12
   
-  // Computed
   const categoriesWithCount = computed(() => {
     return menuStore.categories.map(category => ({
       ...category,
@@ -125,12 +121,10 @@
   const filteredItems = computed(() => {
     let items = menuStore.menuItems
   
-    // Filter by category
     if (selectedCategory.value) {
       items = items.filter(item => item.categoryId === selectedCategory.value)
     }
   
-    // Filter by search query
     if (searchQuery.value) {
       const query = searchQuery.value.toLowerCase()
       items = items.filter(item =>
@@ -140,7 +134,6 @@
       )
     }
   
-    // Filter by price
     items = items.filter(item => item.price <= maxPrice.value)
   
     return items
@@ -167,7 +160,6 @@
     return filters
   })
   
-  // Methods
   const handleCategoryFilter = (categoryId: string | null) => {
     selectedCategory.value = categoryId
     currentPage.value = 1 // Reset to first page on filter change
@@ -183,17 +175,6 @@
     currentPage.value = 1 // Reset to first page on price filter
   }
   
-//   const handleAddToCart = (item: MenuItem) => {
-//     cart.addItem(item)
-//     // Show toast notification
-//     if (import.meta.client) {
-//       const { $toast } = useNuxtApp()
-//       if ($toast && typeof $toast.success === 'function') {
-//         $toast.success(`Added ${item.name} to cart`)
-//       }
-//     }
-//   }
-
 
 const handleAddToCart = (item: MenuItem) => {
   cart.addItem(item)
@@ -201,7 +182,6 @@ const handleAddToCart = (item: MenuItem) => {
   if (import.meta.client) {
     const { $toast } = useNuxtApp()
     
-    // Type assertion
     const toast = $toast as {
       success?: (msg: string) => void
       error?: (msg: string) => void
@@ -243,7 +223,6 @@ const handleAddToCart = (item: MenuItem) => {
     currentPage.value = 1
   }
   
-  // Lifecycle
   onMounted(async () => {
     await Promise.all([
       menuStore.fetchCategories(),

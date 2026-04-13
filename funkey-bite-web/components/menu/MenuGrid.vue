@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-8">
-    <!-- Loading State -->
+    
     <div v-if="isLoading">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <div v-for="i in 6" :key="i" class="animate-pulse">
@@ -11,7 +11,7 @@
       </div>
     </div>
 
-    <!-- Empty State -->
+    
     <div v-else-if="!filteredItems.length" class="text-center py-12 px-4">
       <div class="max-w-md mx-auto">
         <Package class="w-20 h-20 text-gray-300 dark:text-gray-600 mx-auto mb-6" />
@@ -28,9 +28,9 @@
       </div>
     </div>
 
-    <!-- Menu Grid -->
+    
     <div v-else>
-      <!-- Grid Header (Item Count) -->
+      
       <div class="mb-8 flex justify-between items-center">
         <div class="text-gray-600 dark:text-gray-400">
           Showing <span class="font-bold text-gray-900 dark:text-white">{{ filteredItems.length }}</span> 
@@ -41,7 +41,7 @@
         </div>
       </div>
 
-       <!-- Cards Grid (Grid View) -->
+       
        <div 
         v-if="view === 'grid'"
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 mr-5"
@@ -55,7 +55,7 @@
         />
       </div>
 
-      <!-- List View -->
+      
       <div 
         v-if="view === 'list'"
         class="space-y-6"
@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <!-- Pagination -->
+    
     <div v-if="totalPages > 1 && !isLoading && filteredItems.length" class="pt-8 border-t border-gray-200 dark:border-slate-700">
       <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div class="text-sm text-gray-600 dark:text-gray-400">
@@ -141,7 +141,6 @@ const emit = defineEmits<{
   pageChange: [page: number]
 }>()
 
-// Enhanced pagination display
 const visiblePages = computed(() => {
   const pages: number[] = []
   const maxVisible = 5

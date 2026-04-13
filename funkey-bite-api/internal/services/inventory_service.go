@@ -19,7 +19,7 @@ type InventoryService interface {
 	CheckAvailability(menuItemID, quantity int) (bool, string)
 	DeductStockForOrder(menuItemID, quantity int, orderID int) error
 	RestockItem(menuItemID, quantity int, reason string) error
-	GetInventoryDashboard() (map[string]interface{}, error) // Add this line
+	GetInventoryDashboard() (map[string]interface{}, error)
 }
 
 type inventoryService struct {
@@ -51,7 +51,6 @@ func (s *inventoryService) GetLowStock() ([]models.InventoryItem, error) {
 }
 
 func (s *inventoryService) UpdateStock(update *models.InventoryUpdate) (*models.InventoryItem, error) {
-	// Get current inventory item
 	item, err := s.inventoryRepo.GetByMenuItemID(update.MenuItemID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get inventory item: %w", err)
@@ -60,7 +59,6 @@ func (s *inventoryService) UpdateStock(update *models.InventoryUpdate) (*models.
 		return nil, fmt.Errorf("inventory item not found for menu item ID: %d", update.MenuItemID)
 	}
 
-	// Calculate new stock based on operation
 	var newStock int
 	switch update.Operation {
 	case "add":
@@ -79,24 +77,20 @@ func (s *inventoryService) UpdateStock(update *models.InventoryUpdate) (*models.
 		return nil, fmt.Errorf("invalid operation: %s", update.Operation)
 	}
 
-	// Update stock
 	err = s.inventoryRepo.UpdateStock(item.ID, newStock, update.Operation, update.Reason)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update stock: %w", err)
 	}
 
-	// Return updated item
 	return s.inventoryRepo.GetByID(item.ID)
 }
 
 func (s *inventoryService) CreateInventoryItem(item *models.InventoryItem) (*models.InventoryItem, error) {
-	// Check if menu item exists
 	menuItem, err := s.menuRepo.GetByID(item.MenuItemID)
 	if err != nil || menuItem == nil {
 		return nil, fmt.Errorf("menu item not found: %d", item.MenuItemID)
 	}
 
-	// Check if inventory already exists for this menu item
 	existing, err := s.inventoryRepo.GetByMenuItemID(item.MenuItemID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing inventory: %w", err)
@@ -105,7 +99,6 @@ func (s *inventoryService) CreateInventoryItem(item *models.InventoryItem) (*mod
 		return nil, fmt.Errorf("inventory already exists for menu item ID: %d", item.MenuItemID)
 	}
 
-	// Set default values if not provided
 	if item.Name == "" {
 		item.Name = menuItem.Name
 	}
@@ -190,8 +183,6 @@ func (s *inventoryService) GetInventoryDashboard() (map[string]interface{}, erro
 
 	totalValue := 0.0
 	for _, item := range allItems {
-		// This would require price per unit in inventory model
-		// For now, just count items
 		totalValue += float64(item.CurrentStock)
 	}
 
@@ -199,7 +190,7 @@ func (s *inventoryService) GetInventoryDashboard() (map[string]interface{}, erro
 		"totalItems":       len(allItems),
 		"lowStockItems":    len(lowStock),
 		"activeAlerts":     len(activeAlerts),
-		"outOfStock":       len(lowStock) - len(activeAlerts), // Simplified
+		"outOfStock":       len(lowStock) - len(activeAlerts),
 		"totalStockValue":  totalValue,
 		"lowStockList":     lowStock,
 		"activeAlertsList": activeAlerts,

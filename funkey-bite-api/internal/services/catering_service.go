@@ -20,19 +20,17 @@ type CateringService interface {
 
 type cateringService struct {
 	cateringRepo        repository.CateringRepository
-	notificationService NotificationService // Add this
-
+	notificationService NotificationService
 }
 
 func NewCateringService(cateringRepo repository.CateringRepository, notificationService NotificationService) CateringService {
 	return &cateringService{
 		cateringRepo:        cateringRepo,
-		notificationService: notificationService, // Add this
+		notificationService: notificationService,
 	}
 }
 
 func (s *cateringService) CreateRequest(input models.CateringRequestInput, userID *int) (*models.CateringRequest, error) {
-	// Validate event date is in the future
 	eventDate, err := time.Parse("2006-01-02", input.EventDate)
 	if err != nil {
 		return nil, fmt.Errorf("invalid event date format. Use YYYY-MM-DD")
@@ -42,7 +40,6 @@ func (s *cateringService) CreateRequest(input models.CateringRequestInput, userI
 		return nil, fmt.Errorf("event date must be in the future")
 	}
 
-	// Validate guest count
 	if input.GuestCount < 1 {
 		return nil, fmt.Errorf("guest count must be at least 1")
 	}
@@ -50,7 +47,6 @@ func (s *cateringService) CreateRequest(input models.CateringRequestInput, userI
 		return nil, fmt.Errorf("guest count cannot exceed 1000")
 	}
 
-	// Create the request
 	request := &models.CateringRequest{
 		UserID:          userID,
 		EventName:       input.EventName,
@@ -110,7 +106,6 @@ func (s *cateringService) GetAllRequests() ([]models.CateringRequest, error) {
 }
 
 func (s *cateringService) UpdateRequestStatus(id int, status string) error {
-	// Validate status
 	validStatuses := map[string]bool{
 		string(models.CateringStatusPending):   true,
 		string(models.CateringStatusConfirmed): true,

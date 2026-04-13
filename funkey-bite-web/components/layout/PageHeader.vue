@@ -3,7 +3,6 @@
     class="section-padding bg-transparent dark:from-slate-900 dark:to-slate-800 px-8 md:px-12 py-8 md:py-12"
     :class="[
       headerClass,
-      // variant === 'gradient' ? 'bg-gradient-to-b from-white to-gray-50 dark:from-slate-900 dark:to-slate-800' : '',
       variant === 'solid' ? `bg-${solidColor || 'amber-50'} dark:bg-${solidColorDark || 'amber-900/20'}` : '',
       variant === 'image' && backgroundImage ? `bg-cover bg-center` : ''
     ]"
@@ -17,13 +16,13 @@
         alignment === 'right' ? 'text-right' : ''
       ]"
     >
-      <!-- Title Section -->
+
       <h1 
         class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4"
         :class="titleClass"
       >
         <slot name="title">
-          <!-- Default title with highlight support -->
+
           <template v-if="highlightText">
             {{ titleBefore }}
             <span class="text-gradient">{{ highlightText }}</span>
@@ -35,7 +34,6 @@
         </slot>
       </h1>
 
-      <!-- Subtitle Section -->
       <p 
         v-if="showSubtitle"
         class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8"
@@ -46,7 +44,6 @@
         </slot>
       </p>
 
-      <!-- Actions/Content Slot -->
       <div class="mt-6">
         <slot />
       </div>
@@ -57,16 +54,13 @@
 <script setup lang="ts">
 import { computed, useSlots } from 'vue'
 
-
 interface Props {
-  // Content
   title?: string
   titleBefore?: string
   highlightText?: string
   titleAfter?: string
   subtitle?: string
   
-  // Styling & Layout
   variant?: 'gradient' | 'solid' | 'image' | 'simple'
   solidColor?: string
   solidColorDark?: string
@@ -77,7 +71,6 @@ interface Props {
   titleClass?: string
   subtitleClass?: string
   
-  // Controls
   showSubtitle?: boolean
   padding?: 'small' | 'medium' | 'large' | 'none'
 }
@@ -97,14 +90,13 @@ const props = withDefaults(defineProps<Props>(), {
   padding: 'medium'
 })
 
-// Computed properties
 const showSubtitle = computed(() => {
   return props.showSubtitle && (props.subtitle || useSlots().subtitle)
 })
 </script>
 
 <style scoped>
-/* Ensure text-gradient class is available */
+
 .text-gradient {
   background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
   -webkit-background-clip: text;

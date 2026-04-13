@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
+import { useNuxtApp } from 'nuxt/app'
 import type { CartItem, MenuItem } from '~/types/menu'
-import { useToast } from 'vue-toastification'
 
 
 export const useCartStore = defineStore('cart', {
@@ -63,8 +63,11 @@ export const useCartStore = defineStore('cart', {
         })
       }
 
-      const toast = useToast()
-      toast.success(`${menuItem.name} added to cart`)
+      if (import.meta.client) {
+        const { $toast } = useNuxtApp()
+        const toast = $toast as { success?: (message: string) => void } | undefined
+        toast?.success?.(`${menuItem.name} added to cart`)
+      }
     },
 
     removeItem(menuItemId: string) {

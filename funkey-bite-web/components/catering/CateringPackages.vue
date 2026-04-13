@@ -11,19 +11,18 @@
           class="bg-white dark:bg-slate-800 rounded-2xl p-8 border-2 transition-all hover:scale-105 hover:shadow-2xl"
           :class="[
             pkg.popular 
-              // ? 'border-brand-500 shadow-xl' 
               ? 'border-gray-200 dark:border-slate-700 shadow-xl' 
               : 'border-gray-200 dark:border-slate-700'
           ]"
         >
-          <!-- Popular Badge -->
+          
           <div v-if="pkg.popular" class="absolute -top-3 left-1/2 transform -translate-x-1/2">
             <span class="bg-brand-500 text-white px-4 py-1 rounded-full text-sm font-bold">
               Most Popular
             </span>
           </div>
           
-          <!-- Package Header -->
+          
           <div class="text-center mb-6">
             <component :is="pkg.icon" class="w-12 h-12 mx-auto mb-4" :class="pkg.iconColor" />
             <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ pkg.name }}</h3>
@@ -33,7 +32,7 @@
             <p class="text-gray-600 dark:text-gray-400">{{ pkg.description }}</p>
           </div>
           
-          <!-- Features -->
+          
           <ul class="space-y-3 mb-8">
             <li v-for="feature in pkg.features" :key="feature" class="flex items-center">
               <CheckCircle class="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
@@ -41,7 +40,7 @@
             </li>
           </ul>
           
-          <!-- Select Button -->
+          
           <button
             @click="$emit('select', pkg.id)"
             class="w-full py-3 rounded-xl font-bold transition-colors"
@@ -54,7 +53,7 @@
             {{ selectedPackage === pkg.id ? '✓ Selected' : 'Select Package' }}
           </button>
           
-          <!-- Minimum -->
+          
           <div class="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
             Minimum {{ pkg.minGuests }} guests
           </div>

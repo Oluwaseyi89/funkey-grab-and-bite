@@ -6,7 +6,7 @@
       </h3>
       
       <div class="space-y-6">
-        <!-- Range Slider -->
+        
         <div class="px-2">
           <input
             type="range"
@@ -23,7 +23,7 @@
           </div>
         </div>
         
-        <!-- Quick Select -->
+        
         <div class="flex flex-wrap gap-2">
           <button
             v-for="count in quickCounts"
@@ -40,7 +40,7 @@
           </button>
         </div>
         
-        <!-- Estimated Cost -->
+        
         <div class="bg-gray-50 dark:bg-slate-700 p-4 rounded-xl">
           <div class="flex justify-between items-center">
             <div>
@@ -79,11 +79,9 @@
     update: [count: number]
   }>()
   
-  // Initialize with selected package min guests or default 50
   const guestCount = ref(props.selectedPackage?.minGuests || 50)
   const quickCounts = [20, 50, 100, 200]
   
-  // Watch for package changes
   watch(() => props.selectedPackage, (newPackage) => {
     if (newPackage) {
       guestCount.value = newPackage.minGuests
@@ -91,13 +89,11 @@
     }
   })
   
-  // Computed
   const estimatedCost = computed(() => {
     const pricePerPerson = props.selectedPackage?.pricePerPerson || 25
     return guestCount.value * pricePerPerson
   })
   
-  // Methods
   const handleSliderInput = (event: Event) => {
     const target = event.target as HTMLInputElement
     if (target) {

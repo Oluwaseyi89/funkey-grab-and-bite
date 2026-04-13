@@ -1,14 +1,14 @@
 <template>
   <div class="min-h-screen flex flex-col bg-gradient-to-br from-white via-red-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-    <!-- Fixed Header -->
+
     <LayoutHeader />
     
-    <!-- Main Content Area with proper padding -->
+
     <main class="flex-grow pt-28 pb-12 md:pt-32">
-      <slot /> <!-- Pages inject here -->
+      <slot />
     </main>
     
-    <!-- Footer -->
+
     <LayoutFooter />
   </div>
 </template>

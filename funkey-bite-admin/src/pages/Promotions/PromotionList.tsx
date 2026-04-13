@@ -1,4 +1,3 @@
-// src/pages/Promotions/PromotionList.tsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -45,7 +44,6 @@ const PromotionList: React.FC = () => {
 
   const { setPromotions } = usePromotionStore();
 
-  // Fetch promotions
   const { data: promotionsData, isLoading, refetch } = useQuery({
     queryKey: ['promotions', page, limit, statusFilter, typeFilter, searchQuery],
     queryFn: async () => {
@@ -99,7 +97,6 @@ const PromotionList: React.FC = () => {
     if (!confirm('Are you sure you want to delete this promotion?')) return;
     
     try {
-      // await deletePromotion(id);
       toast.success('Promotion deleted successfully');
       refetch();
     } catch (error) {
@@ -206,7 +203,6 @@ const PromotionList: React.FC = () => {
     return `${formatDate(from)} - ${formatDate(until)}`;
   };
 
-  // Calculate stats
   const activePromotions = promotions.filter(p => getPromotionStatus(p) === 'active').length;
   const totalDiscountValue = promotions.reduce((sum, promo) => {
     if (getPromotionStatus(promo) === 'active') {
@@ -243,7 +239,7 @@ const PromotionList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Promotions Management</h1>
@@ -267,7 +263,7 @@ const PromotionList: React.FC = () => {
         </div>
       </div>
 
-      {/* Promotion Stats */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -338,7 +334,7 @@ const PromotionList: React.FC = () => {
         </div>
       </div>
 
-      {/* Bulk Actions */}
+      
       {selectedPromotions.length > 0 && (
         <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -385,10 +381,10 @@ const PromotionList: React.FC = () => {
         </div>
       )}
 
-      {/* Filters */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
+          
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -402,7 +398,7 @@ const PromotionList: React.FC = () => {
             </div>
           </div>
 
-          {/* Filters */}
+          
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
               <Filter className="h-5 w-5 text-gray-400" />
@@ -434,7 +430,7 @@ const PromotionList: React.FC = () => {
         </div>
       </div>
 
-      {/* Promotions Table */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {promotions.length === 0 ? (
           <div className="p-8 text-center">
@@ -647,7 +643,7 @@ const PromotionList: React.FC = () => {
               </table>
             </div>
 
-            {/* Pagination */}
+            
             {pagination.totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -703,7 +699,7 @@ const PromotionList: React.FC = () => {
         )}
       </div>
 
-      {/* Promotion Performance */}
+      
       {promotions.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">

@@ -1,4 +1,3 @@
-// types/toast.d.ts
 import type { Plugin } from '#app'
 
 declare module '#app' {

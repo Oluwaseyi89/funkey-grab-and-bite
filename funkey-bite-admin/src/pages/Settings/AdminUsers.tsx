@@ -1,4 +1,3 @@
-// src/pages/Settings/AdminUsers.tsx
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,7 +21,8 @@ import {
   Lock,
   UserPlus,
   UserCheck,
-  UserX
+  UserX,
+  Save
 } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -35,7 +35,6 @@ import {
 import type { AdminUser } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
 
-// Validation schemas
 const adminUserSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
   email: z.string().email('Valid email is required'),
@@ -47,6 +46,8 @@ const adminUserSchema = z.object({
 const updateAdminSchema = adminUserSchema.omit({ password: true }).partial();
 
 type AdminUserFormData = z.infer<typeof adminUserSchema>;
+type AdminUserFormInput = z.input<typeof adminUserSchema>;
+type AdminUserFormOutput = z.output<typeof adminUserSchema>;
 type UpdateAdminFormData = z.infer<typeof updateAdminSchema>;
 
 const AdminUsers: React.FC = () => {
@@ -61,7 +62,6 @@ const AdminUsers: React.FC = () => {
   
   const { user: currentUser } = useAuthStore();
 
-  // Fetch admin users
   const { data: adminsData, isLoading, refetch } = useQuery({
     queryKey: ['admin-users', page, limit, statusFilter, roleFilter, searchQuery],
     queryFn: async () => {
@@ -83,7 +83,6 @@ const AdminUsers: React.FC = () => {
   const admins = adminsData?.data || [];
   const pagination = adminsData?.pagination || { total: 0, totalPages: 0 };
 
-  // Create admin mutation
   const createMutation = useMutation({
     mutationFn: createAdminUser,
     onSuccess: () => {
@@ -96,7 +95,6 @@ const AdminUsers: React.FC = () => {
     },
   });
 
-  // Update admin mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: UpdateAdminFormData }) =>
       updateAdminUser(id, data),
@@ -111,7 +109,6 @@ const AdminUsers: React.FC = () => {
     },
   });
 
-  // Delete admin mutation
   const deleteMutation = useMutation({
     mutationFn: deleteAdminUser,
     onSuccess: () => {
@@ -123,13 +120,12 @@ const AdminUsers: React.FC = () => {
     },
   });
 
-  // Create form
   const {
     register: registerCreate,
     handleSubmit: handleSubmitCreate,
     formState: { errors: createErrors, isSubmitting: isCreateSubmitting },
     reset: resetCreateForm,
-  } = useForm<AdminUserFormData>({
+  } = useForm<AdminUserFormInput, unknown, AdminUserFormOutput>({
     resolver: zodResolver(adminUserSchema),
     defaultValues: {
       role: 'staff',
@@ -137,7 +133,6 @@ const AdminUsers: React.FC = () => {
     },
   });
 
-  // Edit form
   const {
     register: registerEdit,
     handleSubmit: handleSubmitEdit,
@@ -147,7 +142,7 @@ const AdminUsers: React.FC = () => {
     resolver: zodResolver(updateAdminSchema),
   });
 
-  const handleCreate = (data: AdminUserFormData) => {
+  const handleCreate = (data: AdminUserFormOutput) => {
     createMutation.mutate(data);
   };
 
@@ -159,7 +154,6 @@ const AdminUsers: React.FC = () => {
   const handleDelete = (admin: AdminUser) => {
     if (!confirm(`Are you sure you want to delete admin user "${admin.username}"? This action cannot be undone.`)) return;
     
-    // Prevent self-deletion
     if (admin.id === currentUser?.id) {
       toast.error('You cannot delete your own account');
       return;
@@ -169,7 +163,6 @@ const AdminUsers: React.FC = () => {
   };
 
   const openEditModal = (admin: AdminUser) => {
-    // Prevent self-modification
     if (admin.id === currentUser?.id) {
       toast.error('You cannot modify your own account from here. Use profile settings.');
       return;
@@ -234,7 +227,7 @@ const AdminUsers: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin User Management</h1>
@@ -254,7 +247,7 @@ const AdminUsers: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -315,10 +308,10 @@ const AdminUsers: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
+          
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -332,7 +325,7 @@ const AdminUsers: React.FC = () => {
             </div>
           </div>
 
-          {/* Filters */}
+          
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
               <Filter className="h-5 w-5 text-gray-400" />
@@ -361,7 +354,7 @@ const AdminUsers: React.FC = () => {
         </div>
       </div>
 
-      {/* Admin Users Table */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {admins.length === 0 ? (
           <div className="p-8 text-center">
@@ -489,7 +482,7 @@ const AdminUsers: React.FC = () => {
               </table>
             </div>
 
-            {/* Pagination */}
+            
             {pagination.totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -545,7 +538,7 @@ const AdminUsers: React.FC = () => {
         )}
       </div>
 
-      {/* Create Modal */}
+      
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md">
@@ -677,7 +670,7 @@ const AdminUsers: React.FC = () => {
         </div>
       )}
 
-      {/* Edit Modal */}
+      
       {showEditModal && selectedAdmin && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md">
@@ -808,7 +801,7 @@ const AdminUsers: React.FC = () => {
         </div>
       )}
 
-      {/* Security Notice */}
+      
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
         <div className="flex items-start space-x-3">
           <Shield className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />

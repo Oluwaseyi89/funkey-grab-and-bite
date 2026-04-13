@@ -66,18 +66,16 @@ const CustomerList: React.FC = () => {
   };
 
   const getOrderCount = (customer: CustomUser) => {
-    // This would come from API in a real app
     return Math.floor(Math.random() * 20); // Mock data
   };
 
   const getTotalSpent = (customer: CustomUser) => {
-    // This would come from API in a real app
     return (Math.random() * 1000).toFixed(2); // Mock data
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Customers</h1>
@@ -98,10 +96,10 @@ const CustomerList: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
+          
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -115,7 +113,7 @@ const CustomerList: React.FC = () => {
             </div>
           </div>
 
-          {/* Status Filter */}
+          
           <div className="flex items-center space-x-4">
             <Filter className="h-5 w-5 text-gray-400" />
             <select
@@ -133,7 +131,7 @@ const CustomerList: React.FC = () => {
         </div>
       </div>
 
-      {/* Customers Table */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center">
@@ -282,7 +280,7 @@ const CustomerList: React.FC = () => {
               </table>
             </div>
 
-            {/* Pagination */}
+            
             {pagination.totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -338,7 +336,7 @@ const CustomerList: React.FC = () => {
         )}
       </div>
 
-      {/* Customer Stats */}
+      
       {customers.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">

@@ -3,22 +3,18 @@ import { persist } from 'zustand/middleware';
 import type { Promotion, PromotionType, PromotionStatus } from '../types';
 
 interface PromotionState {
-  // Promotions
   promotions: Promotion[];
   selectedPromotion: Promotion | null;
   activePromotions: Promotion[];
   expiredPromotions: Promotion[];
   
-  // Loading & Error
   isLoading: boolean;
   error: string | null;
   
-  // Filters
   statusFilter: PromotionStatus | 'all';
   typeFilter: PromotionType | 'all';
   searchQuery: string;
   
-  // Actions
   setPromotions: (promotions: Promotion[]) => void;
   setSelectedPromotion: (promotion: Promotion | null) => void;
   addPromotion: (promotion: Promotion) => void;
@@ -26,17 +22,14 @@ interface PromotionState {
   deletePromotion: (id: number) => void;
   togglePromotionStatus: (id: number) => void;
   
-  // Filtering
   setStatusFilter: (status: PromotionStatus | 'all') => void;
   setTypeFilter: (type: PromotionType | 'all') => void;
   setSearchQuery: (query: string) => void;
   applyFilters: () => Promotion[];
   clearFilters: () => void;
   
-  // Validation
   validatePromotionCode: (code: string) => { isValid: boolean; promotion?: Promotion };
   
-  // Loading & Error
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -45,7 +38,6 @@ interface PromotionState {
 export const usePromotionStore = create<PromotionState>()(
   persist(
     (set, get) => ({
-      // Initial state
       promotions: [],
       selectedPromotion: null,
       activePromotions: [],
@@ -53,12 +45,10 @@ export const usePromotionStore = create<PromotionState>()(
       isLoading: false,
       error: null,
       
-      // Filters
       statusFilter: 'all',
       typeFilter: 'all',
       searchQuery: '',
       
-      // Actions
       setPromotions: (promotions) => {
         const now = new Date();
         
@@ -121,7 +111,6 @@ export const usePromotionStore = create<PromotionState>()(
         }
       },
       
-      // Filtering
       setStatusFilter: (status) => set({ statusFilter: status }),
       setTypeFilter: (type) => set({ typeFilter: type }),
       setSearchQuery: (query) => set({ searchQuery: query }),
@@ -131,7 +120,6 @@ export const usePromotionStore = create<PromotionState>()(
         
         let filtered = [...promotions];
         
-        // Filter by status
         if (statusFilter !== 'all') {
           const now = new Date();
           filtered = filtered.filter(promo => {
@@ -148,12 +136,10 @@ export const usePromotionStore = create<PromotionState>()(
           });
         }
         
-        // Filter by type
         if (typeFilter !== 'all') {
           filtered = filtered.filter(promo => promo.promotionType === typeFilter);
         }
         
-        // Filter by search query
         if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase().trim();
           filtered = filtered.filter(promo =>
@@ -172,7 +158,6 @@ export const usePromotionStore = create<PromotionState>()(
         searchQuery: '',
       }),
       
-      // Validation
       validatePromotionCode: (code) => {
         const { activePromotions } = get();
         const now = new Date();
@@ -189,7 +174,6 @@ export const usePromotionStore = create<PromotionState>()(
         };
       },
       
-      // Loading & Error
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),

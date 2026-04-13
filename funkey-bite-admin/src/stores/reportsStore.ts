@@ -1,4 +1,3 @@
-// src/stores/reportsStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { 
@@ -12,37 +11,31 @@ import type {
 } from '../types';
 
 interface ReportsState {
-  // Sales Reports
   salesReports: SalesReport[];
   filteredSalesReports: SalesReport[];
   currentSalesReport: SalesReport | null;
   
-  // Analytics Data
   analyticsData: AnalyticsReport | null;
   revenueData: RevenueDataPoint[];
   orderData: OrderDataPoint[];
   customerData: CustomerDataPoint[];
   
-  // Filters
   filters: ReportFilters;
   dateRange: DateRangeFilter;
   isLoading: boolean;
   error: string | null;
   
-  // Actions
   setSalesReports: (reports: SalesReport[]) => void;
   setAnalyticsData: (data: AnalyticsReport) => void;
   setRevenueData: (data: RevenueDataPoint[]) => void;
   setOrderData: (data: OrderDataPoint[]) => void;
   setCustomerData: (data: CustomerDataPoint[]) => void;
   
-  // Filtering
   setDateRange: (range: DateRangeFilter) => void;
   setFilters: (filters: Partial<ReportFilters>) => void;
   applyFilters: () => SalesReport[];
   clearFilters: () => void;
   
-  // Data Processing
   getRevenueSummary: () => {
     totalRevenue: number;
     averageDailyRevenue: number;
@@ -61,7 +54,6 @@ interface ReportsState {
     customerGrowth: number;
   };
   
-  // Loading & Error
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -70,7 +62,6 @@ interface ReportsState {
 export const useReportsStore = create<ReportsState>()(
   persist(
     (set, get) => ({
-      // Initial state
       salesReports: [],
       filteredSalesReports: [],
       currentSalesReport: null,
@@ -81,7 +72,6 @@ export const useReportsStore = create<ReportsState>()(
       isLoading: false,
       error: null,
       
-      // Default filters
       filters: {
         dateRange: {
           startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days ago
@@ -95,7 +85,6 @@ export const useReportsStore = create<ReportsState>()(
         period: 'month',
       },
       
-      // Actions
       setSalesReports: (reports) => set({ 
         salesReports: reports,
         filteredSalesReports: reports,
@@ -109,7 +98,6 @@ export const useReportsStore = create<ReportsState>()(
       
       setCustomerData: (data) => set({ customerData: data }),
       
-      // Filtering
       setDateRange: (range) => {
         set({ 
           dateRange: range,
@@ -128,7 +116,6 @@ export const useReportsStore = create<ReportsState>()(
         
         let filtered = [...salesReports];
         
-        // Filter by date range
         if (filters.dateRange) {
           const startDate = new Date(filters.dateRange.startDate);
           const endDate = new Date(filters.dateRange.endDate);
@@ -139,29 +126,29 @@ export const useReportsStore = create<ReportsState>()(
           });
         }
         
-        // Filter by category, orderType, paymentMethod would go here
-        // when those filters are implemented
         
         set({ filteredSalesReports: filtered });
         return filtered;
       },
       
       clearFilters: () => {
-        const defaultFilters = {
+        const defaultDateRange: DateRangeFilter = {
+          startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+          period: 'month',
+        };
+        const defaultFilters: ReportFilters = {
           dateRange: {
-            startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            endDate: new Date().toISOString().split('T')[0],
-            period: 'month',
+            ...defaultDateRange,
           },
         };
         set({ 
           filters: defaultFilters,
-          dateRange: defaultFilters.dateRange,
+          dateRange: defaultDateRange,
           filteredSalesReports: get().salesReports,
         });
       },
       
-      // Data Processing
       getRevenueSummary: () => {
         const { filteredSalesReports } = get();
         
@@ -172,7 +159,6 @@ export const useReportsStore = create<ReportsState>()(
         const totalRevenue = filteredSalesReports.reduce((sum, report) => sum + report.totalRevenue, 0);
         const averageDailyRevenue = totalRevenue / filteredSalesReports.length;
         
-        // Calculate revenue change compared to previous period
         let revenueChange = 0;
         if (filteredSalesReports.length >= 2) {
           const firstHalf = filteredSalesReports.slice(0, Math.floor(filteredSalesReports.length / 2));
@@ -219,7 +205,6 @@ export const useReportsStore = create<ReportsState>()(
         const newCustomers = customerData.reduce((sum, data) => sum + data.newCustomers, 0);
         const returningCustomers = customerData.reduce((sum, data) => sum + data.returningCustomers, 0);
         
-        // Calculate customer growth
         let customerGrowth = 0;
         if (customerData.length >= 2) {
           const firstHalf = customerData.slice(0, Math.floor(customerData.length / 2));
@@ -238,7 +223,6 @@ export const useReportsStore = create<ReportsState>()(
         };
       },
       
-      // Loading & Error
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),

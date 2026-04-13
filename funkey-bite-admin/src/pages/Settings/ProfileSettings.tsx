@@ -1,4 +1,3 @@
-// src/pages/Settings/ProfileSettings.tsx
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,7 +21,6 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../stores/authStore';
 import { updateAdminPassword, adminLogout } from '../../api/adminApi';
 
-// Validation schemas
 const profileSchema = z.object({
   email: z.string().email('Valid email is required'),
 });
@@ -52,7 +50,6 @@ const ProfileSettings: React.FC = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const { user, logout } = useAuthStore();
 
-  // Profile form
   const {
     register: registerProfile,
     handleSubmit: handleSubmitProfile,
@@ -64,7 +61,6 @@ const ProfileSettings: React.FC = () => {
     },
   });
 
-  // Password form
   const {
     register: registerPassword,
     handleSubmit: handleSubmitPassword,
@@ -75,8 +71,6 @@ const ProfileSettings: React.FC = () => {
   });
 
   const handleProfileUpdate = async (data: ProfileFormData) => {
-    // Note: Your backend doesn't have a profile update endpoint
-    // You might need to add one or handle this differently
     toast.error('Profile update endpoint not implemented');
   };
 
@@ -136,7 +130,7 @@ const ProfileSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Profile Settings</h1>
@@ -147,9 +141,9 @@ const ProfileSettings: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Profile Info */}
+        
         <div className="lg:col-span-1 space-y-6">
-          {/* Profile Card */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex flex-col items-center text-center">
               <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center mb-4">
@@ -212,7 +206,7 @@ const ProfileSettings: React.FC = () => {
             </div>
           </div>
 
-          {/* Account Info */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h3 className="font-medium text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
               <UserCog className="h-5 w-5 text-primary-500" />
@@ -242,7 +236,7 @@ const ProfileSettings: React.FC = () => {
             </div>
           </div>
 
-          {/* Logout Button */}
+          
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-colors"
@@ -252,9 +246,9 @@ const ProfileSettings: React.FC = () => {
           </button>
         </div>
 
-        {/* Right Column - Settings Forms */}
+        
         <div className="lg:col-span-2 space-y-6">
-          {/* Tab Navigation */}
+          
           <div className="bg-white dark:bg-gray-800 rounded-xl p-2 border border-gray-200 dark:border-gray-700">
             <div className="flex space-x-2">
               <button
@@ -287,7 +281,7 @@ const ProfileSettings: React.FC = () => {
             </div>
           </div>
 
-          {/* Profile Tab Content */}
+          
           {activeTab === 'profile' && (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-3 mb-6">
@@ -380,7 +374,7 @@ const ProfileSettings: React.FC = () => {
             </div>
           )}
 
-          {/* Security Tab Content */}
+          
           {activeTab === 'security' && (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-3 mb-6">
@@ -391,7 +385,7 @@ const ProfileSettings: React.FC = () => {
               </div>
               
               <form onSubmit={handleSubmitPassword(handlePasswordChange)} className="space-y-6">
-                {/* Current Password */}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Current Password *
@@ -421,7 +415,7 @@ const ProfileSettings: React.FC = () => {
                   )}
                 </div>
                 
-                {/* New Password */}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     New Password *
@@ -451,7 +445,7 @@ const ProfileSettings: React.FC = () => {
                   )}
                 </div>
                 
-                {/* Confirm Password */}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Confirm New Password *
@@ -481,7 +475,7 @@ const ProfileSettings: React.FC = () => {
                   )}
                 </div>
                 
-                {/* Password Requirements */}
+                
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                   <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                     Password Requirements:
@@ -495,7 +489,7 @@ const ProfileSettings: React.FC = () => {
                   </ul>
                 </div>
                 
-                {/* Action Buttons */}
+                
                 <div className="flex items-center space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
                   <button
                     type="submit"
@@ -518,7 +512,7 @@ const ProfileSettings: React.FC = () => {
             </div>
           )}
 
-          {/* Security Tips */}
+          
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
             <div className="flex items-start space-x-3">
               <Shield className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />

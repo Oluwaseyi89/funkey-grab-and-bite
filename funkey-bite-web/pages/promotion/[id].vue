@@ -1,14 +1,14 @@
-<!-- pages/promotions/[id].vue -->
+
 <template>
     <div>
-      <!-- Back Button -->
+
       <div class="container-narrow py-6">
         <button @click="goBack" class="flex items-center text-gray-600 dark:text-gray-400 hover:text-brand-500">
           ← Back to Promotions
         </button>
       </div>
   
-      <!-- Promotion Header -->
+
       <PageHeader
         :title="promotion?.title"
         :subtitle="promotion?.description"
@@ -16,7 +16,7 @@
         alignment="center"
         header-class="pb-12"
       >
-        <!-- Promotion Badge -->
+
         <div class="mt-8">
           <span class="inline-block bg-white/20 dark:bg-slate-800/50 px-6 py-2 rounded-full text-white font-bold text-lg">
             {{ formatDiscountValue(promotion?.discountValue, promotion?.discountType) }}
@@ -24,11 +24,11 @@
         </div>
       </PageHeader>
   
-      <!-- Promotion Details -->
+
       <div class="section-padding">
         <div class="container-narrow">
           <div v-if="promotion" class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden">
-            <!-- Hero Image -->
+
             <div class="relative h-64 md:h-96">
               <img 
                 :src="getPromotionImage(promotion)"
@@ -42,10 +42,10 @@
               </div>
             </div>
   
-            <!-- Promotion Details Grid -->
+
             <div class="p-8">
               <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                <!-- Discount Info -->
+
                 <div class="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
                   <h3 class="text-xl font-bold mb-4">🎁 Discount Details</h3>
                   <div class="space-y-4">
@@ -64,7 +64,7 @@
                   </div>
                 </div>
   
-                <!-- Validity -->
+
                 <div class="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
                   <h3 class="text-xl font-bold mb-4">📅 Validity Period</h3>
                   <div class="space-y-4">
@@ -85,7 +85,7 @@
                   </div>
                 </div>
   
-                <!-- Status -->
+
                 <div class="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
                   <h3 class="text-xl font-bold mb-4">⚡ Quick Actions</h3>
                   <div class="space-y-4">
@@ -111,7 +111,7 @@
                 </div>
               </div>
   
-              <!-- Applicable Items Section -->
+
               <div v-if="applicableItems.length > 0" class="mb-12">
                 <h3 class="text-2xl font-bold mb-6">🎯 Applicable Items</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -153,7 +153,7 @@
                 </div>
               </div>
   
-              <!-- Terms & Conditions -->
+
               <div class="bg-gray-50 dark:bg-slate-700/30 rounded-xl p-6">
                 <h3 class="text-xl font-bold mb-4">📋 Terms & Conditions</h3>
                 <ul class="space-y-2 text-gray-700 dark:text-gray-300">
@@ -182,7 +182,7 @@
             </div>
           </div>
   
-          <!-- Not Found State -->
+
           <div v-else class="text-center py-16">
             <div class="text-6xl mb-6">😕</div>
             <h3 class="text-2xl font-bold mb-4">Promotion Not Found</h3>
@@ -212,19 +212,16 @@
     getDiscountedPrice  
 } from '../../utils/helperFunctions'
   
-  // Components
   import PageHeader from '../../components/layout/PageHeader.vue'
   
   const route = useRoute()
   const router = useRouter()
   const promotionId = route.params.id as string
   
-  // Find promotion
   const promotion = computed(() => {
     return mockPromotions.find(p => p.id === promotionId)
   })
   
-  // Get applicable items
   const applicableItems = computed(() => {
     if (!promotion.value?.applicableItems?.length) {
       return mockMenuItems.slice(0, 6) // Show first 6 items if no specific items
@@ -236,7 +233,6 @@
   })
   
 
-
   const getPromotionImage = (promo: Promotion) => {
     if (applicableItems.value.length > 0) {
       return applicableItems.value[0].imageUrl
@@ -246,20 +242,16 @@
   
 
   
-  // Navigation methods
   const goBack = () => {
     router.push('/promotion')
   }
   
   const claimPromotion = (promo: Promotion) => {
-    // Implement claim logic
     console.log('Claiming promotion:', promo.id)
-    // navigateTo(`/order?promotion=${promo.id}`)
   }
   
   const viewApplicableItems = () => {
     if (applicableItems.value.length > 0) {
-      // Navigate to menu with filtered items
       router.push(`/menu?promotion=${promotionId}`)
     }
   }

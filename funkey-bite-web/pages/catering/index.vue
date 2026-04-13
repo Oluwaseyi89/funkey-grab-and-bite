@@ -1,6 +1,6 @@
 <template>
     <div class="mx-5 px-3 py-3 md:mx-8 md:py-8 md:px-8">
-      <!-- Hero Section -->     
+     
   <PageHeader
     title-before="Catering for"
     highlight-text="Every"
@@ -15,7 +15,7 @@
     title-class="text-gray-900 dark:text-white"
     subtitle-class="text-gray-700 dark:text-white/90"
   >
-      <!-- CTA Buttons -->
+
       <div class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
         <button 
           @click="scrollToForm"
@@ -32,7 +32,7 @@
         </a>
       </div>
     </PageHeader>
-      <!-- Why Choose Us -->
+
       <section class="section-padding px-3 py-3 md:py-8 md:px-8 my-3 md:my-8 bg-transparent dark:bg-slate-900">
         <div class="container-narrow">
           <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
@@ -51,7 +51,7 @@
         </div>
       </section>
   
-      <!-- Packages -->
+
       <section class="section-padding mx-5 md:mx-8 my-5 md:my-8 px-3 md:px-8 py-3 md:py-8 bg-transparent">
         <div class="container-narrow">
           <CateringPackages
@@ -61,12 +61,12 @@
         </div>
       </section>
   
-      <!-- Quote Form -->
+
       <section ref="formSection" class="section-padding my-5 mx-5 md:my-8 md:mx-8 px-3 py-3 md:py-8 md:px-8 bg-white dark:bg-slate-900">
         <div class="container-narrow">
           <div class="max-w-4xl mx-auto">
             <div class="grid lg:grid-cols-2 gap-12">
-              <!-- Left: Event Details -->
+
               <div class="space-y-8">
                 <div>
                   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Event Details</h2>
@@ -81,7 +81,7 @@
                   @update="guestCount = $event"
                 />
                 
-                <!-- Service Areas -->
+
                 <div class="bg-brand-50 dark:brand-900/20 p-6 rounded-xl">
                   <h4 class="font-bold text-brand-700 dark:text-brand-300 mb-3">📍 Service Areas</h4>
                   <div class="grid grid-cols-2 gap-2 text-sm">
@@ -108,7 +108,7 @@
                 </div>
               </div>
   
-              <!-- Right: Contact Form -->
+
               <div>
                 <CateringRequestForm
                   :guest-count="guestCount"
@@ -123,14 +123,14 @@
         </div>
       </section>
   
-      <!-- FAQ -->
+
       <section class="section-padding mx-3 my-3 md:mx-8 md:my-8 py-3 px-3 md:py-8 md:px-8 bg-gray-50 dark:bg-slate-800">
         <div class="container-narrow">
           <CateringFAQ />
         </div>
       </section>
   
-      <!-- Testimonials -->
+
       <section class="section-padding px-5 py-5 md:py-8 md:px-8 mx-3 my-3 md:mx-8 md:my-8 bg-white dark:bg-slate-900">
         <div class="container-narrow">
           <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
@@ -161,7 +161,7 @@
         </div>
       </section>
   
-      <!-- CTA -->
+
       <section class="bg-gradient-to-r from-brand-600 to-accent-600 px-5 py-5 md:px-8 md:py-8 mx-3 my-3 md:my-8 md:mx-8 text-white">
         <div class="container-narrow section-padding text-center">
           <h2 class="text-3xl font-bold mb-4">Ready to Plan Your Event?</h2>
@@ -182,7 +182,7 @@
         </div>
       </section>
   
-      <!-- Success Modal -->
+
       <div 
         v-if="showSuccessModal"
         class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -223,7 +223,6 @@
     Truck
   } from 'lucide-vue-next'
   
-  // Components
   import CateringPackages from '../../components/catering/CateringPackages.vue'
   import EventTypeSelector from '../../components/catering/EventTypeSelector.vue'
   import GuestCountSelector from '../../components/catering/GuestCountSelector.vue'
@@ -232,7 +231,6 @@
   import { Phone } from 'lucide-vue-next'
 
   
-  // Refs
   const formSection = ref<HTMLElement>()
   const selectedPackage = ref('premium')
   const selectedEvent = ref('corporate')
@@ -240,7 +238,6 @@
   const isSubmitting = ref(false)
   const showSuccessModal = ref(false)
   
-  // Features
   const features = [
     {
       icon: Award,
@@ -269,7 +266,6 @@
     }
   ]
   
-  // Testimonials
   const testimonials = [
     {
       name: 'Sarah Johnson',
@@ -291,7 +287,6 @@
     }
   ]
   
-  // Methods
   const scrollToForm = () => {
     formSection.value?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -309,24 +304,15 @@
     isSubmitting.value = true
     
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500))
       
-      // In real app, send to API
-      // await $fetch('/api/catering/requests', {
-      //   method: 'POST',
-      //   body: data
-      // })
       
-      // Show success
       showSuccessModal.value = true
       
-      // Reset form
       resetForm()
       
     } catch (error) {
       console.error('Submission failed:', error)
-      // Show error toast
     } finally {
       isSubmitting.value = false
     }

@@ -1,8 +1,7 @@
-import { Promotion } from "../types/menu" 
+import type { Promotion } from '../types/menu'
  
  
  
- // Helper methods
   export const formatDiscountType = (type?: string) => {
     return type === 'bogo' ? 'BOGO' : (type?.toUpperCase() || '')
   }

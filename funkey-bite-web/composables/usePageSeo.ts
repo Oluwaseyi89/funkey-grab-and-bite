@@ -1,6 +1,5 @@
 import { useSeo } from './useSeo'
 
-// Page-specific SEO configurations
 export const usePageSeo = (page: string, customConfig?: any) => {
   const configs: Record<string, any> = {
     home: {

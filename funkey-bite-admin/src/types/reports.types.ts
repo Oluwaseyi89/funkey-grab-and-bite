@@ -1,10 +1,3 @@
-// src/types/reports.types.ts
-// export interface SalesReport {
-//     date: string;
-//     totalOrders: number;
-//     totalRevenue: number;
-//     averageOrder: number;
-//   }
   
   export interface AnalyticsReport {
     period: 'daily' | 'weekly' | 'monthly' | 'yearly';

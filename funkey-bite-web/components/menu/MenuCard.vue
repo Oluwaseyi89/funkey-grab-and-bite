@@ -3,10 +3,10 @@
       class="group relative bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 dark:border-slate-700 hover:scale-[1.02]"
       :class="{ 'opacity-70': !item.isAvailable }"
     >
-      <!-- Pre-order Badge -->
+      
       <PreOrderBadge v-if="item.isPreOrder" />
   
-      <!-- Image -->
+      
       <div class="relative h-48 overflow-hidden">
         <img
           :src="item.imageUrl"
@@ -14,13 +14,13 @@
           class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           loading="lazy"
         />
-        <!-- Overlay for unavailable items -->
+        
         <div v-if="!item.isAvailable" class="absolute inset-0 bg-black/50 flex items-center justify-center">
           <span class="text-white font-bold text-lg bg-red-500/80 px-4 py-2 rounded-full">Currently Unavailable</span>
         </div>
       </div>
   
-      <!-- Content -->
+      
       <div class="p-6">
         <div class="flex justify-between items-start mb-3">
           <div>
@@ -38,7 +38,7 @@
   
         <p class="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">{{ item.description }}</p>
   
-        <!-- Nutritional Info (Collapsible) -->
+        
         <div v-if="item.nutritionalInfo" class="mb-4">
           <button
             @click="showNutrition = !showNutrition"
@@ -67,7 +67,7 @@
           </div>
         </div>
   
-        <!-- Action Buttons -->
+        
         <div class="flex space-x-3">
           <button
             @click="$emit('addToCart', item)"
@@ -113,7 +113,7 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    line-clamp: 2; /* Standard property, limited browser support */
+    line-clamp: 2; 
     display: -moz-box;
     -moz-box-orient: vertical;
   }

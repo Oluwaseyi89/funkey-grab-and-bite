@@ -1,4 +1,3 @@
-// src/contexts/SocketContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '../stores/authStore';
@@ -49,8 +48,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error('Socket connection error:', error);
     });
 
-    // Real-time event handlers
-    // Order updates
     newSocket.on('new_order', (order: Order) => {
       useOrderStore.getState().addOrder(order);
       useNotificationStore.getState().addNotification({
@@ -81,7 +78,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     });
 
-    // Catering updates
     newSocket.on('new_catering_request', (request: CateringRequest) => {
       useCateringStore.getState().addRequest(request);
       useNotificationStore.getState().addNotification({
@@ -112,7 +108,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     });
 
-    // Inventory alerts
     newSocket.on('inventory_alert', (alert: InventoryAlert) => {
       useInventoryStore.getState().addAlert(alert);
       useNotificationStore.getState().addNotification({
@@ -132,7 +127,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       useInventoryStore.getState().updateAlert(alert.id, alert);
     });
 
-    // Customer updates
     newSocket.on('new_customer', (customer: User) => {
       useUserStore.getState().addCustomer(customer);
       useNotificationStore.getState().addNotification({
@@ -148,7 +142,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     });
 
-    // System notifications
     newSocket.on('system_notification', (notification: any) => {
       useNotificationStore.getState().addNotification({
         id: Date.now(),
@@ -163,7 +156,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     });
 
-    // Menu updates (optional)
     newSocket.on('menu_updated', () => {
       useNotificationStore.getState().addNotification({
         id: Date.now(),
@@ -176,7 +168,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     });
 
-    // Promotion updates (optional)
     newSocket.on('promotion_updated', () => {
       useNotificationStore.getState().addNotification({
         id: Date.now(),
@@ -192,7 +183,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSocket(newSocket);
 
     return () => {
-      // Clean up all event listeners
       newSocket.off('connect');
       newSocket.off('disconnect');
       newSocket.off('connect_error');
