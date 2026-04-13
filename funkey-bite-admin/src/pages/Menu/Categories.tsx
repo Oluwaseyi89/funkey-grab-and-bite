@@ -35,7 +35,7 @@ const Categories: React.FC = () => {
 
   const handleReorder = (categoryId: number, direction: 'up' | 'down') => {
     // Implement reorder logic
-    toast.info('Reordering feature coming soon!');
+    toast('Reordering feature coming soon!');
   };
 
   const handleDelete = async (id: number) => {

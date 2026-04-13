@@ -51,16 +51,7 @@ const promotionSchema = z.object({
   promotionType: z.enum(['percentage', 'fixed', 'bogo']),
   
   discountValue: z.number()
-    .min(0.01, 'Discount value must be greater than 0')
-    .refine((val, ctx) => {
-      const type = ctx.parent.promotionType;
-      if (type === 'percentage' && val > 100) {
-        return false;
-      }
-      return true;
-    }, {
-      message: 'Percentage discount cannot exceed 100%'
-    }),
+    .min(0.01, 'Discount value must be greater than 0'),
   
   maxDiscount: z.number()
     .min(0, 'Max discount must be positive')
@@ -81,19 +72,32 @@ const promotionSchema = z.object({
     .refine(date => !isNaN(Date.parse(date)), 'Invalid start date'),
   
   validUntil: z.string()
-    .refine(date => !isNaN(Date.parse(date)), 'Invalid end date')
-    .refine((date, ctx) => {
-      const from = new Date(ctx.parent.validFrom);
-      const until = new Date(date);
-      return until > from;
-    }, {
-      message: 'End date must be after start date'
-    }),
+    .refine(date => !isNaN(Date.parse(date)), 'Invalid end date'),
   
   isActive: z.boolean().default(true),
+}).superRefine((data, ctx) => {
+  if (data.promotionType === 'percentage' && data.discountValue > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Percentage discount cannot exceed 100%',
+      path: ['discountValue'],
+    });
+  }
+
+  const from = new Date(data.validFrom);
+  const until = new Date(data.validUntil);
+  if (!isNaN(from.getTime()) && !isNaN(until.getTime()) && until <= from) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'End date must be after start date',
+      path: ['validUntil'],
+    });
+  }
 });
 
 type PromotionFormData = z.infer<typeof promotionSchema>;
+type PromotionFormInput = z.input<typeof promotionSchema>;
+type PromotionFormOutput = z.output<typeof promotionSchema>;
 
 const PromotionForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -144,7 +148,7 @@ const PromotionForm: React.FC = () => {
     reset,
     setError,
     clearErrors,
-  } = useForm<PromotionFormData>({
+  } = useForm<PromotionFormInput, unknown, PromotionFormOutput>({
     resolver: zodResolver(promotionSchema),
     defaultValues: {
       code: '',
@@ -231,7 +235,7 @@ const PromotionForm: React.FC = () => {
   };
 
   const mutation = useMutation({
-    mutationFn: async (data: PromotionFormData) => {
+    mutationFn: async (data: PromotionFormOutput) => {
       const promotionData: any = {
         ...data,
         // Convert empty strings to null for optional fields
@@ -267,7 +271,7 @@ const PromotionForm: React.FC = () => {
     },
   });
 
-  const onSubmit = (data: PromotionFormData) => {
+  const onSubmit = (data: PromotionFormOutput) => {
     // Check for duplicate code (except for current promotion)
     const duplicate = allPromotions.find(promo => 
       promo.code.toLowerCase() === data.code.toLowerCase() && 

@@ -32,10 +32,10 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <Router>
+      <Router>
+        <ThemeProvider>
+          <AuthProvider>
+            <SocketProvider>
               <AppRoutes />
               <Toaster 
                 position="top-right"
@@ -44,10 +44,10 @@ function App() {
                   duration: 4000,
                 }}
               />
-            </Router>
-          </SocketProvider>
-        </AuthProvider>
-      </ThemeProvider>
+            </SocketProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </Router>
     </QueryClientProvider>
   );
 }

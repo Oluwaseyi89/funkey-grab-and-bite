@@ -22,7 +22,8 @@ import {
   Lock,
   UserPlus,
   UserCheck,
-  UserX
+  UserX,
+  Save
 } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -47,6 +48,8 @@ const adminUserSchema = z.object({
 const updateAdminSchema = adminUserSchema.omit({ password: true }).partial();
 
 type AdminUserFormData = z.infer<typeof adminUserSchema>;
+type AdminUserFormInput = z.input<typeof adminUserSchema>;
+type AdminUserFormOutput = z.output<typeof adminUserSchema>;
 type UpdateAdminFormData = z.infer<typeof updateAdminSchema>;
 
 const AdminUsers: React.FC = () => {
@@ -129,7 +132,7 @@ const AdminUsers: React.FC = () => {
     handleSubmit: handleSubmitCreate,
     formState: { errors: createErrors, isSubmitting: isCreateSubmitting },
     reset: resetCreateForm,
-  } = useForm<AdminUserFormData>({
+  } = useForm<AdminUserFormInput, unknown, AdminUserFormOutput>({
     resolver: zodResolver(adminUserSchema),
     defaultValues: {
       role: 'staff',
@@ -147,7 +150,7 @@ const AdminUsers: React.FC = () => {
     resolver: zodResolver(updateAdminSchema),
   });
 
-  const handleCreate = (data: AdminUserFormData) => {
+  const handleCreate = (data: AdminUserFormOutput) => {
     createMutation.mutate(data);
   };
 

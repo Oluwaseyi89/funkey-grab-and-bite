@@ -60,6 +60,7 @@ export const getOrders = (params?: {
   page?: number;
   limit?: number;
   status?: string;
+  userId?: number;
 }) => apiGet<PaginatedResponse<Order>>('/api/v1/admin/orders', params);
 
 export const getOrder = (id: number) =>
@@ -88,6 +89,9 @@ export const getMenuItems = (params?: {
   categoryId?: number;
   query?: string;
 }) => apiGet<MenuItem[]>('/api/v1/admin/menu/items', params);
+
+export const getMenuItemByID = (id: number) =>
+  apiGet<MenuItem>(`/api/v1/admin/menu/items/${id}`);
 
 export const createMenuItem = (data: MenuItem) =>
   apiPost<MenuItem>('/api/v1/admin/menu/items', data);
@@ -133,6 +137,7 @@ export const getCateringRequests = (params?: {
   page?: number;
   limit?: number;
   status?: string;
+  id?: number;
 }) => apiGet<PaginatedResponse<CateringRequest>>('/api/v1/admin/catering/requests', params);
 
 export const updateCateringStatus = (id: number, data: { status: string }) =>

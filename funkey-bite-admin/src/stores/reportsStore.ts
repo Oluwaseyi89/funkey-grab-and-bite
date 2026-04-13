@@ -147,16 +147,19 @@ export const useReportsStore = create<ReportsState>()(
       },
       
       clearFilters: () => {
-        const defaultFilters = {
+        const defaultDateRange: DateRangeFilter = {
+          startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+          period: 'month',
+        };
+        const defaultFilters: ReportFilters = {
           dateRange: {
-            startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            endDate: new Date().toISOString().split('T')[0],
-            period: 'month',
+            ...defaultDateRange,
           },
         };
         set({ 
           filters: defaultFilters,
-          dateRange: defaultFilters.dateRange,
+          dateRange: defaultDateRange,
           filteredSalesReports: get().salesReports,
         });
       },

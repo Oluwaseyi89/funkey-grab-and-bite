@@ -39,6 +39,8 @@ const menuItemSchema = z.object({
 });
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
+type MenuItemFormInput = z.input<typeof menuItemSchema>;
+type MenuItemFormOutput = z.output<typeof menuItemSchema>;
 
 const MenuForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -87,7 +89,7 @@ const MenuForm: React.FC = () => {
     setValue,
     watch,
     reset,
-  } = useForm<MenuItemFormData>({
+  } = useForm<MenuItemFormInput, unknown, MenuItemFormOutput>({
     resolver: zodResolver(menuItemSchema),
     defaultValues: {
       name: '',
@@ -124,7 +126,7 @@ const MenuForm: React.FC = () => {
     }
   }, [existingItem, reset]);
 
-  const tags = watch('tags');
+  const tags = watch('tags') ?? [];
   const nutritionalInfo = watch('nutritionalInfo');
 
   const addTag = () => {
@@ -151,7 +153,7 @@ const MenuForm: React.FC = () => {
   };
 
   const mutation = useMutation({
-    mutationFn: async (data: MenuItemFormData) => {
+    mutationFn: async (data: MenuItemFormOutput) => {
       const menuItemData: any = {
         ...data,
         imageUrl: imagePreview || 'https://via.placeholder.com/400x300?text=Menu+Item',
@@ -172,7 +174,7 @@ const MenuForm: React.FC = () => {
     },
   });
 
-  const onSubmit = (data: MenuItemFormData) => {
+  const onSubmit = (data: MenuItemFormOutput) => {
     mutation.mutate(data);
   };
 

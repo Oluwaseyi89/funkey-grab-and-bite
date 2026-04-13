@@ -105,7 +105,7 @@ export const useInventoryStore = create<InventoryState>()(
       updateStock: (menuItemId, operation, quantity) =>
         set((state) => {
           const item = state.items.find(item => item.menuItemId === menuItemId);
-          if (!item) return state;
+          if (!item) return {};
           
           let newStock = item.currentStock;
           
@@ -121,10 +121,26 @@ export const useInventoryStore = create<InventoryState>()(
               break;
           }
           
-          return get().updateItem(item.id, { 
+          const updates = {
             currentStock: newStock,
             lastRestocked: new Date().toISOString(),
-          });
+          };
+
+          const updatedItems = state.items.map(existingItem =>
+            existingItem.id === item.id ? { ...existingItem, ...updates } : existingItem
+          );
+
+          const lowStockItems = updatedItems.filter(existingItem =>
+            existingItem.currentStock <= existingItem.reorderPoint && existingItem.isActive
+          );
+
+          return {
+            items: updatedItems,
+            lowStockItems,
+            selectedItem: state.selectedItem?.id === item.id
+              ? { ...state.selectedItem, ...updates }
+              : state.selectedItem,
+          };
         }),
       
       deleteItem: (id) =>

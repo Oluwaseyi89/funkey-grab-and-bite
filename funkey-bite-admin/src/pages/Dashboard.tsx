@@ -53,7 +53,7 @@ const Dashboard: React.FC = () => {
     };
 
     const handleOrderUpdated = (order: Order) => {
-      toast.info(`Order #${order.orderNumber} updated: ${order.status}`);
+      toast(`Order #${order.orderNumber} updated: ${order.status}`);
       refetchOrders();
     };
 
