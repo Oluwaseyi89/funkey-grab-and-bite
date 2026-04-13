@@ -1,6 +1,5 @@
 import { defineNuxtConfig } from 'nuxt/config'
 
-
 export default defineNuxtConfig({
   devtools: { enabled: true },
   
@@ -12,7 +11,6 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
   ],
   
-  // Runtime Configuration
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1',
@@ -22,7 +20,6 @@ export default defineNuxtConfig({
     }
   },
   
-  // App Configuration
   app: {
     head: {
       htmlAttrs: { 
@@ -46,7 +43,6 @@ export default defineNuxtConfig({
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
         
-        // Open Graph Meta Tags
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: 'Funkey Grab & Bite' },
         { property: 'og:title', content: 'Funkey Grab & Bite - Fast Food & Catering' },
@@ -61,7 +57,6 @@ export default defineNuxtConfig({
         { property: 'og:image:alt', content: 'Funkey Grab & Bite Restaurant' },
         { property: 'og:locale', content: 'en_US' },
         
-        // Twitter Card Meta Tags
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:site', content: '@funkeygrab' },
         { name: 'twitter:creator', content: '@funkeygrab' },
@@ -73,13 +68,11 @@ export default defineNuxtConfig({
         { name: 'twitter:image', content: 'https://funkey-static-assets.s3.amazonaws.com/branding/twitter-image.jpg' },
         { name: 'twitter:image:alt', content: 'Funkey Grab & Bite Restaurant' },
         
-        // Additional SEO Meta Tags
         { name: 'robots', content: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' },
         { name: 'googlebot', content: 'index, follow' },
         { name: 'author', content: 'Funkey Grab & Bite' },
         { name: 'publisher', content: 'Funkey Grab & Bite' },
         
-        // Mobile Specific
         { name: 'format-detection', content: 'telephone=no' },
         { name: 'mobile-web-app-capable', content: 'yes' },
       ],
@@ -174,39 +167,27 @@ export default defineNuxtConfig({
     }
   },
   
-  // TypeScript Configuration
   typescript: {
     strict: true,
     typeCheck: true,
   },
   
-  // Build Configuration
   build: {
     transpile: ['@headlessui/vue', 'gsap']
   },
   
-  // Nitro Configuration (Server)
   nitro: {
     compressPublicAssets: true,
     prerender: {
       crawlLinks: true,
       routes: [
         '/',
-        // '/menu',
-        // '/order',
-        // '/catering',
-        // '/contact',
-        // '/about',
-        // '/legal/privacy',
-        // '/legal/terms',
       ]
     }
   },
   
-  // Source Directory
   srcDir: '.',
   
-  // Auto-import Configuration
   imports: {
     dirs: [
       'composables',
@@ -217,7 +198,6 @@ export default defineNuxtConfig({
     ]
   },
   
-  // Components Configuration
   components: [
     {
       path: '~/components',

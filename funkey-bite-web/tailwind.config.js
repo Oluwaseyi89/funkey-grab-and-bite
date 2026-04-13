@@ -12,7 +12,6 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Brand colors - Red & White theme
         brand: {
           50: '#ffebee',
           100: '#ffcdd2',

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <!-- Enhanced Page Header -->
+
     <PageHeader
       title-before="Our"
       highlight-text="Delicious"
@@ -10,11 +10,11 @@
       :narrow="true"
       header-class="pb-12"
     >
-      <!-- Search Bar in the actions slot -->
+
       <div class="mt-8 max-w-2xl mx-auto w-full">
         <SearchBar @search="handleSearch" />
         
-        <!-- Quick Filter Chips (Optional) -->
+
         <div class="flex flex-wrap justify-center gap-2 mt-4">
           <button
             v-for="category in topCategories"
@@ -42,10 +42,9 @@
       </div>
     </PageHeader>
 
-    <!-- Rest of your content remains largely the same -->
     <div  class="section-padding my-5 mx-5 md:my-8 md:mx-8 px-3 py-3 md:py-8 md:px-8">
       <div class="container-narrow">
-        <!-- Active Filters Bar -->
+
         <div v-if="activeFilters.length" class="mb-8 p-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl border border-gray-100 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -74,9 +73,9 @@
         </div>
 
         <div class="flex flex-col lg:flex-row gap-8">
-          <!-- Sidebar Filters -->
+
           <div class="lg:w-1/4 space-y-6">
-            <!-- Category Filter -->
+
             <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-100 dark:border-slate-700">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="font-bold text-gray-900 dark:text-white">Categories</h3>
@@ -89,7 +88,6 @@
               />
             </div>
 
-            <!-- Price Filter -->
             <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-100 dark:border-slate-700">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="font-bold text-gray-900 dark:text-white">Price Range</h3>
@@ -107,7 +105,6 @@
               </div>
             </div>
 
-            <!-- Popular Items -->
             <div v-if="popularItems.length" class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-100 dark:border-slate-700">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="font-bold text-gray-900 dark:text-white">Popular Picks</h3>
@@ -133,7 +130,6 @@
               </div>
             </div>
 
-            <!-- Tip Section -->
             <div class="bg-gradient-to-r from-brand-50/80 to-accent-50/80 dark:from-brand-900/20 dark:to-accent-900/20 rounded-xl p-5 border border-brand-100 dark:border-brand-700/30">
               <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
@@ -149,9 +145,8 @@
             </div>
           </div>
 
-          <!-- Main Content -->
           <div class="lg:w-3/4">
-            <!-- Results Summary -->
+
             <div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
@@ -162,7 +157,7 @@
                 </p>
               </div>
               
-              <!-- Sort Options -->
+
               <div class="flex items-center gap-4 dark:text-white">
                 <select
                   v-model="sortBy"
@@ -174,7 +169,7 @@
                   <option value="popular">Most Popular</option>
                 </select>
                 
-                <!-- View Toggle (Optional) -->
+
                 <div class="hidden sm:flex items-center gap-1 p-1 bg-gray-100 dark:bg-slate-800 rounded-lg dark:text-white">
                   <button
                     @click="gridView = 'grid'"
@@ -194,7 +189,6 @@
               </div>
             </div>
 
-            <!-- Menu Grid -->
             <MenuGrid
               :filtered-items="paginatedItems"
               :is-loading="menuStore.isLoading"
@@ -206,7 +200,6 @@
               @page-change="handlePageChange"
             />
 
-            <!-- Empty State -->
             <div v-if="filteredItems.length === 0 && !menuStore.isLoading" class="text-center py-16">
               <Search class="w-24 h-24 text-gray-300 dark:text-gray-700 mx-auto mb-6" />
               <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">No items found</h3>
@@ -221,7 +214,6 @@
               </button>
             </div>
 
-            <!-- Cart Summary (Mobile) -->
             <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 shadow-lg p-4 z-50">
               <div class="flex justify-between items-center">
                 <div>
@@ -251,7 +243,6 @@
       </div>
     </div>
 
-    <!-- Item Details Modal -->
     <Teleport to="body">
       <ItemDetailsModal
         v-if="selectedItem"
@@ -282,8 +273,6 @@ import type { MenuItem } from '../../types/menu'
 import { useNuxtApp } from 'nuxt/app'
 import { useRoute } from 'vue-router'
 
-
-// Components
 import PageHeader from '../../components/layout/PageHeader.vue'
 import SearchBar from '../../components/menu/SearchBar.vue'
 import CategoryFilter from '../../components/menu/CategoryFilter.vue'
@@ -293,12 +282,9 @@ import ItemDetailsModal from '../../components/menu/ItemDetailsModal.vue'
 
 const route = useRoute()
 
-
-// Stores
 const menuStore = useMenuStore()
 const cart = useCartStore()
 
-// State
 const selectedCategory = ref<string | null>(null)
 const searchQuery = ref('')
 const maxPrice = ref(100)
@@ -308,7 +294,6 @@ const sortBy = ref('name')
 const gridView = ref<'grid' | 'list'>('grid')
 const itemsPerPage = 12
 
-// Computed
 const categoriesWithCount = computed(() => {
   return menuStore.categories.map(category => ({
     ...category,
@@ -325,12 +310,10 @@ const topCategories = computed(() => {
 const filteredItems = computed(() => {
   let items = menuStore.menuItems
 
-  // Filter by category
   if (selectedCategory.value) {
     items = items.filter(item => item.categoryId === selectedCategory.value)
   }
 
-  // Filter by search query
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     items = items.filter(item =>
@@ -340,10 +323,8 @@ const filteredItems = computed(() => {
     )
   }
 
-  // Filter by price
   items = items.filter(item => item.price <= maxPrice.value)
 
-  // Apply sorting
   items = [...items].sort((a, b) => {
     switch (sortBy.value) {
       case 'price-low':
@@ -391,7 +372,6 @@ const activeFilters = computed(() => {
   return filters
 })
 
-// Methods
 const handleCategoryFilter = (categoryId: string | null) => {
   selectedCategory.value = categoryId
   currentPage.value = 1
@@ -448,19 +428,8 @@ const clearAllFilters = () => {
   sortBy.value = 'name'
 }
 
-// Lifecycle
-// onMounted(async () => {
-//   await Promise.all([
-//     menuStore.fetchCategories(),
-//     menuStore.fetchMenuItems()
-//   ])
   
-//   // Reset scroll position
-//   window.scrollTo({ top: 0, behavior: 'instant' })
-// })
-// Replace your current onMounted with this:
 onMounted(async () => {
-  // Read category from URL query parameter
   if (route.query.category) {
     selectedCategory.value = route.query.category as string
   }
@@ -470,13 +439,12 @@ onMounted(async () => {
     menuStore.fetchMenuItems()
   ])
   
-  // Reset scroll position
   window.scrollTo({ top: 0, behavior: 'instant' })
 })
 </script>
 
 <style scoped>
-/* Custom scrollbar for price filter */
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
@@ -495,12 +463,10 @@ onMounted(async () => {
   background: #555;
 }
 
-/* Smooth transitions */
 .smooth-transition {
   transition: all 0.3s ease-in-out;
 }
 
-/* Ensure the mobile cart doesn't overlap with modals */
 .fixed {
   z-index: 40;
 }

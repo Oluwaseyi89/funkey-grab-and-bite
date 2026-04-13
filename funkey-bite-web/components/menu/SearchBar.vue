@@ -24,7 +24,6 @@
   
   const searchQuery = ref('')
   
-  // Define emits first
   const emit = defineEmits<{
     search: [query: string]
   }>()

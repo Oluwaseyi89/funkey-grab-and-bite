@@ -1,8 +1,8 @@
 <template>
-  <!-- Root overlay with maximum z-index -->
+  
   <div class="modal-root" style="z-index: 2147483647;">
-    <!-- Desktop: Centered overlay -->
-    <!-- Mobile: Full screen -->
+    
+    
     <div 
       class="fixed inset-0"
       :class="[
@@ -10,7 +10,7 @@
         isMobile ? 'bg-white dark:bg-slate-900' : 'bg-black/50 backdrop-blur-sm'
       ]"
     >
-      <!-- Modal Container -->
+      
       <div 
         ref="modalRef"
         class="w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] md:rounded-2xl md:overflow-hidden"
@@ -20,7 +20,7 @@
             : 'bg-white dark:bg-slate-800 shadow-2xl'
         ]"
       >
-        <!-- Mobile-specific header -->
+        
         <div v-if="isMobile" class="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 p-4 flex items-center justify-between">
           <button @click="handleClose" class="p-2">
             <X class="w-5 h-5 text-gray-700 dark:text-gray-300" />
@@ -29,7 +29,7 @@
           <div class="w-10"></div>
         </div>
 
-        <!-- Desktop close button -->
+        
         <button 
           v-if="!isMobile"
           @click="handleClose" 
@@ -38,9 +38,9 @@
           <X class="w-5 h-5" />
         </button>
 
-        <!-- Content -->
+        
         <div class="grid md:grid-cols-2 h-[75vh] md:h-auto px-3 md:px-8 py-3 md:py-8">
-          <!-- Image -->
+          
           <div class="relative h-64 md:h-auto md:min-h-[300px]">
             <img 
               :src="item.imageUrl" 
@@ -49,7 +49,7 @@
             />
           </div>
 
-          <!-- Details -->
+          
           <div class="p-6 md:p-8 overflow-y-auto">
             <div v-if="!isMobile" class="flex justify-between items-start mb-4">
               <div>
@@ -72,7 +72,7 @@
 
             <p class="text-gray-600 dark:text-gray-300 mb-6">{{ item.description }}</p>
 
-            <!-- Tags -->
+            
             <div v-if="item.tags?.length" class="flex flex-wrap gap-2 mb-6">
               <span
                 v-for="tag in item.tags"
@@ -83,7 +83,7 @@
               </span>
             </div>
 
-            <!-- Nutritional Info -->
+            
             <div v-if="item.nutritionalInfo" class="mb-6">
               <h4 class="font-bold text-gray-900 dark:text-white mb-3">Nutritional Information</h4>
               <div class="grid grid-cols-4 gap-2">
@@ -106,7 +106,7 @@
               </div>
             </div>
 
-            <!-- Pre-order Notice -->
+            
             <div v-if="item.isPreOrder" class="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
               <AlertTriangle class="w-5 h-5 text-amber-500 inline mr-2" />
               <span class="text-amber-700 dark:text-amber-300 text-sm">
@@ -114,7 +114,7 @@
               </span>
             </div>
 
-            <!-- Action Buttons -->
+            
             <div class="flex space-x-4 mt-8 md:mt-0">
               <button
                 @click="handleAddToCart"
@@ -154,7 +154,6 @@ const emit = defineEmits<{
   addToCart: [item: MenuItem]
 }>()
 
-// Responsive detection
 const isMobile = ref(false)
 const modalRef = ref<HTMLElement>()
 
@@ -188,7 +187,6 @@ onMounted(() => {
   document.addEventListener('keydown', handleEscape)
   document.addEventListener('mousedown', handleClickOutside)
 
-  // Save scroll position
   savedScrollY = window.scrollY
 
   document.body.style.overflow = 'hidden'
@@ -221,15 +219,13 @@ onUnmounted(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 2147483647; /* Maximum z-index */
+  z-index: 2147483647; 
 }
 
-/* Force position fixed to escape any parent transforms */
 .fixed {
   position: fixed !important;
 }
 
-/* Ensure smooth scrolling on mobile */
 @media (max-width: 767px) {
   .modal-root {
     -webkit-overflow-scrolling: touch;

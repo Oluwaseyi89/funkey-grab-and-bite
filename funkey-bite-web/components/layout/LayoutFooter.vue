@@ -118,11 +118,11 @@
           © {{ new Date().getFullYear() }} Funkey Grab & Bite. All rights reserved.
         </div>
         <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
-          <NuxtLink to="/privacy" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors hover:underline">
+          <NuxtLink to="/legal/privacy" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors hover:underline">
             Privacy Policy
           </NuxtLink>
           <div class="w-px h-4 bg-gray-300 dark:bg-slate-700"></div>
-          <NuxtLink to="/terms" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors hover:underline">
+          <NuxtLink to="/legal/terms" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors hover:underline">
             Terms of Service
           </NuxtLink>
           <div class="w-px h-4 bg-gray-300 dark:bg-slate-700"></div>
@@ -167,7 +167,7 @@ const quickLinks = [
   { name: 'Menu', href: '/menu' },
   { name: 'Order Online', href: '/order' },
   { name: 'Catering Services', href: '/catering' },
-  { name: 'About Us', href: '/about' },
+  { name: 'Promotions', href: '/promotion' },
   { name: 'Contact', href: '/contact' },
 ]
 

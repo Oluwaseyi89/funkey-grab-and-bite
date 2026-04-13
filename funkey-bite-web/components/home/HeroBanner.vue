@@ -6,14 +6,14 @@
     :style="{ backgroundImage: `url(${heroBannerBackgroundImages[currentImageIndex]})` }"
   ></div>
   <div class="absolute inset-0 bg-black/20 dark:bg-black/40"></div>
-        <!-- Animated background elements -->
+
         <div class="absolute top-0 left-0 w-64 h-64 bg-brand-100 dark:bg-brand-900/20 rounded-full -translate-x-32 -translate-y-32"></div>
         <div class="absolute bottom-0 right-0 w-96 h-96 bg-accent-100 dark:bg-accent-900/20 rounded-full translate-x-48 translate-y-48"></div>
       </div>
       
       <div class="relative z-10 section-padding">
         <div class="grid lg:grid-cols-2 gap-12 items-center">
-          <!-- Content -->
+
           <div>
             <h1 ref="titleRef" class="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
               Taste the<br>
@@ -36,7 +36,7 @@
               </NuxtLink>
             </div>
             
-            <!-- Stats -->
+
             <div ref="statsRef" class="mt-12 grid grid-cols-3 gap-6">
               <div class="text-center">
                 <div class="text-3xl font-bold text-brand-500 dark:text-brand-400">500+</div>
@@ -53,10 +53,10 @@
             </div>
           </div>
           
-          <!-- Animated Image/Illustration -->
+
           <div ref="imageRef" class="relative">
             <div class="relative w-full h-64 md:h-96 lg:h-[500px]">
-              <!-- Floating food items -->
+
               <div class="absolute top-0 left-1/4 w-32 h-32 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl transform -rotate-12 animate-float">
                 <div class="p-4">
                   <Utensils class="w-16 h-16 mx-auto text-brand-500" />
@@ -105,7 +105,6 @@
   
   onMounted(() => {
     if (import.meta.client) {
-      // Staggered entrance animation
 
       const tl = gsap.timeline()
       tl.from(titleRef.value!, {
@@ -142,7 +141,6 @@
         ease: 'back.out(1.7)'
       }, '-=0.4')
   
-      // Scroll animations
       gsap.from(heroRef.value!, {
         scrollTrigger: {
           trigger: heroRef.value,
@@ -154,12 +152,10 @@
       })
     }
 
-     // Background image rotation
   const interval = setInterval(() => {
     currentImageIndex.value = (currentImageIndex.value + 1) % heroBannerBackgroundImages.length
   }, 10000)
   
-  // Cleanup
   return () => clearInterval(interval)
   })
   </script>

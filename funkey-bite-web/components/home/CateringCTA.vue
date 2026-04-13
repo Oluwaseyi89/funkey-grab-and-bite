@@ -43,7 +43,6 @@
     imageUrl?: string
   }>()
   
-  // Default values
   const defaultFeatures = [
     'Indoor & Outdoor Catering',
     'Customized Menu Options',

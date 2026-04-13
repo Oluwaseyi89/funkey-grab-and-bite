@@ -1,6 +1,6 @@
 <template>
     <div>
-      <!-- Hero Section -->
+
       <PageHeader
       title-before="Get"
       highlight-text="in Touch"
@@ -11,14 +11,12 @@
     >
       
 
-        <!-- Custom subtitle using slot -->
         <template #subtitle>
             Have questions, feedback, or catering inquiries? We're here to help! Reach out through any channel below.
         </template>
 
-        <!-- Optional: Additional content in default slot -->
         <div class="mt-8 max-w-2xl mx-auto">
-            <!-- Could add contact quick links here -->
+
             <div class="flex flex-wrap justify-center gap-4">
             <a href="#contact-form" class="btn-primary">Send Message</a>
             <a href="tel:+15551234567" class="btn-secondary">
@@ -33,14 +31,14 @@
       <div class="section-padding mx-5 px-3 py-3 md:mx-8 md:py-8 md:px-8">
         <div class="container-narrow">
           <div class="grid lg:grid-cols-3 gap-8">
-            <!-- Left Column: Contact Info & Hours -->
+
             <div class="space-y-8">
               <ContactInfo />
               <BusinessHours />
               <ContactMap />
             </div>
   
-            <!-- Right Column: Contact Form -->
+
             <div class="lg:col-span-2">
               <div class="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 border border-gray-200 dark:border-slate-700">
                 <ContactForm
@@ -49,7 +47,7 @@
                 />
               </div>
   
-              <!-- FAQ Section -->
+
               <div class="mt-8">
                 <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Common Questions</h3>
                 <div class="space-y-4">
@@ -81,7 +79,7 @@
             </div>
           </div>
   
-          <!-- Team Section -->
+
           <div class="mt-16 pt-12 border-t border-gray-200 dark:border-slate-700">
             <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
               Meet Our <span class="text-gradient">Team</span>
@@ -105,7 +103,7 @@
             </div>
           </div>
   
-          <!-- CTA Section -->
+
           <div class="mt-16 bg-gradient-to-r from-brand-500 to-accent-500 rounded-2xl p-8 text-center text-white">
             <h2 class="text-3xl font-bold mb-4">Need Immediate Assistance?</h2>
             <p class="text-xl opacity-90 mb-6 max-w-2xl mx-auto">
@@ -122,7 +120,7 @@
         </div>
       </div>
   
-      <!-- Success Modal -->
+
       <div 
         v-if="showSuccessModal"
         class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -154,19 +152,16 @@
     CheckCircle 
   } from 'lucide-vue-next'
   
-  // Components
   import PageHeader from '../../components/layout/PageHeader.vue'
   import ContactForm from '../../components/contact/ContactForm.vue'
   import ContactInfo from '../../components/contact/ContactInfo.vue'
   import BusinessHours from '../../components/contact/BusinessHours.vue'
   import ContactMap from '../../components/contact/ContactMap.vue'
   
-  // State
   const isSubmitting = ref(false)
   const showSuccessModal = ref(false)
   const openFaqIndex = ref<number | null>(0)
   
-  // FAQ Data
   const faqs = [
     {
       question: 'What are your delivery hours?',
@@ -190,7 +185,6 @@
     }
   ]
   
-  // Team Data
   const team = [
     {
       name: 'Alex Johnson',
@@ -209,26 +203,17 @@
     }
   ]
   
-  // Methods
   const handleSubmit = async (formData: any) => {
     isSubmitting.value = true
     
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500))
       
-      // In real app, send to API
-      // await $fetch('/api/contact', {
-      //   method: 'POST',
-      //   body: formData
-      // })
       
-      // Show success modal
       showSuccessModal.value = true
       
     } catch (error) {
       console.error('Message submission failed:', error)
-      // Show error toast
     } finally {
       isSubmitting.value = false
     }

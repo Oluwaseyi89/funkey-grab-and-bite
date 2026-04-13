@@ -2,7 +2,6 @@ import type { UseHeadInput } from '@unhead/vue'
 import { useRoute } from 'vue-router'
 import { useHead, useRuntimeConfig } from 'nuxt/app'
 
-
 export interface SeoConfig {
   title?: string
   description?: string
@@ -40,7 +39,6 @@ export const useSeo = (seoConfig: SeoConfig = {}): void => {
       { name: 'author', content: author },
       { name: 'robots', content: robots },
       
-      // Open Graph
       { property: 'og:title', content: title },
       { property: 'og:description', content: description },
       { property: 'og:image', content: image },
@@ -49,7 +47,6 @@ export const useSeo = (seoConfig: SeoConfig = {}): void => {
       { property: 'og:site_name', content: 'Funkey Grab & Bite' },
       { property: 'og:locale', content: 'en_US' },
       
-      // Twitter
       { name: 'twitter:title', content: title },
       { name: 'twitter:description', content: description },
       { name: 'twitter:image', content: image },

@@ -3,7 +3,7 @@
       ref="cardRef"
       class="group bg-white dark:bg-slate-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden card-hover border border-gray-100 dark:border-slate-700"
     >
-      <!-- Image Section -->
+      
       <div class="relative h-48 overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent z-10"></div>
         <img
@@ -13,7 +13,7 @@
           loading="lazy"
         />
         
-        <!-- Badges -->
+        
         <div class="absolute top-3 left-3 z-20 flex flex-wrap gap-2">
           <span 
             v-if="item.isPreOrder"
@@ -35,7 +35,7 @@
           </span>
         </div>
         
-        <!-- Quick Add Button -->
+        
         <button
           @click="addToCart"
           class="absolute top-3 right-3 z-20 w-10 h-10 bg-white/90 dark:bg-slate-800/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-brand-500 hover:text-white"
@@ -45,7 +45,7 @@
         </button>
       </div>
       
-      <!-- Content Section -->
+      
       <div class="p-6">
         <div class="flex justify-between items-start mb-2">
           <h3 class="text-xl font-bold text-gray-900 dark:text-white group-hover:text-brand-500 dark:group-hover:text-brand-400 transition-colors">
@@ -60,7 +60,7 @@
           {{ item.description }}
         </p>
         
-        <!-- Nutritional Info -->
+        
         <div v-if="item.nutritionalInfo" class="mb-4">
           <div class="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-2">
             <Nutrient class="w-4 h-4 mr-2" />
@@ -86,7 +86,7 @@
           </div>
         </div>
         
-        <!-- Footer -->
+        
         <div class="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-slate-700">
           <div class="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <Clock class="w-4 h-4 mr-1" />
@@ -139,7 +139,6 @@
   
   const addToCart = () => {
     cart.addItem(props.item)
-    // Animate button feedback
     if (import.meta.client && cardRef.value) {
       const button = cardRef.value.querySelector('.btn-primary')
       gsap.to(button, {
@@ -152,14 +151,12 @@
   }
   
   const showDetails = () => {
-    // Emit event to parent to show modal
     const modalEvent = new CustomEvent('show-item-details', { detail: props.item })
     window.dispatchEvent(modalEvent)
   }
   
   onMounted(() => {
     if (import.meta.client && cardRef.value) {
-      // Entrance animation
       gsap.from(cardRef.value, {
         scrollTrigger: {
           trigger: cardRef.value,

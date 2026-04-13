@@ -2,7 +2,7 @@
   <header class="fixed top-0 left-0 right-0 z-50 h-[100px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-slate-800/50 shadow-lg shadow-gray-200/50 dark:shadow-slate-900/50 px-3 md:px-8 transition-all duration-300">
     <nav class="container-narrow h-full">
       <div class="flex items-center justify-between h-full">
-        <!-- Logo -->
+
         <NuxtLink to="/" class="flex items-center space-x-3 group">
           <div class="w-10 h-10 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-brand-500/20">
             <span class="text-white font-bold text-xl">F</span>
@@ -13,7 +13,6 @@
           </div>
         </NuxtLink>
 
-        <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center space-x-8">
           <NuxtLink 
             v-for="nav in navigation" 
@@ -27,9 +26,8 @@
           </NuxtLink>
         </div>
 
-        <!-- Right Side Actions -->
         <div class="flex items-center space-x-4">
-          <!-- Theme Toggle -->
+
           <button
             @click="toggleTheme"
             class="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-700/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 transition-all duration-200 hover:scale-105 hover:shadow-lg"
@@ -41,7 +39,6 @@
             </ClientOnly>
           </button>
 
-          <!-- Cart Button -->
            <NuxtLink to="/order">
              <button
                @click="cart.toggleCart()"
@@ -58,7 +55,6 @@
              </button>
            </NuxtLink>
 
-          <!-- Mobile Menu Button -->
           <button
             @click="isMobileMenuOpen = !isMobileMenuOpen"
             class="md:hidden p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-700/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 transition-all duration-200 hover:scale-105"
@@ -69,7 +65,6 @@
         </div>
       </div>
 
-      <!-- Mobile Menu with glass effect -->
       <Transition
         enter-active-class="transition duration-300 ease-out"
         enter-from-class="transform -translate-y-4 opacity-0"
@@ -125,7 +120,6 @@ const toggleTheme = () => {
   colorMode.value = colorMode.value === 'dark' ? 'light' : 'dark'
 }
 
-// Close mobile menu on route change
 watch(() => useRoute().path, () => {
   isMobileMenuOpen.value = false
 })
@@ -139,13 +133,11 @@ watch(() => useRoute().path, () => {
   background-clip: text;
 }
 
-/* Smooth header scroll effect */
 header {
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
-/* Enhanced glass effect for mobile menu */
 .glass-effect {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.4) 100%);
   backdrop-filter: blur(20px) saturate(180%);
