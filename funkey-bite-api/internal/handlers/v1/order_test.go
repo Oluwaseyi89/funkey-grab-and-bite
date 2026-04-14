@@ -3,6 +3,7 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -100,6 +101,50 @@ func (f *fakeSettingsService) ValidateMinimumOrder(subtotal float64, orderType s
 	return f.minOrderOK, f.minOrderMsg
 }
 
+type fakePromotionService struct {
+	validation     *models.PromotionValidation
+	validateErr    error
+	applyDiscount  float64
+	applyErr       error
+	appliedCode    string
+	appliedOrderID int
+}
+
+func (f *fakePromotionService) CreatePromotion(promotion *models.PromotionCreate) (*models.Promotion, error) {
+	return nil, nil
+}
+func (f *fakePromotionService) GetPromotionByID(id int) (*models.Promotion, error) {
+	return nil, nil
+}
+func (f *fakePromotionService) GetPromotionByCode(code string) (*models.Promotion, error) {
+	return nil, nil
+}
+func (f *fakePromotionService) GetAllPromotions(page, limit int, status string) ([]models.Promotion, int, error) {
+	return nil, 0, nil
+}
+func (f *fakePromotionService) UpdatePromotion(id int, updates *models.PromotionUpdate) (*models.Promotion, error) {
+	return nil, nil
+}
+func (f *fakePromotionService) DeletePromotion(id int) error { return nil }
+func (f *fakePromotionService) ValidatePromotion(code string, orderAmount float64, customerID *int) (*models.PromotionValidation, error) {
+	if f.validateErr != nil {
+		return nil, f.validateErr
+	}
+	if f.validation != nil {
+		return f.validation, nil
+	}
+	return &models.PromotionValidation{IsValid: false, Message: "invalid promotion"}, nil
+}
+func (f *fakePromotionService) ApplyPromotion(promotionID, orderID int, customerID *int, orderAmount float64) (float64, error) {
+	return f.applyDiscount, f.applyErr
+}
+func (f *fakePromotionService) ApplyPromotionByCode(code string, orderID int, customerID *int, orderAmount float64) (float64, error) {
+	f.appliedCode = code
+	f.appliedOrderID = orderID
+	return f.applyDiscount, f.applyErr
+}
+func (f *fakePromotionService) GetActivePromotions() ([]models.Promotion, error) { return nil, nil }
+
 func newOrderRequestBody(t *testing.T, orderType models.OrderType) []byte {
 	t.Helper()
 
@@ -150,7 +195,7 @@ func TestCreateOrderRejectsBelowMinimumOrder(t *testing.T) {
 		total:       8,
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc)
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{})
 	rec := runCreateOrder(t, handler, newOrderRequestBody(t, models.OrderTypePickup))
 
 	if rec.Code != http.StatusBadRequest {
@@ -174,7 +219,7 @@ func TestCreateOrderRejectsOutsideBusinessHours(t *testing.T) {
 		total:        19.44,
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc)
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{})
 	rec := runCreateOrder(t, handler, newOrderRequestBody(t, models.OrderTypePickup))
 
 	if rec.Code != http.StatusBadRequest {
@@ -198,7 +243,7 @@ func TestCreateOrderRejectsWhenDeliveryIsDisabled(t *testing.T) {
 		total:       26.87,
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc)
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{})
 	rec := runCreateOrder(t, handler, newOrderRequestBody(t, models.OrderTypeDelivery))
 
 	if rec.Code != http.StatusBadRequest {
@@ -226,7 +271,7 @@ func TestCreateOrderPersistsTotalWithDeliveryFeeAndTax(t *testing.T) {
 		total:       23.6,
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc)
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{})
 	rec := runCreateOrder(t, handler, newOrderRequestBody(t, models.OrderTypeDelivery))
 
 	if rec.Code != http.StatusCreated {
@@ -237,5 +282,147 @@ func TestCreateOrderPersistsTotalWithDeliveryFeeAndTax(t *testing.T) {
 	}
 	if orderSvc.captured.TotalAmount != 23.6 {
 		t.Fatalf("expected persisted total amount 23.6, got %v", orderSvc.captured.TotalAmount)
+	}
+}
+
+func TestCreateOrderAppliesPromotionDiscountToPersistedTotal(t *testing.T) {
+	orderSvc := &fakeOrderService{
+		subtotal: 20,
+		response: &models.Order{ID: 41, OrderNumber: "FG-2026-04-0041", TotalAmount: 18.6},
+	}
+	settingsSvc := &fakeSettingsService{
+		minOrderOK:  true,
+		orderTimeOK: true,
+		acceptOK:    true,
+		deliveryFee: 2,
+		taxAmount:   1.6,
+		total:       23.6,
+	}
+	promoSvc := &fakePromotionService{
+		validation: &models.PromotionValidation{IsValid: true, PromotionID: 99, Discount: 5},
+	}
+
+	code := "SAVE5"
+	req := models.OrderWithAuth{
+		CustomerName:  "Test User",
+		CustomerPhone: "+15550001111",
+		OrderType:     models.OrderTypeDelivery,
+		PromotionCode: &code,
+		Items: []models.OrderItemRequest{{
+			MenuItemID: 1,
+			Name:       "Burger",
+			Quantity:   1,
+			UnitPrice:  8,
+		}},
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc)
+	rec := runCreateOrder(t, handler, body)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d, body: %s", http.StatusCreated, rec.Code, rec.Body.String())
+	}
+	if orderSvc.captured == nil {
+		t.Fatal("expected CreateOrder to be called")
+	}
+	if orderSvc.captured.TotalAmount != 18.6 {
+		t.Fatalf("expected discounted total amount 18.6, got %v", orderSvc.captured.TotalAmount)
+	}
+	if promoSvc.appliedCode != "SAVE5" {
+		t.Fatalf("expected promotion code SAVE5 to be applied, got %q", promoSvc.appliedCode)
+	}
+}
+
+func TestCreateOrderRejectsInvalidPromotion(t *testing.T) {
+	orderSvc := &fakeOrderService{subtotal: 20}
+	settingsSvc := &fakeSettingsService{
+		minOrderOK:  true,
+		orderTimeOK: true,
+		acceptOK:    true,
+		total:       23.6,
+	}
+	promoSvc := &fakePromotionService{
+		validation: &models.PromotionValidation{IsValid: false, Message: "Promotion code not found"},
+	}
+
+	code := "BADCODE"
+	req := models.OrderWithAuth{
+		CustomerName:  "Test User",
+		CustomerPhone: "+15550001111",
+		OrderType:     models.OrderTypeDelivery,
+		PromotionCode: &code,
+		Items: []models.OrderItemRequest{{
+			MenuItemID: 1,
+			Name:       "Burger",
+			Quantity:   1,
+			UnitPrice:  8,
+		}},
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc)
+	rec := runCreateOrder(t, handler, body)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d, body: %s", http.StatusBadRequest, rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Promotion code not found") {
+		t.Fatalf("expected promotion validation message, got body: %s", rec.Body.String())
+	}
+	if orderSvc.captured != nil {
+		t.Fatal("CreateOrder should not be called when promotion validation fails")
+	}
+}
+
+func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
+	orderSvc := &fakeOrderService{
+		subtotal: 20,
+		response: &models.Order{ID: 77, OrderNumber: "FG-2026-04-0077", TotalAmount: 20.6},
+	}
+	settingsSvc := &fakeSettingsService{
+		minOrderOK:  true,
+		orderTimeOK: true,
+		acceptOK:    true,
+		total:       23.6,
+	}
+	promoSvc := &fakePromotionService{
+		validation:    &models.PromotionValidation{IsValid: true, PromotionID: 199, Discount: 3},
+		applyErr:      fmt.Errorf("promotion usage limit reached"),
+		applyDiscount: 3,
+	}
+
+	code := "FLASH3"
+	req := models.OrderWithAuth{
+		CustomerName:  "Test User",
+		CustomerPhone: "+15550001111",
+		OrderType:     models.OrderTypeDelivery,
+		PromotionCode: &code,
+		Items: []models.OrderItemRequest{{
+			MenuItemID: 1,
+			Name:       "Burger",
+			Quantity:   1,
+			UnitPrice:  8,
+		}},
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc)
+	rec := runCreateOrder(t, handler, body)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d, body: %s", http.StatusInternalServerError, rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Failed to apply promotion") {
+		t.Fatalf("expected apply promotion error, got body: %s", rec.Body.String())
 	}
 }

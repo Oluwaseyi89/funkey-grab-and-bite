@@ -68,11 +68,11 @@ func main() {
 	cateringService := services.NewCateringService(*cateringRepo, notificationService)
 	adminService := services.NewAdminService(adminRepo, *orderRepo, *userRepo, *cateringRepo, *menuRepo)
 	settingsService := services.NewSettingsService(*settingsRepo)
-	promotionService := services.NewPromotionService(*promotionRepo)
+	promotionService := services.NewPromotionService(promotionRepo)
 
 	// Initialize handlers
 	authHandler := v1.NewAuthHandler(authService, userService)
-	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService)
+	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService)
 	menuHandler := v1.NewMenuHandler(menuService)
 	cateringHandler := v1.NewCateringHandler(cateringService)
 	adminHandler := v1.NewAdminHandler(adminService)

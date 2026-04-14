@@ -5,8 +5,17 @@ import (
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
-	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
 )
+
+type promotionStore interface {
+	Create(promotion *models.Promotion) (*models.Promotion, error)
+	GetByID(id int) (*models.Promotion, error)
+	GetByCode(code string) (*models.Promotion, error)
+	GetAll(limit, offset int, status string) ([]models.Promotion, int, error)
+	Update(promotion *models.Promotion) error
+	Delete(id int) error
+	ConsumeUsage(usage *models.PromotionUsage) error
+}
 
 type PromotionService interface {
 	CreatePromotion(promotion *models.PromotionCreate) (*models.Promotion, error)
@@ -17,14 +26,15 @@ type PromotionService interface {
 	DeletePromotion(id int) error
 	ValidatePromotion(code string, orderAmount float64, customerID *int) (*models.PromotionValidation, error)
 	ApplyPromotion(promotionID, orderID int, customerID *int, orderAmount float64) (float64, error)
+	ApplyPromotionByCode(code string, orderID int, customerID *int, orderAmount float64) (float64, error)
 	GetActivePromotions() ([]models.Promotion, error)
 }
 
 type promotionService struct {
-	promotionRepo repository.PromotionRepository
+	promotionRepo promotionStore
 }
 
-func NewPromotionService(promotionRepo repository.PromotionRepository) PromotionService {
+func NewPromotionService(promotionRepo promotionStore) PromotionService {
 	return &promotionService{
 		promotionRepo: promotionRepo,
 	}
@@ -207,15 +217,20 @@ func (s *promotionService) ApplyPromotion(promotionID, orderID int, customerID *
 		DiscountApplied: discount,
 	}
 
-	if err := s.promotionRepo.RecordUsage(usage); err != nil {
-		return 0, fmt.Errorf("failed to record promotion usage: %w", err)
-	}
-
-	if err := s.promotionRepo.IncrementUsage(promotionID); err != nil {
-		return 0, fmt.Errorf("failed to increment promotion usage: %w", err)
+	if err := s.promotionRepo.ConsumeUsage(usage); err != nil {
+		return 0, fmt.Errorf("failed to consume promotion usage: %w", err)
 	}
 
 	return discount, nil
+}
+
+func (s *promotionService) ApplyPromotionByCode(code string, orderID int, customerID *int, orderAmount float64) (float64, error) {
+	promotion, err := s.promotionRepo.GetByCode(code)
+	if err != nil || promotion == nil {
+		return 0, fmt.Errorf("promotion not found")
+	}
+
+	return s.ApplyPromotion(promotion.ID, orderID, customerID, orderAmount)
 }
 
 func (s *promotionService) GetActivePromotions() ([]models.Promotion, error) {
