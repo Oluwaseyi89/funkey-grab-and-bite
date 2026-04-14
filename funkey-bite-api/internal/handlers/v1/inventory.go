@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -255,6 +257,10 @@ func (h *InventoryHandler) ResolveAlert(c *gin.Context) {
 
 	err = h.inventoryService.ResolveAlert(alertID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			handlers.Error(c, http.StatusNotFound, "NOT_FOUND", "Alert not found")
+			return
+		}
 		handlers.ErrorWithDetails(c, http.StatusInternalServerError,
 			"ALERT_RESOLVE_FAILED", "Failed to resolve alert", err.Error())
 		return

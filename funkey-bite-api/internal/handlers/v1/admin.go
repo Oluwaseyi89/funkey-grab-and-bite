@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -146,6 +148,12 @@ func (h *AdminHandler) UpdateOrderStatus(c *gin.Context) {
 
 	err = h.adminService.UpdateOrderStatus(orderID, req.Status)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Order not found",
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to update order status",
 		})
@@ -226,6 +234,12 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 
 	err = h.adminService.UpdateUserStatus(userID, req.IsActive)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "User not found",
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to update user status",
 		})

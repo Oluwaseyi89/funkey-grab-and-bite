@@ -402,6 +402,18 @@ func (r *InventoryRepository) GetAlerts(resolved bool) ([]models.InventoryAlert,
 
 func (r *InventoryRepository) ResolveAlert(alertID int) error {
 	query := `UPDATE inventory_alerts SET is_resolved = true, resolved_at = $1 WHERE id = $2`
-	_, err := r.db.Exec(query, time.Now(), alertID)
-	return err
+	result, err := r.db.Exec(query, time.Now(), alertID)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }

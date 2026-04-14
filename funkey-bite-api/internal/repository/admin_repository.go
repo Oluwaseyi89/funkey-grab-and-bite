@@ -372,8 +372,20 @@ func (r *AdminRepository) GetUsersCount() (int, error) {
 
 func (r *AdminRepository) UpdateUserStatus(userID int, isActive bool) error {
 	query := `UPDATE users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
-	_, err := r.db.Exec(query, isActive, userID)
-	return err
+	result, err := r.db.Exec(query, isActive, userID)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 func (r *AdminRepository) GetAdminByEmail(email string) (*models.AdminUser, error) {
@@ -488,7 +500,7 @@ func (r *AdminRepository) UpdateAdminUser(admin *models.AdminUser) error {
 		WHERE id = $5
 	`
 
-	_, err := r.db.Exec(
+	result, err := r.db.Exec(
 		query,
 		admin.Username,
 		admin.Email,
@@ -496,8 +508,19 @@ func (r *AdminRepository) UpdateAdminUser(admin *models.AdminUser) error {
 		admin.IsActive,
 		admin.ID,
 	)
+	if err != nil {
+		return err
+	}
 
-	return err
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 func (r *AdminRepository) DeleteAdminUser(adminID int) error {
@@ -542,8 +565,20 @@ func (r *AdminRepository) GetAdminUserByID(adminID int) (*models.AdminUser, erro
 
 func (r *AdminRepository) UpdateAdminPassword(adminID int, passwordHash string) error {
 	query := `UPDATE admin_users SET password_hash = $1 WHERE id = $2`
-	_, err := r.db.Exec(query, passwordHash, adminID)
-	return err
+	result, err := r.db.Exec(query, passwordHash, adminID)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 func (r *AdminRepository) GetTodayStats() (*models.AdminStats, error) {
