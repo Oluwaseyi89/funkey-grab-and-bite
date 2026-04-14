@@ -61,6 +61,7 @@ type OrderRequest struct {
 	CustomerPhone string             `json:"customerPhone" validate:"required" db:"customer_phone"`
 	CustomerEmail *string            `json:"customerEmail,omitempty" validate:"omitempty,email" db:"customer_email"`
 	OrderType     OrderType          `json:"orderType" validate:"required,oneof=pickup delivery catering" db:"order_type"`
+	PromotionCode *string            `json:"promotionCode,omitempty" validate:"omitempty,min=3,max=50"`
 	Notes         *string            `json:"notes,omitempty" db:"notes"`
 	PickupTime    *time.Time         `json:"pickupTime,omitempty" db:"pickup_time"`
 	Items         []OrderItemRequest `json:"items" validate:"required,min=1"`
@@ -71,6 +72,7 @@ type OrderWithAuth struct {
 	CustomerPhone string             `json:"customerPhone" validate:"required"`
 	CustomerEmail *string            `json:"customerEmail,omitempty" validate:"omitempty,email"`
 	OrderType     OrderType          `json:"orderType" validate:"required,oneof=pickup delivery catering"`
+	PromotionCode *string            `json:"promotionCode,omitempty" validate:"omitempty,min=3,max=50"`
 	Notes         *string            `json:"notes,omitempty"`
 	PickupTime    *time.Time         `json:"pickupTime,omitempty"`
 	Items         []OrderItemRequest `json:"items" validate:"required,min=1"`

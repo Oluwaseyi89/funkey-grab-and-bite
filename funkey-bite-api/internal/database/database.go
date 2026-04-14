@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
 
@@ -38,7 +39,9 @@ func InitializeDatabase() *sql.DB {
 
 	log.Println("✅ Database connection established successfully")
 
-	runMigrations(db)
+	if err := runMigrations(db); err != nil {
+		log.Fatalf("Database migration failed: %v", err)
+	}
 
 	return db
 }
@@ -51,7 +54,7 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
-func runMigrations(db *sql.DB) {
+func runMigrations(db *sql.DB) error {
 	migrations := []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			id SERIAL PRIMARY KEY,
@@ -242,46 +245,75 @@ func runMigrations(db *sql.DB) {
 		ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (
 			setweight(to_tsvector('english', COALESCE(name, '')), 'A') ||
 			setweight(to_tsvector('english', COALESCE(description, '')), 'B') ||
-			setweight(to_tsvector('english', COALESCE(array_to_string(tags, ' '), '')), 'C')
+			setweight(to_tsvector('english', COALESCE(tags::text, '')), 'C')
 		) STORED`,
 
 		`CREATE INDEX IF NOT EXISTS idx_menu_items_search 
 		ON menu_items USING GIN(search_vector)`,
 	}
 
+	if err := runMigrationsWithStatements(db, migrations); err != nil {
+		return err
+	}
+
+	if err := ensureDefaultAdminUser(db); err != nil {
+		return fmt.Errorf("default admin bootstrap failed: %w", err)
+	}
+
+	log.Println("✅ Database migrations completed")
+	return nil
+}
+
+func runMigrationsWithStatements(db *sql.DB, migrations []string) error {
 	for i, migration := range migrations {
 		_, err := db.Exec(migration)
 		if err != nil {
-			log.Printf("Warning: Migration %d failed: %v", i+1, err)
+			return fmt.Errorf("migration %d failed: %w", i+1, err)
 		}
 	}
 
-	ensureDefaultAdminUser(db)
-
-	log.Println("✅ Database migrations completed")
+	return nil
 }
 
-func ensureDefaultAdminUser(db *sql.DB) {
-	defaultEmail := getEnv("DEFAULT_ADMIN_EMAIL", "admin@funkey.com")
-	defaultUsername := getEnv("DEFAULT_ADMIN_USERNAME", "admin")
-	defaultPassword := getEnv("DEFAULT_ADMIN_PASSWORD", "admin123")
-	defaultRole := getEnv("DEFAULT_ADMIN_ROLE", "admin")
-
-	var exists bool
-	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM admin_users WHERE email = $1)", defaultEmail).Scan(&exists)
+func ensureDefaultAdminUser(db *sql.DB) error {
+	var adminCount int
+	err := db.QueryRow("SELECT COUNT(1) FROM admin_users").Scan(&adminCount)
 	if err != nil {
-		log.Printf("Warning: failed checking default admin existence: %v", err)
-		return
+		return fmt.Errorf("failed checking admin user count: %w", err)
 	}
 
-	if exists {
-		return
+	// Idempotent bootstrap: never create additional default admins when one already exists.
+	if adminCount > 0 {
+		return nil
+	}
+
+	defaultEmail := strings.TrimSpace(os.Getenv("DEFAULT_ADMIN_EMAIL"))
+	defaultUsername := strings.TrimSpace(os.Getenv("DEFAULT_ADMIN_USERNAME"))
+	defaultPassword := os.Getenv("DEFAULT_ADMIN_PASSWORD")
+	defaultRole := strings.TrimSpace(getEnv("DEFAULT_ADMIN_ROLE", "admin"))
+
+	missingVars := make([]string, 0, 3)
+	if defaultEmail == "" {
+		missingVars = append(missingVars, "DEFAULT_ADMIN_EMAIL")
+	}
+	if defaultUsername == "" {
+		missingVars = append(missingVars, "DEFAULT_ADMIN_USERNAME")
+	}
+	if defaultPassword == "" {
+		missingVars = append(missingVars, "DEFAULT_ADMIN_PASSWORD")
+	}
+	if len(missingVars) > 0 {
+		return fmt.Errorf("missing required default admin bootstrap env vars: %s", strings.Join(missingVars, ", "))
+	}
+
+	environment := strings.ToLower(strings.TrimSpace(getEnv("ENVIRONMENT", "development")))
+	if isProductionLikeEnvironment(environment) && usesWeakDefaultAdminCredentials(defaultEmail, defaultUsername, defaultPassword) {
+		return fmt.Errorf("weak default admin credentials are not allowed when ENVIRONMENT=%s", environment)
 	}
 
 	hashedPassword, err := utils.HashPassword(defaultPassword)
 	if err != nil {
-		log.Printf("Warning: failed hashing default admin password: %v", err)
-		return
+		return fmt.Errorf("failed hashing default admin password: %w", err)
 	}
 
 	_, err = db.Exec(
@@ -292,11 +324,54 @@ func ensureDefaultAdminUser(db *sql.DB) {
 		defaultRole,
 	)
 	if err != nil {
-		log.Printf("Warning: failed creating default admin user: %v", err)
-		return
+		return fmt.Errorf("failed creating default admin user: %w", err)
 	}
 
 	log.Printf("✅ Created default admin user: %s", defaultEmail)
+	return nil
+}
+
+func isProductionLikeEnvironment(env string) bool {
+	switch env {
+	case "production", "prod", "staging":
+		return true
+	default:
+		return false
+	}
+}
+
+func usesWeakDefaultAdminCredentials(email, username, password string) bool {
+	weakEmails := map[string]struct{}{
+		"admin@funkey.com":  {},
+		"admin@example.com": {},
+		"admin@localhost":   {},
+	}
+	weakUsernames := map[string]struct{}{
+		"admin":         {},
+		"administrator": {},
+		"root":          {},
+	}
+	weakPasswords := map[string]struct{}{
+		"admin":       {},
+		"admin123":    {},
+		"password":    {},
+		"password123": {},
+		"changeme":    {},
+		"123456":      {},
+	}
+
+	if _, ok := weakEmails[strings.ToLower(strings.TrimSpace(email))]; ok {
+		return true
+	}
+	if _, ok := weakUsernames[strings.ToLower(strings.TrimSpace(username))]; ok {
+		return true
+	}
+	normalizedPassword := strings.ToLower(strings.TrimSpace(password))
+	if _, ok := weakPasswords[normalizedPassword]; ok {
+		return true
+	}
+
+	return len(strings.TrimSpace(password)) < 12
 }
 
 func CloseDatabase(db *sql.DB) {

@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,13 +17,17 @@ import (
 type OrderHandler struct {
 	orderService services.OrderService
 	authService  services.AuthService
+	settings     services.SettingsService
+	promotions   services.PromotionService
 	validate     *validator.Validate
 }
 
-func NewOrderHandler(orderService services.OrderService, authService services.AuthService) *OrderHandler {
+func NewOrderHandler(orderService services.OrderService, authService services.AuthService, settingsService services.SettingsService, promotionService services.PromotionService) *OrderHandler {
 	return &OrderHandler{
 		orderService: orderService,
 		authService:  authService,
+		settings:     settingsService,
+		promotions:   promotionService,
 		validate:     validator.New(),
 	}
 }
@@ -45,6 +50,23 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	if ok, message := h.settings.ValidateMinimumOrder(totalAmount, string(req.OrderType)); !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
+		return
+	}
+
+	if ok, message := h.settings.ValidateOrderTime(string(req.OrderType), req.PickupTime); !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
+		return
+	}
+
+	if ok, message := h.settings.CanAcceptOrders(string(req.OrderType)); !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
+		return
+	}
+
+	_, _, totalWithFees := h.settings.CalculateOrderFees(totalAmount, string(req.OrderType))
 
 	var userID *int
 
@@ -81,6 +103,30 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		userID = &user.ID
 	}
 
+	finalTotal := totalWithFees
+	promotionCode := ""
+	if req.PromotionCode != nil {
+		promotionCode = strings.TrimSpace(*req.PromotionCode)
+	}
+
+	if promotionCode != "" {
+		validation, err := h.promotions.ValidatePromotion(promotionCode, totalWithFees, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to validate promotion"})
+			return
+		}
+
+		if !validation.IsValid {
+			c.JSON(http.StatusBadRequest, gin.H{"error": validation.Message})
+			return
+		}
+
+		finalTotal = totalWithFees - validation.Discount
+		if finalTotal < 0 {
+			finalTotal = 0
+		}
+	}
+
 	order := &models.Order{
 		OrderNumber:   utils.GenerateOrderNumber(),
 		UserID:        userID,
@@ -89,7 +135,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		CustomerEmail: req.CustomerEmail,
 		OrderType:     req.OrderType,
 		Status:        models.OrderStatusPending,
-		TotalAmount:   totalAmount,
+		TotalAmount:   finalTotal,
 		Notes:         req.Notes,
 		PickupTime:    req.PickupTime,
 		CreatedAt:     time.Now(),
@@ -99,6 +145,13 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order: " + err.Error()})
 		return
+	}
+
+	if promotionCode != "" {
+		if _, err := h.promotions.ApplyPromotionByCode(promotionCode, createdOrder.ID, userID, totalWithFees); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to apply promotion: " + err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusCreated, createdOrder)
@@ -282,7 +335,7 @@ func (h *OrderHandler) TrackOrderPublic(c *gin.Context) {
 
 	if order == nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Order not found or phone number doesn't match",
+			"error": "Order not found",
 		})
 		return
 	}
@@ -293,9 +346,8 @@ func (h *OrderHandler) TrackOrderPublic(c *gin.Context) {
 		"estimatedReadyTime": order.EstimatedReadyTime,
 		"pickupTime":         order.PickupTime,
 		"createdAt":          order.CreatedAt,
-		"items":              order.Items,
 		"orderType":          order.OrderType,
-		"totalAmount":        order.TotalAmount,
+		"message":            "Limited order information available",
 	})
 }
 

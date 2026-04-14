@@ -4,8 +4,23 @@ import (
 	"fmt"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
-	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
 )
+
+type inventoryStore interface {
+	GetByID(id int) (*models.InventoryItem, error)
+	GetByMenuItemID(menuItemID int) (*models.InventoryItem, error)
+	GetAll() ([]models.InventoryItem, error)
+	GetLowStock() ([]models.InventoryItem, error)
+	UpdateStock(itemID int, newStock int, operation string, reason string) error
+	AdjustStockByMenuItemID(menuItemID int, quantity int, operation string, reason string) (*models.InventoryItem, error)
+	CreateInventoryItem(item *models.InventoryItem) (*models.InventoryItem, error)
+	GetAlerts(resolved bool) ([]models.InventoryAlert, error)
+	ResolveAlert(alertID int) error
+}
+
+type menuReader interface {
+	GetByID(id int) (*models.MenuItem, error)
+}
 
 type InventoryService interface {
 	GetInventoryItem(id int) (*models.InventoryItem, error)
@@ -23,11 +38,11 @@ type InventoryService interface {
 }
 
 type inventoryService struct {
-	inventoryRepo repository.InventoryRepository
-	menuRepo      repository.MenuRepository
+	inventoryRepo inventoryStore
+	menuRepo      menuReader
 }
 
-func NewInventoryService(inventoryRepo repository.InventoryRepository, menuRepo repository.MenuRepository) InventoryService {
+func NewInventoryService(inventoryRepo inventoryStore, menuRepo menuReader) InventoryService {
 	return &inventoryService{
 		inventoryRepo: inventoryRepo,
 		menuRepo:      menuRepo,
@@ -51,38 +66,15 @@ func (s *inventoryService) GetLowStock() ([]models.InventoryItem, error) {
 }
 
 func (s *inventoryService) UpdateStock(update *models.InventoryUpdate) (*models.InventoryItem, error) {
-	item, err := s.inventoryRepo.GetByMenuItemID(update.MenuItemID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get inventory item: %w", err)
-	}
-	if item == nil {
-		return nil, fmt.Errorf("inventory item not found for menu item ID: %d", update.MenuItemID)
-	}
-
-	var newStock int
-	switch update.Operation {
-	case "add":
-		newStock = item.CurrentStock + update.Quantity
-	case "subtract":
-		newStock = item.CurrentStock - update.Quantity
-		if newStock < 0 {
-			return nil, fmt.Errorf("insufficient stock. Current: %d, Requested: %d", item.CurrentStock, update.Quantity)
-		}
-	case "set":
-		newStock = update.Quantity
-		if newStock < 0 {
-			return nil, fmt.Errorf("stock cannot be negative")
-		}
-	default:
-		return nil, fmt.Errorf("invalid operation: %s", update.Operation)
-	}
-
-	err = s.inventoryRepo.UpdateStock(item.ID, newStock, update.Operation, update.Reason)
+	updatedItem, err := s.inventoryRepo.AdjustStockByMenuItemID(update.MenuItemID, update.Quantity, update.Operation, update.Reason)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update stock: %w", err)
 	}
+	if updatedItem == nil {
+		return nil, fmt.Errorf("inventory item not found for menu item ID: %d", update.MenuItemID)
+	}
 
-	return s.inventoryRepo.GetByID(item.ID)
+	return updatedItem, nil
 }
 
 func (s *inventoryService) CreateInventoryItem(item *models.InventoryItem) (*models.InventoryItem, error) {

@@ -21,6 +21,10 @@ go.work
 go.mod
 go.sum
 
+bin/
+
+api
+
 # IDE and Editor files
 .vscode/
 .idea/

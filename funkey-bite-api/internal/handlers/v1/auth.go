@@ -85,15 +85,9 @@ func (h *AuthHandler) CheckUser(c *gin.Context) {
 		return
 	}
 
-	user, exists, err := h.authService.CheckUserExists(phone, email)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		return
-	}
-
+	// Intentionally return a generic message to prevent phone/email enumeration.
 	c.JSON(http.StatusOK, gin.H{
-		"exists": exists,
-		"user":   user,
+		"message": "If an account exists for the provided details, continue with login.",
 	})
 }
 

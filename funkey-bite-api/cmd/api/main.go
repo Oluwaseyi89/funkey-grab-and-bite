@@ -28,6 +28,10 @@ func main() {
 		log.Println("No .env file found")
 	}
 
+	if err := utils.ConfigureJWTSecretFromEnv(); err != nil {
+		log.Fatal(err)
+	}
+
 	// Initialize database
 	db := database.InitializeDatabase()
 	defer database.CloseDatabase(db)
@@ -57,18 +61,18 @@ func main() {
 
 	// Initialize services
 	authService := services.NewAuthService(*userRepo)
-	orderService := services.NewOrderService(orderRepo, *menuRepo, notificationService)
+	inventoryService := services.NewInventoryService(inventoryRepo, menuRepo)
+	orderService := services.NewOrderService(orderRepo, menuRepo, inventoryService, notificationService)
 	userService := services.NewUserService(*userRepo, *orderRepo)
 	menuService := services.NewMenuService(*menuRepo)
 	cateringService := services.NewCateringService(*cateringRepo, notificationService)
 	adminService := services.NewAdminService(adminRepo, *orderRepo, *userRepo, *cateringRepo, *menuRepo)
 	settingsService := services.NewSettingsService(*settingsRepo)
-	promotionService := services.NewPromotionService(*promotionRepo)
-	inventoryService := services.NewInventoryService(*inventoryRepo, *menuRepo)
+	promotionService := services.NewPromotionService(promotionRepo)
 
 	// Initialize handlers
 	authHandler := v1.NewAuthHandler(authService, userService)
-	orderHandler := v1.NewOrderHandler(orderService, authService)
+	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService)
 	menuHandler := v1.NewMenuHandler(menuService)
 	cateringHandler := v1.NewCateringHandler(cateringService)
 	adminHandler := v1.NewAdminHandler(adminService)
@@ -140,7 +144,7 @@ func main() {
 	}
 
 	admin := public.Group("/admin")
-	admin.Use(middleware.AdminAuthMiddleware())
+	admin.Use(middleware.AdminAuthMiddleware(adminRepo))
 	{
 		admin.GET("/dashboard/stats", adminHandler.GetDashboardStats)
 		admin.GET("/dashboard/stats/today", adminHandler.GetTodayStats)

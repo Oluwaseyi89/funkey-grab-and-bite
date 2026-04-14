@@ -233,9 +233,24 @@ func (r *PromotionRepository) Delete(id int) error {
 }
 
 func (r *PromotionRepository) IncrementUsage(id int) error {
-	query := `UPDATE promotions SET used_count = used_count + 1, updated_at = $1 WHERE id = $2`
-	_, err := r.db.Exec(query, time.Now(), id)
-	return err
+	query := `
+		UPDATE promotions
+		SET used_count = used_count + 1, updated_at = $1
+		WHERE id = $2
+		  AND (usage_limit IS NULL OR used_count < usage_limit)
+	`
+	result, err := r.db.Exec(query, time.Now(), id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("promotion usage limit reached")
+	}
+	return nil
 }
 
 func (r *PromotionRepository) RecordUsage(usage *models.PromotionUsage) error {
@@ -257,6 +272,65 @@ func (r *PromotionRepository) RecordUsage(usage *models.PromotionUsage) error {
 	if err != nil {
 		return fmt.Errorf("failed to record promotion usage: %w", err)
 	}
+
+	return nil
+}
+
+func (r *PromotionRepository) ConsumeUsage(usage *models.PromotionUsage) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin promotion usage transaction: %w", err)
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	now := time.Now()
+	result, err := tx.Exec(
+		`UPDATE promotions
+		 SET used_count = used_count + 1, updated_at = $1
+		 WHERE id = $2
+		   AND is_active = true
+		   AND valid_from <= $1
+		   AND valid_until >= $1
+		   AND (usage_limit IS NULL OR used_count < usage_limit)`,
+		now,
+		usage.PromotionID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to increment promotion usage: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to confirm promotion usage update: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("promotion usage limit reached")
+	}
+
+	err = tx.QueryRow(
+		`INSERT INTO promotion_usage (promotion_id, order_id, customer_id, discount_applied, created_at)
+		 VALUES ($1, $2, $3, $4, $5)
+		 RETURNING id`,
+		usage.PromotionID,
+		usage.OrderID,
+		usage.CustomerID,
+		usage.DiscountApplied,
+		now,
+	).Scan(&usage.ID)
+	if err != nil {
+		return fmt.Errorf("failed to record promotion usage: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit promotion usage transaction: %w", err)
+	}
+	committed = true
 
 	return nil
 }

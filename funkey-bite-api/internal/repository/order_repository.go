@@ -227,9 +227,17 @@ func (r *OrderRepository) UpdateOrderStatus(id int, status string) error {
 		WHERE id = $3
 	`
 
-	_, err := r.db.Exec(query, status, time.Now(), id)
+	result, err := r.db.Exec(query, status, time.Now(), id)
 	if err != nil {
 		return fmt.Errorf("failed to update order status: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to read updated order status rows: %w", err)
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
 	}
 
 	return nil
