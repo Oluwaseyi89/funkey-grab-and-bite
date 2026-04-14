@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
+	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -719,5 +720,82 @@ func TestGetUserOrdersLargeHistoryLatencyAndMemoryUnderLoad(t *testing.T) {
 	}
 	if allocDelta > 150*1024*1024 {
 		t.Fatalf("GetUserOrders exceeded memory budget: alloc delta %d bytes", allocDelta)
+	}
+}
+
+func TestTrackingRateLimitMiddlewareThrottlesAfterConfiguredLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.GET("/track", middleware.TrackingRateLimitMiddleware(), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	successes := 0
+	throttled := 0
+	for i := 0; i < middleware.TrackingRateLimit.Limit+1; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/track", nil)
+		req.Header.Set("X-Forwarded-For", "203.0.113.10")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+
+		switch res.Code {
+		case http.StatusOK:
+			successes++
+		case http.StatusTooManyRequests:
+			throttled++
+		}
+	}
+
+	if successes != middleware.TrackingRateLimit.Limit {
+		t.Fatalf("expected %d successful requests before throttling, got %d", middleware.TrackingRateLimit.Limit, successes)
+	}
+	if throttled != 1 {
+		t.Fatalf("expected exactly one throttled request, got %d", throttled)
+	}
+}
+
+func TestOrderCreationCanBeSpammedWithoutOrderRateLimiterWired(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orderSvc := &fakeOrderService{subtotal: 20}
+	settingsSvc := &fakeSettingsService{
+		minOrderOK:  true,
+		orderTimeOK: true,
+		acceptOK:    true,
+		total:       23.6,
+	}
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{})
+	body := newOrderRequestBody(t, models.OrderTypeDelivery)
+
+	router := gin.New()
+	public := router.Group("/api/v1")
+	orderGroup := public.Group("/orders")
+	orderGroup.Use(middleware.OptionalAuthMiddleware())
+	orderGroup.POST("/", handler.CreateOrder)
+
+	successes := 0
+	throttled := 0
+	attempts := middleware.OrderCreationRateLimit.Limit + 5
+	for i := 0; i < attempts; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/orders/", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Forwarded-For", "198.51.100.11")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+
+		if res.Code == http.StatusCreated {
+			successes++
+		}
+		if res.Code == http.StatusTooManyRequests {
+			throttled++
+		}
+	}
+
+	if throttled != 0 {
+		t.Fatalf("expected no rate limiting on order creation route, got %d throttled responses", throttled)
+	}
+	if successes != attempts {
+		t.Fatalf("expected all %d order creation requests to succeed without throttle, got %d", attempts, successes)
 	}
 }
