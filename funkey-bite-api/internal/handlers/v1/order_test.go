@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +25,8 @@ type fakeOrderService struct {
 	response     *models.Order
 	trackByPhone *models.Order
 	trackErr     error
+	history      []models.Order
+	historyErr   error
 }
 
 func (f *fakeOrderService) CreateOrder(order *models.Order, items []models.OrderItemRequest) (*models.Order, error) {
@@ -40,7 +43,10 @@ func (f *fakeOrderService) CreateOrder(order *models.Order, items []models.Order
 
 func (f *fakeOrderService) GetOrderByID(id int) (*models.Order, error) { return nil, nil }
 func (f *fakeOrderService) GetOrdersByUserID(userID int) ([]models.Order, error) {
-	return nil, nil
+	if f.historyErr != nil {
+		return nil, f.historyErr
+	}
+	return f.history, nil
 }
 func (f *fakeOrderService) UpdateOrderStatus(id int, status string) error { return nil }
 func (f *fakeOrderService) CalculateOrderTotal(items []models.OrderItemRequest) (float64, error) {
@@ -582,5 +588,136 @@ func TestTrackOrderPublicMissingOrderReturnsGenericNotFound(t *testing.T) {
 	}
 	if strings.Contains(res.Body.String(), "phone number") {
 		t.Fatalf("response should not reveal phone mismatch detail: %s", res.Body.String())
+	}
+}
+
+func buildLargeOrderHistory(totalOrders int, itemsPerOrder int) []models.Order {
+	orders := make([]models.Order, 0, totalOrders)
+	for i := 0; i < totalOrders; i++ {
+		items := make([]models.OrderItem, 0, itemsPerOrder)
+		for j := 0; j < itemsPerOrder; j++ {
+			items = append(items, models.OrderItem{
+				MenuItemID: j + 1,
+				Name:       fmt.Sprintf("Item-%d-%d", i+1, j+1),
+				Quantity:   1,
+				UnitPrice:  9.99,
+			})
+		}
+
+		orders = append(orders, models.Order{
+			ID:            i + 1,
+			OrderNumber:   fmt.Sprintf("FG-2026-04-%04d", i+1),
+			CustomerName:  "History User",
+			CustomerPhone: "+15550001111",
+			OrderType:     models.OrderTypeDelivery,
+			Status:        models.OrderStatusCompleted,
+			TotalAmount:   49.95,
+			CreatedAt:     time.Now().Add(-time.Duration(i) * time.Minute),
+			Items:         items,
+		})
+	}
+	return orders
+}
+
+func TestGetUserOrdersPaginationCorrectnessWithLargeHistory(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	history := buildLargeOrderHistory(1000, 2)
+	orderSvc := &fakeOrderService{history: history}
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{})
+
+	router := gin.New()
+	router.GET("/auth/orders", func(c *gin.Context) {
+		c.Set("user_id", 99)
+		handler.GetUserOrders(c)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/orders?page=3&limit=25", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected %d got %d body=%s", http.StatusOK, res.Code, res.Body.String())
+	}
+
+	var payload struct {
+		Orders     []models.Order `json:"orders"`
+		Pagination struct {
+			Page       int `json:"page"`
+			Limit      int `json:"limit"`
+			Total      int `json:"total"`
+			TotalPages int `json:"totalPages"`
+		} `json:"pagination"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(payload.Orders) != 25 {
+		t.Fatalf("expected 25 orders on page, got %d", len(payload.Orders))
+	}
+	if payload.Pagination.Page != 3 || payload.Pagination.Limit != 25 {
+		t.Fatalf("unexpected pagination metadata: %+v", payload.Pagination)
+	}
+	if payload.Pagination.Total != 1000 || payload.Pagination.TotalPages != 40 {
+		t.Fatalf("unexpected totals: %+v", payload.Pagination)
+	}
+
+	offset := (3 - 1) * 25
+	if payload.Orders[0].ID != history[offset].ID {
+		t.Fatalf("first order on page mismatch: got ID=%d want ID=%d", payload.Orders[0].ID, history[offset].ID)
+	}
+	if payload.Orders[24].ID != history[offset+24].ID {
+		t.Fatalf("last order on page mismatch: got ID=%d want ID=%d", payload.Orders[24].ID, history[offset+24].ID)
+	}
+}
+
+func TestGetUserOrdersLargeHistoryLatencyAndMemoryUnderLoad(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	history := buildLargeOrderHistory(5000, 6)
+	orderSvc := &fakeOrderService{history: history}
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{})
+
+	router := gin.New()
+	router.GET("/auth/orders", func(c *gin.Context) {
+		c.Set("user_id", 99)
+		handler.GetUserOrders(c)
+	})
+
+	runtime.GC()
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	start := time.Now()
+	req := httptest.NewRequest(http.MethodGet, "/auth/orders?page=1&limit=20", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	elapsed := time.Since(start)
+
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+	allocDelta := after.Alloc - before.Alloc
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected %d got %d body=%s", http.StatusOK, res.Code, res.Body.String())
+	}
+
+	var payload struct {
+		Orders []models.Order `json:"orders"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(payload.Orders) != 20 {
+		t.Fatalf("expected 20 orders on first page, got %d", len(payload.Orders))
+	}
+
+	// Guardrails to catch severe regressions under high-load histories.
+	if elapsed > 2*time.Second {
+		t.Fatalf("GetUserOrders exceeded latency budget: %v", elapsed)
+	}
+	if allocDelta > 150*1024*1024 {
+		t.Fatalf("GetUserOrders exceeded memory budget: alloc delta %d bytes", allocDelta)
 	}
 }
