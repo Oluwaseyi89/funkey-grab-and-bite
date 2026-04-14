@@ -335,7 +335,7 @@ func (h *OrderHandler) TrackOrderPublic(c *gin.Context) {
 
 	if order == nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Order not found or phone number doesn't match",
+			"error": "Order not found",
 		})
 		return
 	}
@@ -346,9 +346,8 @@ func (h *OrderHandler) TrackOrderPublic(c *gin.Context) {
 		"estimatedReadyTime": order.EstimatedReadyTime,
 		"pickupTime":         order.PickupTime,
 		"createdAt":          order.CreatedAt,
-		"items":              order.Items,
 		"orderType":          order.OrderType,
-		"totalAmount":        order.TotalAmount,
+		"message":            "Limited order information available",
 	})
 }
 

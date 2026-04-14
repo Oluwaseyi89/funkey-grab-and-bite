@@ -22,6 +22,8 @@ type fakeOrderService struct {
 	createErr    error
 	captured     *models.Order
 	response     *models.Order
+	trackByPhone *models.Order
+	trackErr     error
 }
 
 func (f *fakeOrderService) CreateOrder(order *models.Order, items []models.OrderItemRequest) (*models.Order, error) {
@@ -51,7 +53,10 @@ func (f *fakeOrderService) GetOrderByOrderNumber(orderNumber string) (*models.Or
 	return nil, nil
 }
 func (f *fakeOrderService) GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error) {
-	return nil, nil
+	if f.trackErr != nil {
+		return nil, f.trackErr
+	}
+	return f.trackByPhone, nil
 }
 func (f *fakeOrderService) CancelOrder(id int, userID int) error { return nil }
 
@@ -503,5 +508,79 @@ func TestCreateOrderUnauthenticatedExistingPhoneWithoutPasswordIsRejected(t *tes
 	}
 	if orderSvc.captured != nil {
 		t.Fatal("CreateOrder should not be called when existing user omits password")
+	}
+}
+
+func TestTrackOrderPublicReturnsLimitedFieldsOnly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	email := "customer@example.com"
+	pickupTime := time.Now().Add(20 * time.Minute)
+	orderSvc := &fakeOrderService{
+		trackByPhone: &models.Order{
+			OrderNumber:   "FG-2026-04-1234",
+			Status:        models.OrderStatusPreparing,
+			OrderType:     models.OrderTypeDelivery,
+			TotalAmount:   49.99,
+			CustomerName:  "Sensitive Name",
+			CustomerPhone: "+15551234567",
+			CustomerEmail: &email,
+			PickupTime:    &pickupTime,
+			Items: []models.OrderItem{{
+				MenuItemID: 1,
+				Name:       "Secret Item",
+				Quantity:   2,
+				UnitPrice:  24.99,
+			}},
+		},
+	}
+
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{})
+	router := gin.New()
+	router.GET("/order/track/:phone/:orderNumber", handler.TrackOrderPublic)
+
+	req := httptest.NewRequest(http.MethodGet, "/order/track/+15551234567/FG-2026-04-1234", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected %d got %d body=%s", http.StatusOK, res.Code, res.Body.String())
+	}
+
+	body := res.Body.String()
+	if strings.Contains(body, "items") {
+		t.Fatalf("public tracking response leaked items: %s", body)
+	}
+	if strings.Contains(body, "totalAmount") {
+		t.Fatalf("public tracking response leaked total amount: %s", body)
+	}
+	if strings.Contains(body, "Sensitive Name") || strings.Contains(body, "customerPhone") || strings.Contains(body, "customerEmail") {
+		t.Fatalf("public tracking response leaked customer details: %s", body)
+	}
+	if !strings.Contains(body, "Limited order information available") {
+		t.Fatalf("expected limited-info message, got: %s", body)
+	}
+}
+
+func TestTrackOrderPublicMissingOrderReturnsGenericNotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orderSvc := &fakeOrderService{trackByPhone: nil}
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{})
+	router := gin.New()
+	router.GET("/order/track/:phone/:orderNumber", handler.TrackOrderPublic)
+
+	req := httptest.NewRequest(http.MethodGet, "/order/track/+15550000000/FG-404", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("expected %d got %d body=%s", http.StatusNotFound, res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "Order not found") {
+		t.Fatalf("expected generic not found message, got body=%s", res.Body.String())
+	}
+	if strings.Contains(res.Body.String(), "phone number") {
+		t.Fatalf("response should not reveal phone mismatch detail: %s", res.Body.String())
 	}
 }
