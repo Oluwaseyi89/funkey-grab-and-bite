@@ -28,6 +28,10 @@ func main() {
 		log.Println("No .env file found")
 	}
 
+	if err := utils.ConfigureJWTSecretFromEnv(); err != nil {
+		log.Fatal(err)
+	}
+
 	// Initialize database
 	db := database.InitializeDatabase()
 	defer database.CloseDatabase(db)
@@ -140,7 +144,7 @@ func main() {
 	}
 
 	admin := public.Group("/admin")
-	admin.Use(middleware.AdminAuthMiddleware())
+	admin.Use(middleware.AdminAuthMiddleware(adminRepo))
 	{
 		admin.GET("/dashboard/stats", adminHandler.GetDashboardStats)
 		admin.GET("/dashboard/stats/today", adminHandler.GetTodayStats)
