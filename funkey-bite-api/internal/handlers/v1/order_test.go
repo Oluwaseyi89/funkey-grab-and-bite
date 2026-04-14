@@ -3,6 +3,7 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -54,7 +55,10 @@ func (f *fakeOrderService) GetOrderByPhoneAndOrderNumber(phone, orderNumber stri
 }
 func (f *fakeOrderService) CancelOrder(id int, userID int) error { return nil }
 
-type fakeAuthService struct{}
+type fakeAuthService struct {
+	authUser *models.User
+	authErr  error
+}
 
 func (f *fakeAuthService) Register(userData models.UserRegistration) (*models.AuthResponse, error) {
 	return nil, nil
@@ -66,6 +70,12 @@ func (f *fakeAuthService) CheckUserExists(phone, email string) (*models.User, bo
 	return nil, false, nil
 }
 func (f *fakeAuthService) AuthenticateOrder(orderData models.OrderWithAuth) (*models.User, error) {
+	if f.authErr != nil {
+		return nil, f.authErr
+	}
+	if f.authUser != nil {
+		return f.authUser, nil
+	}
 	uid := 99
 	return &models.User{ID: uid}, nil
 }
@@ -176,6 +186,21 @@ func runCreateOrder(t *testing.T, h *OrderHandler, body []byte) *httptest.Respon
 		c.Set("user_id", 99)
 		h.CreateOrder(c)
 	})
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, req)
+
+	return recorder
+}
+
+func runCreateOrderUnauthenticated(t *testing.T, h *OrderHandler, body []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.POST("/orders", h.CreateOrder)
 
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewReader(body))
@@ -424,5 +449,59 @@ func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "Failed to apply promotion") {
 		t.Fatalf("expected apply promotion error, got body: %s", rec.Body.String())
+	}
+}
+
+func TestCreateOrderUnauthenticatedWithNewPhoneRequiresAccount(t *testing.T) {
+	orderSvc := &fakeOrderService{subtotal: 20}
+	settingsSvc := &fakeSettingsService{
+		minOrderOK:  true,
+		orderTimeOK: true,
+		acceptOK:    true,
+		total:       23.6,
+	}
+	authSvc := &fakeAuthService{authErr: errors.New("user_not_found")}
+
+	handler := NewOrderHandler(orderSvc, authSvc, settingsSvc, &fakePromotionService{})
+	rec := runCreateOrderUnauthenticated(t, handler, newOrderRequestBody(t, models.OrderTypeDelivery))
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d, body: %s", http.StatusBadRequest, rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "User not found. Please create an account first.") {
+		t.Fatalf("expected new-user account-required message, got body: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "USER_NOT_FOUND") {
+		t.Fatalf("expected USER_NOT_FOUND code, got body: %s", rec.Body.String())
+	}
+	if orderSvc.captured != nil {
+		t.Fatal("CreateOrder should not be called for unauthenticated new-phone checkout")
+	}
+}
+
+func TestCreateOrderUnauthenticatedExistingPhoneWithoutPasswordIsRejected(t *testing.T) {
+	orderSvc := &fakeOrderService{subtotal: 20}
+	settingsSvc := &fakeSettingsService{
+		minOrderOK:  true,
+		orderTimeOK: true,
+		acceptOK:    true,
+		total:       23.6,
+	}
+	authSvc := &fakeAuthService{authErr: errors.New("password_required")}
+
+	handler := NewOrderHandler(orderSvc, authSvc, settingsSvc, &fakePromotionService{})
+	rec := runCreateOrderUnauthenticated(t, handler, newOrderRequestBody(t, models.OrderTypeDelivery))
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d, body: %s", http.StatusUnauthorized, rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Password required for existing user") {
+		t.Fatalf("expected password-required message, got body: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "PASSWORD_REQUIRED") {
+		t.Fatalf("expected PASSWORD_REQUIRED code, got body: %s", rec.Body.String())
+	}
+	if orderSvc.captured != nil {
+		t.Fatal("CreateOrder should not be called when existing user omits password")
 	}
 }
