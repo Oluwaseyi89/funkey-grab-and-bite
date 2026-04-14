@@ -16,6 +16,7 @@ type SettingsService interface {
 	ValidateOrderTime(orderType string, requestedTime *time.Time) (bool, string)
 	CanAcceptOrders(orderType string) (bool, string)
 	CalculateOrderFees(subtotal float64, orderType string) (deliveryFee, taxAmount, total float64)
+	ValidateMinimumOrder(subtotal float64, orderType string) (bool, string)
 }
 
 type settingsService struct {

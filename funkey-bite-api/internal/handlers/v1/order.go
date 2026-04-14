@@ -16,13 +16,15 @@ import (
 type OrderHandler struct {
 	orderService services.OrderService
 	authService  services.AuthService
+	settings     services.SettingsService
 	validate     *validator.Validate
 }
 
-func NewOrderHandler(orderService services.OrderService, authService services.AuthService) *OrderHandler {
+func NewOrderHandler(orderService services.OrderService, authService services.AuthService, settingsService services.SettingsService) *OrderHandler {
 	return &OrderHandler{
 		orderService: orderService,
 		authService:  authService,
+		settings:     settingsService,
 		validate:     validator.New(),
 	}
 }
@@ -45,6 +47,23 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	if ok, message := h.settings.ValidateMinimumOrder(totalAmount, string(req.OrderType)); !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
+		return
+	}
+
+	if ok, message := h.settings.ValidateOrderTime(string(req.OrderType), req.PickupTime); !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
+		return
+	}
+
+	if ok, message := h.settings.CanAcceptOrders(string(req.OrderType)); !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
+		return
+	}
+
+	_, _, totalWithFees := h.settings.CalculateOrderFees(totalAmount, string(req.OrderType))
 
 	var userID *int
 
@@ -89,7 +108,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		CustomerEmail: req.CustomerEmail,
 		OrderType:     req.OrderType,
 		Status:        models.OrderStatusPending,
-		TotalAmount:   totalAmount,
+		TotalAmount:   totalWithFees,
 		Notes:         req.Notes,
 		PickupTime:    req.PickupTime,
 		CreatedAt:     time.Now(),

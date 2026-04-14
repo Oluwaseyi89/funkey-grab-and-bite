@@ -72,7 +72,7 @@ func main() {
 
 	// Initialize handlers
 	authHandler := v1.NewAuthHandler(authService, userService)
-	orderHandler := v1.NewOrderHandler(orderService, authService)
+	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService)
 	menuHandler := v1.NewMenuHandler(menuService)
 	cateringHandler := v1.NewCateringHandler(cateringService)
 	adminHandler := v1.NewAdminHandler(adminService)

@@ -244,7 +244,7 @@ func runMigrations(db *sql.DB) error {
 		ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (
 			setweight(to_tsvector('english', COALESCE(name, '')), 'A') ||
 			setweight(to_tsvector('english', COALESCE(description, '')), 'B') ||
-			setweight(to_tsvector('english', COALESCE(array_to_string(tags, ' '), '')), 'C')
+			setweight(to_tsvector('english', COALESCE(tags::text, '')), 'C')
 		) STORED`,
 
 		`CREATE INDEX IF NOT EXISTS idx_menu_items_search 
