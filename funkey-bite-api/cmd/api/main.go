@@ -61,14 +61,14 @@ func main() {
 
 	// Initialize services
 	authService := services.NewAuthService(*userRepo)
-	orderService := services.NewOrderService(orderRepo, *menuRepo, notificationService)
+	inventoryService := services.NewInventoryService(inventoryRepo, menuRepo)
+	orderService := services.NewOrderService(orderRepo, menuRepo, inventoryService, notificationService)
 	userService := services.NewUserService(*userRepo, *orderRepo)
 	menuService := services.NewMenuService(*menuRepo)
 	cateringService := services.NewCateringService(*cateringRepo, notificationService)
 	adminService := services.NewAdminService(adminRepo, *orderRepo, *userRepo, *cateringRepo, *menuRepo)
 	settingsService := services.NewSettingsService(*settingsRepo)
 	promotionService := services.NewPromotionService(*promotionRepo)
-	inventoryService := services.NewInventoryService(*inventoryRepo, *menuRepo)
 
 	// Initialize handlers
 	authHandler := v1.NewAuthHandler(authService, userService)

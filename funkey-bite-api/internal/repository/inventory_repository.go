@@ -234,6 +234,103 @@ func (r *InventoryRepository) UpdateStock(itemID int, newStock int, operation st
 	return tx.Commit()
 }
 
+func (r *InventoryRepository) AdjustStockByMenuItemID(menuItemID int, quantity int, operation string, reason string) (*models.InventoryItem, error) {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var itemID int
+	var currentStock int
+	err = tx.QueryRow(
+		`SELECT id, current_stock FROM inventory_items WHERE menu_item_id = $1 FOR UPDATE`,
+		menuItemID,
+	).Scan(&itemID, &currentStock)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to lock inventory item: %w", err)
+	}
+
+	var newStock int
+	switch operation {
+	case "add":
+		newStock = currentStock + quantity
+	case "subtract":
+		newStock = currentStock - quantity
+		if newStock < 0 {
+			return nil, fmt.Errorf("insufficient stock. Current: %d, Requested: %d", currentStock, quantity)
+		}
+	case "set":
+		newStock = quantity
+		if newStock < 0 {
+			return nil, fmt.Errorf("stock cannot be negative")
+		}
+	default:
+		return nil, fmt.Errorf("invalid operation: %s", operation)
+	}
+
+	now := time.Now()
+	_, err = tx.Exec(
+		`UPDATE inventory_items
+		 SET current_stock = $1,
+		     last_restocked = CASE WHEN $2 = 'add' THEN $3 ELSE last_restocked END,
+		     updated_at = $3
+		 WHERE id = $4`,
+		newStock, operation, now, itemID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update inventory: %w", err)
+	}
+
+	_, err = tx.Exec(
+		`INSERT INTO inventory_history
+		 (inventory_item_id, previous_stock, new_stock, change, operation, reason, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		itemID, currentStock, newStock, newStock-currentStock, operation, reason, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to record inventory history: %w", err)
+	}
+
+	if newStock <= 0 {
+		message := fmt.Sprintf("Item %d is out of stock", itemID)
+		_, _ = tx.Exec(
+			`INSERT INTO inventory_alerts (inventory_item_id, alert_type, message, created_at)
+			 VALUES ($1, 'out_of_stock', $2, $3)
+			 ON CONFLICT (inventory_item_id, alert_type)
+			 DO UPDATE SET is_resolved = false, created_at = $3
+			 WHERE inventory_alerts.is_resolved = true`,
+			itemID, message, now,
+		)
+	} else if newStock <= 10 {
+		message := fmt.Sprintf("Item %d is running low: %d remaining", itemID, newStock)
+		_, _ = tx.Exec(
+			`INSERT INTO inventory_alerts (inventory_item_id, alert_type, message, created_at)
+			 VALUES ($1, 'low_stock', $2, $3)
+			 ON CONFLICT (inventory_item_id, alert_type)
+			 DO UPDATE SET is_resolved = false, created_at = $3
+			 WHERE inventory_alerts.is_resolved = true`,
+			itemID, message, now,
+		)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit inventory update: %w", err)
+	}
+	committed = true
+
+	return r.GetByID(itemID)
+}
+
 func (r *InventoryRepository) CreateInventoryItem(item *models.InventoryItem) (*models.InventoryItem, error) {
 	query := `
         INSERT INTO inventory_items 

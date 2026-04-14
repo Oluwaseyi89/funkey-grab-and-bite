@@ -21,14 +21,26 @@ type OrderService interface {
 
 type orderService struct {
 	orderRepo           repository.IOrderRepository
-	menuRepo            repository.MenuRepository
+	menuRepo            menuItemReader
+	stockService        stockService
 	notificationService NotificationService
 }
 
-func NewOrderService(orderRepo repository.IOrderRepository, menuRepo repository.MenuRepository, notificationService NotificationService) OrderService {
+type menuItemReader interface {
+	GetByID(id int) (*models.MenuItem, error)
+}
+
+type stockService interface {
+	CheckAvailability(menuItemID, quantity int) (bool, string)
+	DeductStockForOrder(menuItemID, quantity int, orderID int) error
+	RestockItem(menuItemID, quantity int, reason string) error
+}
+
+func NewOrderService(orderRepo repository.IOrderRepository, menuRepo menuItemReader, stockService stockService, notificationService NotificationService) OrderService {
 	return &orderService{
 		orderRepo:           orderRepo,
 		menuRepo:            menuRepo,
+		stockService:        stockService,
 		notificationService: notificationService,
 	}
 }
@@ -54,6 +66,10 @@ func (s *orderService) CreateOrder(order *models.Order, items []models.OrderItem
 		if menuItem.Name != item.Name {
 			return nil, fmt.Errorf("item name mismatch for ID %d: expected '%s', got '%s'",
 				item.MenuItemID, menuItem.Name, item.Name)
+		}
+
+		if ok, message := s.stockService.CheckAvailability(item.MenuItemID, item.Quantity); !ok {
+			return nil, fmt.Errorf("stock unavailable for %s: %s", item.Name, message)
 		}
 	}
 
@@ -91,7 +107,37 @@ func (s *orderService) CreateOrder(order *models.Order, items []models.OrderItem
 		}
 	}
 
+	type stockDeduction struct {
+		menuItemID int
+		quantity   int
+	}
+
+	deductions := make([]stockDeduction, 0, len(items))
+	for _, item := range items {
+		err := s.stockService.DeductStockForOrder(item.MenuItemID, item.Quantity, createdOrder.ID)
+		if err != nil {
+			for _, rollback := range deductions {
+				_ = s.stockService.RestockItem(
+					rollback.menuItemID,
+					rollback.quantity,
+					fmt.Sprintf("rollback failed deduction for order #%d", createdOrder.ID),
+				)
+			}
+			txErr = err
+			return nil, fmt.Errorf("failed to deduct stock for menu item %d: %w", item.MenuItemID, err)
+		}
+
+		deductions = append(deductions, stockDeduction{menuItemID: item.MenuItemID, quantity: item.Quantity})
+	}
+
 	if err := tx.Commit(); err != nil {
+		for _, rollback := range deductions {
+			_ = s.stockService.RestockItem(
+				rollback.menuItemID,
+				rollback.quantity,
+				fmt.Sprintf("rollback order #%d after commit failure", createdOrder.ID),
+			)
+		}
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
