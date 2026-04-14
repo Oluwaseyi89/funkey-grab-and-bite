@@ -78,6 +78,7 @@ web_modules/
 .next
 out
 
+
 bin/
 
 # Nuxt.js build / generate output

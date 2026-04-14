@@ -38,7 +38,9 @@ func InitializeDatabase() *sql.DB {
 
 	log.Println("✅ Database connection established successfully")
 
-	runMigrations(db)
+	if err := runMigrations(db); err != nil {
+		log.Fatalf("Database migration failed: %v", err)
+	}
 
 	return db
 }
@@ -51,7 +53,7 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
-func runMigrations(db *sql.DB) {
+func runMigrations(db *sql.DB) error {
 	migrations := []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			id SERIAL PRIMARY KEY,
@@ -249,19 +251,30 @@ func runMigrations(db *sql.DB) {
 		ON menu_items USING GIN(search_vector)`,
 	}
 
+	if err := runMigrationsWithStatements(db, migrations); err != nil {
+		return err
+	}
+
+	if err := ensureDefaultAdminUser(db); err != nil {
+		return fmt.Errorf("default admin bootstrap failed: %w", err)
+	}
+
+	log.Println("✅ Database migrations completed")
+	return nil
+}
+
+func runMigrationsWithStatements(db *sql.DB, migrations []string) error {
 	for i, migration := range migrations {
 		_, err := db.Exec(migration)
 		if err != nil {
-			log.Printf("Warning: Migration %d failed: %v", i+1, err)
+			return fmt.Errorf("migration %d failed: %w", i+1, err)
 		}
 	}
 
-	ensureDefaultAdminUser(db)
-
-	log.Println("✅ Database migrations completed")
+	return nil
 }
 
-func ensureDefaultAdminUser(db *sql.DB) {
+func ensureDefaultAdminUser(db *sql.DB) error {
 	defaultEmail := getEnv("DEFAULT_ADMIN_EMAIL", "admin@funkey.com")
 	defaultUsername := getEnv("DEFAULT_ADMIN_USERNAME", "admin")
 	defaultPassword := getEnv("DEFAULT_ADMIN_PASSWORD", "admin123")
@@ -270,18 +283,16 @@ func ensureDefaultAdminUser(db *sql.DB) {
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM admin_users WHERE email = $1)", defaultEmail).Scan(&exists)
 	if err != nil {
-		log.Printf("Warning: failed checking default admin existence: %v", err)
-		return
+		return fmt.Errorf("failed checking default admin existence: %w", err)
 	}
 
 	if exists {
-		return
+		return nil
 	}
 
 	hashedPassword, err := utils.HashPassword(defaultPassword)
 	if err != nil {
-		log.Printf("Warning: failed hashing default admin password: %v", err)
-		return
+		return fmt.Errorf("failed hashing default admin password: %w", err)
 	}
 
 	_, err = db.Exec(
@@ -292,11 +303,11 @@ func ensureDefaultAdminUser(db *sql.DB) {
 		defaultRole,
 	)
 	if err != nil {
-		log.Printf("Warning: failed creating default admin user: %v", err)
-		return
+		return fmt.Errorf("failed creating default admin user: %w", err)
 	}
 
 	log.Printf("✅ Created default admin user: %s", defaultEmail)
+	return nil
 }
 
 func CloseDatabase(db *sql.DB) {
