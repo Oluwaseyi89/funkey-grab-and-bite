@@ -115,23 +115,32 @@
             </div>
 
             
-            <div class="flex space-x-4 mt-8 md:mt-0">
-              <button
-                @click="handleAddToCart"
-                :disabled="!item.isAvailable"
-                class="flex-1 btn-primary text-lg py-4 dark:text-white"
-                :class="{ 'opacity-50 cursor-not-allowed': !item.isAvailable }"
-              >
-                <ShoppingCart class="w-5 h-5 inline mr-2" />
-                Add to Cart
-              </button>
-              <button 
-                v-if="!isMobile"
-                @click="handleClose" 
-                class="px-6 py-4 border border-gray-300 dark:border-slate-600 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors dark:text-white"
-              >
-                Close
-              </button>
+            <div class="flex flex-col gap-4 mt-8 md:mt-0">
+              <textarea
+                v-model="specialInstructions"
+                placeholder="Add special instructions (e.g. no onions, extra spicy)"
+                class="w-full mb-2 p-3 border border-gray-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none min-h-[48px]"
+                rows="2"
+                maxlength="200"
+              ></textarea>
+              <div class="flex space-x-4">
+                <button
+                  @click="handleAddToCart"
+                  :disabled="!item.isAvailable"
+                  class="flex-1 btn-primary text-lg py-4 dark:text-white"
+                  :class="{ 'opacity-50 cursor-not-allowed': !item.isAvailable }"
+                >
+                  <ShoppingCart class="w-5 h-5 inline mr-2" />
+                  Add to Cart
+                </button>
+                <button 
+                  v-if="!isMobile"
+                  @click="handleClose" 
+                  class="px-6 py-4 border border-gray-300 dark:border-slate-600 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors dark:text-white"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -149,13 +158,16 @@ const { item } = defineProps<{
   item: MenuItem
 }>()
 
+
 const emit = defineEmits<{
   close: []
-  addToCart: [item: MenuItem]
+  addToCart: [item: MenuItem, specialInstructions?: string]
 }>()
+
 
 const isMobile = ref(false)
 const modalRef = ref<HTMLElement>()
+const specialInstructions = ref('')
 
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
@@ -166,7 +178,7 @@ const handleClose = () => {
 }
 
 const handleAddToCart = () => {
-  emit('addToCart', item)
+  emit('addToCart', item, specialInstructions.value.trim() || undefined)
 }
 
 const handleEscape = (e: KeyboardEvent) => {

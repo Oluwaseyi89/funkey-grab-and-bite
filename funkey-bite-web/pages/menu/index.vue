@@ -417,12 +417,10 @@ const handlePriceFilter = (price: number) => {
   currentPage.value = 1
 }
 
-const handleAddToCart = (item: MenuItem) => {
-  cart.addItem(item)
-  
+const handleAddToCart = (item: MenuItem, specialInstructions?: string) => {
+  cart.addItem(item, 1, specialInstructions)
   if (import.meta.client) {
     const { $toast } = useNuxtApp()
-    
     if ($toast && typeof ($toast as any).success === 'function') {
       ($toast as any).success(`Added ${item.name} to cart`)
     }
