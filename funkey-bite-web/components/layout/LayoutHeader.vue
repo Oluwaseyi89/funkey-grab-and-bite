@@ -19,14 +19,12 @@
             :key="nav.name"
             :to="nav.href"
             class="nav-link text-gray-700 dark:text-gray-300 hover:text-brand-500 dark:hover:text-brand-400 font-medium transition-all relative group py-2 px-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-            active-class="nav-link--active bg-gradient-to-r from-brand-500 to-accent-500 text-white shadow-lg dark:from-brand-700 dark:to-accent-700 dark:text-white"
-            aria-current="$route.path === nav.href ? 'page' : undefined"
+            exact-active-class="nav-link--active"
             role="menuitem"
             tabindex="0"
           >
             {{ nav.name }}
-            <!-- Drool-worthy highlight: animated border glow, border only, no overlay -->
-            <span v-if="$route.path === nav.href" class="absolute inset-0 rounded-full pointer-events-none animate-nav-glow" style="z-index:0;"></span>
+            <span class="absolute inset-0 rounded-full pointer-events-none nav-link-highlight"></span>
           </NuxtLink>
         </div>
 
@@ -92,12 +90,12 @@
               :to="nav.href"
               @click="isMobileMenuOpen = false"
               class="nav-link text-gray-700 dark:text-gray-300 hover:text-brand-500 dark:hover:text-brand-400 font-medium py-3 px-6 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              active-class="nav-link--active bg-gradient-to-r from-brand-500 to-accent-500 text-white shadow-lg dark:from-brand-700 dark:to-accent-700 dark:text-white"
-              aria-current="$route.path === nav.href ? 'page' : undefined"
+              exact-active-class="nav-link--active"
               role="menuitem"
               tabindex="0"
             >
               {{ nav.name }}
+              <span class="absolute inset-0 rounded-full pointer-events-none nav-link-highlight"></span>
             </NuxtLink>
           </div>
         </div>
@@ -131,7 +129,8 @@ const toggleTheme = () => {
   colorMode.value = colorMode.value === 'dark' ? 'light' : 'dark'
 }
 
-watch(() => useRoute().path, () => {
+const route = useRoute()
+watch(() => route.path, () => {
   isMobileMenuOpen.value = false
 })
 </script>
@@ -161,6 +160,7 @@ header {
 /* Enhanced nav link styles for active state */
 /* Drool-worthy nav link highlight: animated border glow and soft shadow */
 
+
 .nav-link--active {
   position: relative;
   background: transparent;
@@ -173,6 +173,21 @@ header {
   letter-spacing: 0.01em;
   transition: color 0.3s;
   overflow: visible;
+}
+
+/* Only show the animated highlight for the active link */
+.nav-link--active .nav-link-highlight {
+  z-index: 0;
+  border-radius: 9999px;
+  border: 2.5px solid;
+  border-image: linear-gradient(90deg, #f44336 0%, #f59e0b 100%) 1;
+  background: none !important;
+  box-shadow: 0 0 0 6px #f4433622, 0 8px 32px 0 #f59e0b22;
+  animation: nav-glow 2s infinite ease-in-out;
+  display: block;
+}
+.nav-link-highlight {
+  display: none;
 }
 
 @keyframes nav-glow {
