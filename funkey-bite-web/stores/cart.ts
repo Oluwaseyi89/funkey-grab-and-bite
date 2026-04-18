@@ -1,104 +1,78 @@
 import { defineStore } from 'pinia'
 import { useNuxtApp } from 'nuxt/app'
+import { ref, computed } from 'vue'
 import type { CartItem, MenuItem } from '~/types/menu'
 
+export const useCartStore = defineStore('cart', () => {
+  const items = ref<CartItem[]>([])
+  const isOpen = ref(false)
 
-export const useCartStore = defineStore('cart', {
-  state: () => ({
-    items: [] as CartItem[],
-    isOpen: false,
-  }),
+  const totalItems = computed(() => items.value.reduce((sum: number, item: CartItem) => sum + item.quantity, 0))
+  const subtotal = computed(() => items.value.reduce((sum: number, item: CartItem) => sum + item.menuItem.price * item.quantity, 0))
+  const tax = computed(() => subtotal.value * 0.08)
+  const total = computed(() => subtotal.value + tax.value)
+  const totalPrice = computed(() => {
+    const sub = items.value.reduce((sum: number, item: CartItem) => sum + (item.menuItem.price * item.quantity), 0)
+    const t = sub * 0.08
+    return sub + t
+  })
+  const itemCount = (menuItemId: string) => items.value.find((item: CartItem) => item.menuItem.id === menuItemId)?.quantity ?? 0
 
-  getters: {
-    totalItems(state): number {
-      return state.items.reduce((sum, item) => sum + item.quantity, 0)
-    },
-
-    subtotal(state): number {
-      return state.items.reduce(
-        (sum, item) => sum + item.menuItem.price * item.quantity,
-        0
-      )
-    },
-
-    tax(): number {
-      return this.subtotal * 0.08
-    },
-
-    total(): number {
-      return this.subtotal + this.tax
-    },
-    totalPrice: (state) => {
-      const subtotal = state.items.reduce((sum, item) => sum + (item.menuItem.price * item.quantity), 0)
-      const tax = subtotal * 0.08
-      return subtotal + tax
-    },
-
-    itemCount(state) {
-      return (menuItemId: string): number =>
-        state.items.find(item => item.menuItem.id === menuItemId)?.quantity ?? 0
-    },
-  },
-
-  actions: {
-    addItem(
-      menuItem: MenuItem,
-      quantity = 1,
-      specialInstructions?: string
-    ) {
-      const existingItem = this.items.find(
-        item => item.menuItem.id === menuItem.id
-      )
-
-      if (existingItem) {
-        existingItem.quantity += quantity
-        if (specialInstructions !== undefined) {
-          existingItem.specialInstructions = specialInstructions
-        }
-      } else {
-        this.items.push({
-          menuItem,
-          quantity,
-          specialInstructions,
-        })
+  function addItem(menuItem: MenuItem, quantity = 1, specialInstructions?: string) {
+    const existingItem = items.value.find((item: CartItem) => item.menuItem.id === menuItem.id)
+    if (existingItem) {
+      existingItem.quantity += quantity
+      if (specialInstructions !== undefined) {
+        existingItem.specialInstructions = specialInstructions
       }
+    } else {
+      items.value.push({ menuItem, quantity, specialInstructions })
+    }
+    if (import.meta.client) {
+      const { $toast } = useNuxtApp()
+      const toast = $toast as { success?: (message: string) => void } | undefined
+      toast?.success?.(`${menuItem.name} added to cart`)
+    }
+  }
 
-      if (import.meta.client) {
-        const { $toast } = useNuxtApp()
-        const toast = $toast as { success?: (message: string) => void } | undefined
-        toast?.success?.(`${menuItem.name} added to cart`)
-      }
-    },
+  function removeItem(menuItemId: string) {
+    items.value = items.value.filter((item: CartItem) => item.menuItem.id !== menuItemId)
+  }
 
-    removeItem(menuItemId: string) {
-      this.items = this.items.filter(
-        item => item.menuItem.id !== menuItemId
-      )
-    },
+  function updateQuantity(menuItemId: string, quantity: number) {
+    const item = items.value.find((item: CartItem) => item.menuItem.id === menuItemId)
+    if (!item) return
+    if (quantity <= 0) {
+      removeItem(menuItemId)
+    } else {
+      item.quantity = quantity
+    }
+  }
 
-    updateQuantity(menuItemId: string, quantity: number) {
-      const item = this.items.find(
-        item => item.menuItem.id === menuItemId
-      )
+  function clearCart() {
+    items.value = []
+  }
 
-      if (!item) return
+  function toggleCart() {
+    isOpen.value = !isOpen.value
+  }
 
-      if (quantity <= 0) {
-        this.removeItem(menuItemId)
-      } else {
-        item.quantity = quantity
-      }
-    },
-
-    clearCart() {
-      this.items = []
-    },
-
-    toggleCart() {
-      this.isOpen = !this.isOpen
-    },
-  },
-
+  return {
+    items,
+    isOpen,
+    totalItems,
+    subtotal,
+    tax,
+    total,
+    totalPrice,
+    itemCount,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    toggleCart,
+  }
+}, {
   persist: true,
 })
 
