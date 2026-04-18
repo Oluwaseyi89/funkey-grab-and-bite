@@ -49,12 +49,12 @@
              >
                <ShoppingCart class="w-5 h-5 text-white" />
                <span 
-                 v-if="cart.totalItems > 0"
+                 v-if="totalItems > 0"
                  class="absolute -top-1 -right-1 bg-white text-brand-500 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm"
                  aria-label="Cart item count"
                  role="status"
                >
-                 {{ cart.totalItems }}
+                 {{ totalItems }}
                </span>
              </button>
            </NuxtLink>
@@ -111,9 +111,11 @@ import { useCartStore } from '../../stores/cart'
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { watch } from 'vue'
+import { storeToRefs } from 'pinia'
 
 const colorMode = useColorMode()
 const cart = useCartStore()
+const { totalItems } = storeToRefs(cart)
 
 const isMobileMenuOpen = ref(false)
 
