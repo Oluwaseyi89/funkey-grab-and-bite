@@ -69,43 +69,224 @@
         </div>
       </div>
 
-      <Transition
-        enter-active-class="transition duration-300 ease-out"
-        enter-from-class="transform -translate-y-4 opacity-0"
-        enter-to-class="transform translate-y-0 opacity-100"
-        leave-active-class="transition duration-200 ease-in"
-        leave-from-class="transform translate-y-0 opacity-100"
-        leave-to-class="transform -translate-y-4 opacity-0"
-      >
-        <div 
+      <!-- Mobile Drawer & Overlay -->
+      <transition name="fade">
+        <div
           v-if="isMobileMenuOpen"
-          class="md:hidden mt-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-800/50 shadow-xl shadow-gray-200/20 dark:shadow-slate-900/50 py-6 px-4"
+          class="fixed inset-0 z-40 md:hidden drawer-overlay"
+          @click="isMobileMenuOpen = false"
+          aria-label="Close mobile menu overlay"
+        ></div>
+      </transition>
+      <transition name="drawer">
+        <aside
+          v-if="isMobileMenuOpen"
+          class="drawer-panel fixed top-0 right-0 h-dvh w-4/5 max-w-[320px] z-50 md:hidden"
           role="menu"
-          aria-label="Mobile navigation menu"
+          aria-label="Mobile navigation"
         >
-          <div class="flex flex-col space-y-2">
-            <NuxtLink 
-              v-for="nav in navigation" 
+          <!-- Top bar -->
+          <div class="drawer-topbar">
+            <div class="flex items-center gap-2.5">
+              <div class="drawer-logo-mark">
+                <span>F</span>
+              </div>
+              <span class="font-bold text-sm tracking-tight">Funkey Grab & Bite</span>
+            </div>
+            <button @click="isMobileMenuOpen = false" aria-label="Close" class="drawer-x">
+              <X class="w-[18px] h-[18px]" />
+            </button>
+          </div>
+
+          <!-- Nav -->
+          <nav class="flex flex-col px-3 pt-3 pb-4 gap-0.5">
+            <NuxtLink
+              v-for="nav in navigation"
               :key="nav.name"
               :to="nav.href"
               @click="isMobileMenuOpen = false"
-              class="nav-link text-gray-700 dark:text-gray-300 hover:text-brand-500 dark:hover:text-brand-400 font-medium py-3 px-6 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              exact-active-class="nav-link--active"
+              class="drawer-item"
+              :class="{ 'drawer-item--active': $route.path === nav.href }"
               role="menuitem"
-              tabindex="0"
             >
-              {{ nav.name }}
-              <span class="absolute inset-0 rounded-full pointer-events-none nav-link-highlight"></span>
+              <component :is="nav.icon" class="drawer-item-icon" />
+              <span>{{ nav.name }}</span>
             </NuxtLink>
+          </nav>
+
+          <!-- Divider -->
+          <div class="drawer-divider"></div>
+
+          <!-- Bottom actions -->
+          <div class="flex items-center gap-3 px-5 py-4">
+            <button @click="toggleTheme" class="drawer-action-btn" aria-label="Toggle theme">
+              <ClientOnly>
+                <Sun class="w-4 h-4" v-if="colorMode === 'dark'" />
+                <Moon class="w-4 h-4" v-else />
+              </ClientOnly>
+              <span>{{ colorMode === 'dark' ? 'Light mode' : 'Dark mode' }}</span>
+            </button>
           </div>
-        </div>
-      </Transition>
+        </aside>
+      </transition>
     </nav>
   </header>
 </template>
 
+<style scoped>
+/* transitions */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+.drawer-enter-active, .drawer-leave-active { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
+
+/* overlay */
+.drawer-overlay {
+  background: rgba(2, 6, 23, 0.6);
+}
+
+/* panel */
+.drawer-panel {
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 40px rgba(2, 6, 23, 0.18);
+}
+.dark .drawer-panel { background: #111827; }
+
+/* topbar */
+.drawer-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  height: 64px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+  color: #111827;
+}
+.dark .drawer-topbar {
+  border-bottom-color: #1f2937;
+  color: #f9fafb;
+}
+
+/* logo mark */
+.drawer-logo-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.drawer-logo-mark span {
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+/* close button */
+.drawer-x {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: background 0.15s, color 0.15s;
+  outline: none;
+}
+.drawer-x:hover { background: #f3f4f6; color: #111827; }
+.dark .drawer-x { color: #9ca3af; }
+.dark .drawer-x:hover { background: #1f2937; color: #f9fafb; }
+.drawer-x:focus-visible { outline: 2px solid #f59e0b; outline-offset: 2px; }
+
+/* nav items */
+.drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.875rem;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #374151;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  outline: none;
+  position: relative;
+}
+.dark .drawer-item { color: #9ca3af; }
+
+.drawer-item:hover {
+  background: #fef3c7;
+  color: #b45309;
+}
+.dark .drawer-item:hover {
+  background: #1f2937;
+  color: #fbbf24;
+}
+
+.drawer-item--active {
+  background: #fffbeb;
+  color: #92400e;
+  font-weight: 700;
+}
+.drawer-item--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 25%;
+  height: 50%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #f59e0b, #ef4444);
+}
+.dark .drawer-item--active {
+  background: #1c1917;
+  color: #fbbf24;
+}
+
+.drawer-item-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.drawer-item--active .drawer-item-icon { opacity: 1; }
+
+/* divider */
+.drawer-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 0 1rem;
+}
+.dark .drawer-divider { background: #1f2937; }
+
+/* action button (theme toggle) */
+.drawer-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+  outline: none;
+}
+.drawer-action-btn:hover { background: #f3f4f6; color: #374151; }
+.dark .drawer-action-btn { color: #6b7280; }
+.dark .drawer-action-btn:hover { background: #1f2937; color: #9ca3af; }
+</style>
+
 <script setup lang="ts">
-import { Menu, ShoppingCart, Sun, Moon } from 'lucide-vue-next'
+import { Menu, ShoppingCart, Sun, Moon, Home, UtensilsCrossed, ShoppingBag, CalendarRange, Phone, X } from 'lucide-vue-next'
 import { useColorMode } from '@vueuse/core'
 import { useCartStore } from '../../stores/cart'
 import { ref } from 'vue'
@@ -120,11 +301,11 @@ const { totalItems } = storeToRefs(cart)
 const isMobileMenuOpen = ref(false)
 
 const navigation = [
-  { name: 'Home', href: '/' },
-  { name: 'Menu', href: '/menu' },
-  { name: 'Order', href: '/order' },
-  { name: 'Catering', href: '/catering' },
-  { name: 'Contact', href: '/contact' },
+  { name: 'Home', href: '/', icon: Home },
+  { name: 'Menu', href: '/menu', icon: UtensilsCrossed },
+  { name: 'Order', href: '/order', icon: ShoppingBag },
+  { name: 'Catering', href: '/catering', icon: CalendarRange },
+  { name: 'Contact', href: '/contact', icon: Phone },
 ]
 
 const toggleTheme = () => {
