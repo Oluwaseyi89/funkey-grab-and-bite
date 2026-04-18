@@ -22,7 +22,7 @@
             @click="handleCategoryFilter(category.id)"
             class="px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
             :class="[
-              selectedCategory === category.id
+              selectedCategories.includes(category.id)
                 ? 'bg-brand-500 text-white shadow-lg'
                 : 'bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-slate-800'
             ]"
@@ -32,11 +32,11 @@
           </button>
           
           <button
-            v-if="selectedCategory"
+            v-if="selectedCategories.length > 0"
             @click="clearAllFilters"
             class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
           >
-            Clear Filter
+            Clear Filters
           </button>
         </div>
       </div>
@@ -81,10 +81,15 @@
                 <h3 class="font-bold text-gray-900 dark:text-white">Categories</h3>
                 <Filter class="w-4 h-4 text-gray-500" />
               </div>
+              <div v-if="menuStore.isLoading">
+                <div v-for="i in 5" :key="i" class="h-8 bg-gray-200 dark:bg-slate-700 rounded mb-3 animate-pulse"></div>
+              </div>
               <CategoryFilter
+                v-else
                 :categories="categoriesWithCount"
-                :selected-category="selectedCategory"
+                :selected-categories="selectedCategories"
                 @filter="handleCategoryFilter"
+                @clearAll="clearAllFilters"
               />
             </div>
 
@@ -93,24 +98,39 @@
                 <h3 class="font-bold text-gray-900 dark:text-white">Price Range</h3>
                 <DollarSign class="w-4 h-4 text-gray-500" />
               </div>
-              <PriceFilter
-                :min-price="0"
-                :max-price="100"
-                :current-price="maxPrice"
-                @price-change="handlePriceFilter"
-              />
-              <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                <span class="font-medium">Max: ${{ maxPrice }}</span>
-                <span class="float-right">{{ priceFilteredCount }} items</span>
+              <div v-if="menuStore.isLoading">
+                <div class="h-6 bg-gray-200 dark:bg-slate-700 rounded mb-4 animate-pulse"></div>
+                <div class="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/2 animate-pulse"></div>
               </div>
+              <template v-else>
+                <PriceFilter
+                  :min-price="0"
+                  :max-price="100"
+                  :current-price="maxPrice"
+                  @price-change="handlePriceFilter"
+                />
+                <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                  <span class="font-medium">Max: ${{ maxPrice }}</span>
+                  <span class="float-right">{{ priceFilteredCount }} items</span>
+                </div>
+              </template>
             </div>
 
-            <div v-if="popularItems.length" class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-100 dark:border-slate-700">
+            <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-100 dark:border-slate-700">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="font-bold text-gray-900 dark:text-white">Popular Picks</h3>
                 <TrendingUp class="w-4 h-4 text-brand-500" />
               </div>
-              <div class="space-y-3">
+              <div v-if="menuStore.isLoading">
+                <div v-for="i in 3" :key="i" class="flex items-center gap-3 p-3 animate-pulse">
+                  <div class="w-12 h-12 bg-gray-200 dark:bg-slate-700 rounded-lg"></div>
+                  <div class="flex-1 min-w-0">
+                    <div class="h-4 bg-gray-200 dark:bg-slate-700 rounded w-2/3 mb-2"></div>
+                    <div class="h-3 bg-gray-200 dark:bg-slate-700 rounded w-1/3"></div>
+                  </div>
+                </div>
+              </div>
+              <div v-else-if="popularItems.length" class="space-y-3">
                 <div
                   v-for="item in popularItems"
                   :key="item.id"
@@ -128,6 +148,7 @@
                   </div>
                 </div>
               </div>
+              <div v-else class="text-sm text-gray-400 italic">No popular items yet.</div>
             </div>
 
             <div class="bg-gradient-to-r from-brand-50/80 to-accent-50/80 dark:from-brand-900/20 dark:to-accent-900/20 rounded-xl p-5 border border-brand-100 dark:border-brand-700/30">
@@ -194,6 +215,7 @@
               :is-loading="menuStore.isLoading"
               :current-page="currentPage"
               :total-pages="totalPages"
+              :items-per-page="itemsPerPage"
               :view="gridView"
               @add-to-cart="handleAddToCart"
               @view-details="handleViewDetails"
@@ -201,10 +223,12 @@
             />
 
             <div v-if="filteredItems.length === 0 && !menuStore.isLoading" class="text-center py-16">
-              <Search class="w-24 h-24 text-gray-300 dark:text-gray-700 mx-auto mb-6" />
-              <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">No items found</h3>
+              <Search class="w-24 h-24 text-brand-300 dark:text-brand-700 mx-auto mb-6 animate-bounce" />
+              <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">No delicious items found!</h3>
               <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                No menu items match your current filters. Try adjusting your search or filters.
+                We couldn't find any menu items matching your current filters.<br>
+                Try adjusting your search, categories, or price range.<br>
+                Or <span class="font-semibold text-brand-500">clear all filters</span> to see our full menu.
               </p>
               <button
                 @click="clearAllFilters"
@@ -285,14 +309,16 @@ const route = useRoute()
 const menuStore = useMenuStore()
 const cart = useCartStore()
 
-const selectedCategory = ref<string | null>(null)
+const selectedCategories = ref<string[]>([])
 const searchQuery = ref('')
 const maxPrice = ref(100)
 const selectedItem = ref<MenuItem | null>(null)
 const currentPage = ref(1)
 const sortBy = ref('name')
 const gridView = ref<'grid' | 'list'>('grid')
-const itemsPerPage = 12
+const gridItemsPerPage = 4
+const listItemsPerPage = 3
+const itemsPerPage = computed(() => gridView.value === 'grid' ? gridItemsPerPage : listItemsPerPage)
 
 const categoriesWithCount = computed(() => {
   return menuStore.categories.map(category => ({
@@ -310,8 +336,8 @@ const topCategories = computed(() => {
 const filteredItems = computed(() => {
   let items = menuStore.menuItems
 
-  if (selectedCategory.value) {
-    items = items.filter(item => item.categoryId === selectedCategory.value)
+  if (selectedCategories.value.length > 0) {
+    items = items.filter(item => selectedCategories.value.includes(item.categoryId))
   }
 
   if (searchQuery.value) {
@@ -352,28 +378,32 @@ const popularItems = computed(() => {
 })
 
 const paginatedItems = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
   return filteredItems.value.slice(start, end)
 })
 
 const totalPages = computed(() => {
-  return Math.ceil(filteredItems.value.length / itemsPerPage)
+  return Math.ceil(filteredItems.value.length / itemsPerPage.value)
 })
 
 const activeFilters = computed(() => {
   const filters: string[] = []
-  if (selectedCategory.value) {
-    const category = menuStore.categories.find(c => c.id === selectedCategory.value)
-    if (category) filters.push(category.name)
+  if (selectedCategories.value.length > 0) {
+    const cats = menuStore.categories.filter(c => selectedCategories.value.includes(c.id))
+    filters.push(...cats.map(c => c.name))
   }
   if (searchQuery.value) filters.push(`"${searchQuery.value}"`)
   if (maxPrice.value < 100) filters.push(`Under $${maxPrice.value}`)
   return filters
 })
 
-const handleCategoryFilter = (categoryId: string | null) => {
-  selectedCategory.value = categoryId
+const handleCategoryFilter = (categoryId: string) => {
+  if (selectedCategories.value.includes(categoryId)) {
+    selectedCategories.value = selectedCategories.value.filter(id => id !== categoryId)
+  } else {
+    selectedCategories.value.push(categoryId)
+  }
   currentPage.value = 1
 }
 
@@ -415,13 +445,15 @@ const removeFilter = (filter: string) => {
     maxPrice.value = 100
   } else {
     const category = menuStore.categories.find(c => c.name === filter)
-    if (category) selectedCategory.value = null
+    if (category) {
+      selectedCategories.value = selectedCategories.value.filter(id => id !== category.id)
+    }
   }
   currentPage.value = 1
 }
 
 const clearAllFilters = () => {
-  selectedCategory.value = null
+  selectedCategories.value = []
   searchQuery.value = ''
   maxPrice.value = 100
   currentPage.value = 1
@@ -431,7 +463,7 @@ const clearAllFilters = () => {
   
 onMounted(async () => {
   if (route.query.category) {
-    selectedCategory.value = route.query.category as string
+    selectedCategories.value = [route.query.category as string]
   }
   
   await Promise.all([

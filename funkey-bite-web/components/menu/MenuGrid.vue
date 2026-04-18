@@ -12,12 +12,14 @@
     </div>
 
     
-    <div v-else-if="!filteredItems.length" class="text-center py-12 px-4">
-      <div class="max-w-md mx-auto">
-        <Package class="w-20 h-20 text-gray-300 dark:text-gray-600 mx-auto mb-6" />
-        <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">No items found</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-8">
-          Try adjusting your search criteria or filters to find what you're looking for.
+    <div v-else-if="!filteredItems.length" class="text-center py-16 px-4">
+      <div class="max-w-md mx-auto flex flex-col items-center">
+        <Package class="w-24 h-24 text-brand-300 dark:text-brand-700 mb-6 animate-bounce" />
+        <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">No delicious items found!</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
+          We couldn't find any menu items matching your current filters.<br>
+          Try adjusting your search, categories, or price range.<br>
+          Or <span class="font-semibold text-brand-500">reset all filters</span> to see our full menu.
         </p>
         <button 
           @click="$emit('resetFilters')" 
@@ -74,7 +76,7 @@
     <div v-if="totalPages > 1 && !isLoading && filteredItems.length" class="pt-8 border-t border-gray-200 dark:border-slate-700">
       <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div class="text-sm text-gray-600 dark:text-gray-400">
-          Showing {{ Math.min(filteredItems.length, itemsPerPage) }} of {{ filteredItems.length }} items
+          Showing {{ Math.min(filteredItems.length, props.itemsPerPage) }} of {{ filteredItems.length }} items
         </div>
         
         <div class="flex items-center space-x-2">
@@ -123,16 +125,14 @@ import MenuCard from './MenuCard.vue'
 import MenuItemList from './MenuItemList.vue';
 import { computed } from 'vue'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   filteredItems: MenuItem[]
   isLoading: boolean
   currentPage: number
   totalPages: number
-  itemsPerPage?: number
+  itemsPerPage: number
   view?: 'grid' | 'list' // Add this
-}>(), {
-  itemsPerPage: 12
-})
+}>()
 
 const emit = defineEmits<{
   addToCart: [item: MenuItem]
