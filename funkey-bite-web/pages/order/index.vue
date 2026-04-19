@@ -154,7 +154,7 @@
                         Placing Order...
                       </template>
                       <template v-else>
-                        Place Order - ${{ orderTotal.toFixed(2) }}
+                        Place Order - ₦{{ orderTotal.toFixed(2) }}
                       </template>
                     </button>
                   </div>

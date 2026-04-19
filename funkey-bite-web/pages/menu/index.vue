@@ -96,7 +96,7 @@
             <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-100 dark:border-slate-700">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="font-bold text-gray-900 dark:text-white">Price Range</h3>
-                <DollarSign class="w-4 h-4 text-gray-500" />
+                <span class="w-4 h-4 text-gray-500">₦</span>
               </div>
               <div v-if="menuStore.isLoading">
                 <div class="h-6 bg-gray-200 dark:bg-slate-700 rounded mb-4 animate-pulse"></div>
@@ -105,12 +105,12 @@
               <template v-else>
                 <PriceFilter
                   :min-price="0"
-                  :max-price="100"
+                  :max-price="30000"
                   :current-price="maxPrice"
                   @price-change="handlePriceFilter"
                 />
                 <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                  <span class="font-medium">Max: ${{ maxPrice }}</span>
+                  <span class="font-medium">Max: ₦{{ maxPrice }}</span>
                   <span class="float-right">{{ priceFilteredCount }} items</span>
                 </div>
               </template>
@@ -144,7 +144,7 @@
                   />
                   <div class="flex-1 min-w-0">
                     <p class="font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
-                    <p class="text-sm text-brand-500 font-bold">${{ item.price.toFixed(2) }}</p>
+                    <p class="text-sm text-brand-500 font-bold">₦{{ item.price.toFixed(2) }}</p>
                   </div>
                 </div>
               </div>
@@ -242,7 +242,7 @@
               <div class="flex justify-between items-center">
                 <div>
                   <div class="text-sm text-gray-600 dark:text-gray-400">Total</div>
-                  <div class="font-bold text-xl text-brand-500">${{ cart.totalPrice.toFixed(2) }}</div>
+                  <div class="font-bold text-xl text-brand-500">₦{{ cart.totalPrice.toFixed(2) }}</div>
                   <div class="text-xs text-gray-500">{{ cart.totalItems }} items</div>
                 </div>
                 <div class="flex gap-3">
@@ -311,7 +311,7 @@ const cart = useCartStore()
 
 const selectedCategories = ref<string[]>([])
 const searchQuery = ref('')
-const maxPrice = ref(100)
+const maxPrice = ref(30000)
 const selectedItem = ref<MenuItem | null>(null)
 const currentPage = ref(1)
 const sortBy = ref('name')
@@ -394,7 +394,7 @@ const activeFilters = computed(() => {
     filters.push(...cats.map(c => c.name))
   }
   if (searchQuery.value) filters.push(`"${searchQuery.value}"`)
-  if (maxPrice.value < 100) filters.push(`Under $${maxPrice.value}`)
+  if (maxPrice.value < 30000) filters.push(`Under ₦${maxPrice.value}`)
   return filters
 })
 
@@ -439,8 +439,8 @@ const handlePageChange = (page: number) => {
 const removeFilter = (filter: string) => {
   if (filter.startsWith('"')) {
     searchQuery.value = ''
-  } else if (filter.startsWith('Under $')) {
-    maxPrice.value = 100
+  } else if (filter.startsWith('Under ₦')) {
+    maxPrice.value = 30000
   } else {
     const category = menuStore.categories.find(c => c.name === filter)
     if (category) {
@@ -453,7 +453,7 @@ const removeFilter = (filter: string) => {
 const clearAllFilters = () => {
   selectedCategories.value = []
   searchQuery.value = ''
-  maxPrice.value = 100
+  maxPrice.value = 30000
   currentPage.value = 1
   sortBy.value = 'name'
 }

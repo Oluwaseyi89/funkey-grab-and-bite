@@ -27,7 +27,7 @@
             <component :is="pkg.icon" class="w-12 h-12 mx-auto mb-4" :class="pkg.iconColor" />
             <h3 class="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ pkg.name }}</h3>
             <div class="text-2xl lg:text-3xl font-bold text-brand-500 mb-2">
-              ${{ pkg.pricePerPerson }}<span class="text-lg text-gray-500">/person</span>
+              ₦{{ pkg.pricePerPerson }}<span class="text-lg text-gray-500">/person</span>
             </div>
             <p class="text-gray-600 dark:text-gray-400">{{ pkg.description }}</p>
           </div>
@@ -83,7 +83,7 @@
       id: 'standard',
       name: 'Standard',
       description: 'Perfect for office meetings and small gatherings',
-      pricePerPerson: 18.99,
+      pricePerPerson: 26586,
       minGuests: 10,
       features: [
         '3 Main Course Options',
@@ -100,7 +100,7 @@
       id: 'premium',
       name: 'Premium',
       description: 'Ideal for birthdays, anniversaries, and family events',
-      pricePerPerson: 24.99,
+      pricePerPerson: 34986,
       minGuests: 20,
       features: [
         '5 Main Course Options',
@@ -118,7 +118,7 @@
       id: 'executive',
       name: 'Executive',
       description: 'For corporate events and large celebrations',
-      pricePerPerson: 34.99,
+      pricePerPerson: 48986,
       minGuests: 50,
       features: [
         '7 Main Course Options',

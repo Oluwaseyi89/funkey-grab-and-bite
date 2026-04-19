@@ -9,7 +9,7 @@
           </div>
           <div>
             <span class="text-xl font-bold text-gradient bg-clip-text md:text-2xl">Funkey Grab & Bite</span>
-            <p class="text-xs text-gray-600/80 dark:text-gray-400/80">Fast Food & Catering</p>
+            <p class="text-xs text-gray-600/80 hidden md:block dark:text-gray-400/80">Fast Food & Catering</p>
           </div>
         </NuxtLink>
 

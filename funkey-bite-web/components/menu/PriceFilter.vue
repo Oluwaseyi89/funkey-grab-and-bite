@@ -1,6 +1,5 @@
 <template>
     <div class="space-y-4">
-      <h3 class="font-bold text-gray-900 dark:text-white">Price Range</h3>
       <div class="px-2">
         <input
           type="range"
@@ -11,9 +10,9 @@
           @change="$emit('priceChange', selectedMax)"
         />
         <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mt-2">
-          <span>${{ minPrice }}</span>
-          <span class="font-bold text-brand-500">Up to ${{ selectedMax }}</span>
-          <span>${{ maxPrice }}</span>
+          <span>₦{{ minPrice }}</span>
+          <span class="font-bold text-brand-500">Up to ₦{{ selectedMax }}</span>
+          <span>₦{{ maxPrice }}</span>
         </div>
       </div>
     </div>
@@ -28,7 +27,7 @@
     maxPrice: number
   }>()
   
-  const selectedMax = ref(50)
+  const selectedMax = ref(30000)
   
   defineEmits<{
     priceChange: [maxPrice: number]

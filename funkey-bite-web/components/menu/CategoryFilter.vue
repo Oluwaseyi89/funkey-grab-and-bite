@@ -1,6 +1,5 @@
 <template>
     <div class="space-y-4">
-      <h3 class="font-bold text-gray-900 dark:text-white">Categories</h3>
       <div class="space-y-2">
         <button
           v-for="category in categories"
