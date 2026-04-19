@@ -17,7 +17,7 @@
           <h4 class="font-bold text-gray-900 dark:text-white mb-1">{{ type.name }}</h4>
           <p class="text-sm text-gray-600 dark:text-gray-400">{{ type.description }}</p>
           <div v-if="type.fee" class="mt-2 text-brand-500 font-medium">
-            +${{ type.fee }} fee
+            +₦{{ type.fee }} fee
           </div>
         </button>
       </div>
@@ -43,7 +43,7 @@
       description: 'Get it delivered to your door',
       icon: Truck,
       iconClass: 'text-green-500',
-      fee: 3.99
+      fee: 5600
     },
     {
       id: 'catering' as OrderType,
