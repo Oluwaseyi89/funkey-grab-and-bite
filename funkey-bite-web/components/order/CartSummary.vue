@@ -6,7 +6,7 @@
       <div class="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto mb-4 pr-1">
         <div v-for="item in items" :key="item.menuItem.id" class="flex justify-between gap-3 text-sm py-1">
           <span class="text-gray-600 dark:text-gray-400 min-w-0 leading-snug">{{ item.menuItem.name }} <span class="text-gray-400 dark:text-gray-500">×{{ item.quantity }}</span></span>
-          <span class="font-semibold flex-shrink-0 text-gray-900 dark:text-white">${{ (item.menuItem.price * item.quantity).toFixed(2) }}</span>
+          <span class="font-semibold flex-shrink-0 text-gray-900 dark:text-white">₦{{ (item.menuItem.price * item.quantity).toFixed(2) }}</span>
         </div>
       </div>
   
@@ -14,19 +14,19 @@
       <div class="space-y-2 border-t border-gray-200 dark:border-slate-700 pt-4">
         <div class="flex justify-between text-gray-600 dark:text-gray-400">
           <span>Subtotal</span>
-          <span>${{ subtotal.toFixed(2) }}</span>
+          <span>₦{{ subtotal.toFixed(2) }}</span>
         </div>
         <div class="flex justify-between text-gray-600 dark:text-gray-400">
           <span>Tax (8%)</span>
-          <span>${{ tax.toFixed(2) }}</span>
+          <span>₦{{ tax.toFixed(2) }}</span>
         </div>
         <div v-if="deliveryFee > 0" class="flex justify-between text-gray-600 dark:text-gray-400">
           <span>Delivery Fee</span>
-          <span>${{ deliveryFee.toFixed(2) }}</span>
+          <span>₦{{ deliveryFee.toFixed(2) }}</span>
         </div>
         <div class="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t">
           <span>Total</span>
-          <span class="text-brand-500">${{ total.toFixed(2) }}</span>
+          <span class="text-brand-500">₦{{ total.toFixed(2) }}</span>
         </div>
       </div>
   
@@ -48,7 +48,7 @@
           </button>
         </div>
         <div v-if="discount > 0" class="mt-2 text-green-600 dark:text-green-400 text-sm">
-            -${{ discount.toFixed(2) }} discount applied
+            -₦{{ discount.toFixed(2) }} discount applied
         </div>
     </div>
   
@@ -63,7 +63,7 @@
           Processing...
         </template>
         <template v-else>
-          {{ items.length === 0 ? 'Cart is Empty' : `Checkout · $${total.toFixed(2)}` }}
+          {{ items.length === 0 ? 'Cart is Empty' : `Checkout · ₦ ${total.toFixed(2)}` }}
         </template>
       </button>
   
