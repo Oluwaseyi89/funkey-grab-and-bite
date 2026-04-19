@@ -21,7 +21,7 @@
           </div>
           <div class="text-right flex-shrink-0">
             <div class="font-bold text-base sm:text-lg text-brand-500">₦{{ (item.menuItem.price * item.quantity).toFixed(2) }}</div>
-            <div class="text-xs text-gray-500">${{ item.menuItem.price.toFixed(2) }} each</div>
+            <div class="text-xs text-gray-500">₦{{ item.menuItem.price.toFixed(2) }} each</div>
           </div>
         </div>
   
