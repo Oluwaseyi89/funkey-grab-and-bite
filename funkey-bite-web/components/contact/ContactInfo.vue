@@ -15,6 +15,7 @@
           <a 
             href="https://maps.google.com/?q=123+Food+Street+City+Center"
             target="_blank"
+            rel="noopener noreferrer"
             class="inline-block mt-2 text-brand-500 hover:text-brand-600 font-medium"
           >
             Get Directions →

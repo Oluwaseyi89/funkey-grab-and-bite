@@ -1,5 +1,5 @@
 <template>
-    <section class="section-padding mt-4 mb-4 md:mt-8 md:mb-8 mx-3 px-3 py-3">
+    <section class="section-padding">
       <div class="container-narrow">
         <div class="text-center mb-12">
           <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -11,11 +11,11 @@
         </div>
   
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
-          <div
+          <NuxtLink
             v-for="category in categories"
             :key="category.id"
-            class="group relative bg-white dark:bg-slate-800 rounded-xl p-6 text-center shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer border border-gray-100 dark:border-slate-700"
-            @click="navigateToMenu(category.id)"
+            :to="`/menu?category=${category.id}`"
+            class="group relative bg-white dark:bg-slate-800 rounded-xl p-6 text-center shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 dark:border-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             <div
               class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-brand-100 to-brand-50 dark:from-brand-900/30 dark:to-brand-800/20 rounded-full flex items-center justify-center group-hover:from-brand-200 group-hover:to-brand-100 transition-all duration-300"
@@ -35,7 +35,7 @@
             >
               Coming Soon
             </span>
-          </div>
+          </NuxtLink>
         </div>
       </div>
     </section>
@@ -43,16 +43,11 @@
   
   <script setup lang="ts">
   import { UtensilsCrossed } from 'lucide-vue-next'
-  import { navigateTo } from 'nuxt/app'
   import type { MenuCategory } from '../../types/menu'
   
   defineProps<{
     categories: MenuCategory[]
   }>()
-  
-  const navigateToMenu = (categoryId: string) => {
-    navigateTo(`/menu?category=${categoryId}`)
-  }
   </script>
   
   <style scoped>

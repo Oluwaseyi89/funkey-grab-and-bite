@@ -8,7 +8,7 @@
             <span class="text-white font-bold text-xl">F</span>
           </div>
           <div>
-            <h1 class="text-xl font-bold text-gradient bg-clip-text md:text-2xl">Funkey Grab & Bite</h1>
+            <span class="text-xl font-bold text-gradient bg-clip-text md:text-2xl">Funkey Grab & Bite</span>
             <p class="text-xs text-gray-600/80 dark:text-gray-400/80">Fast Food & Catering</p>
           </div>
         </NuxtLink>
@@ -41,22 +41,21 @@
             </ClientOnly>
           </button>
 
-           <NuxtLink to="/order" aria-label="Go to order page">
-             <button
-               @click="cart.toggleCart()"
-               class="relative p-2.5 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 hover:from-brand-600 hover:to-accent-600 transition-all duration-200 hover:scale-105 hover:shadow-lg shadow-brand-500/30"
-               aria-label="Shopping cart"
-             >
+           <NuxtLink
+             to="/order"
+             class="relative p-2.5 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 hover:from-brand-600 hover:to-accent-600 transition-all duration-200 hover:scale-105 hover:shadow-lg shadow-brand-500/30 inline-flex items-center justify-center"
+             aria-label="Shopping cart"
+           >
                <ShoppingCart class="w-5 h-5 text-white" />
                <span 
                  v-if="totalItems > 0"
                  class="absolute -top-1 -right-1 bg-white text-brand-500 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm"
-                 aria-label="Cart item count"
+                 aria-live="polite"
                  role="status"
+                 :aria-label="`${totalItems} items in cart`"
                >
                  {{ totalItems }}
                </span>
-             </button>
            </NuxtLink>
 
           <button

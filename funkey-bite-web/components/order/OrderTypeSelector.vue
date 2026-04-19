@@ -1,12 +1,12 @@
 <template>
     <div>
       <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Order Type</h3>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <button
           v-for="type in orderTypes"
           :key="type.id"
           @click="$emit('select', type.id)"
-          class="p-6 border-2 rounded-xl text-center transition-all"
+          class="p-4 sm:p-6 border-2 rounded-xl text-center transition-all"
           :class="[
             selectedType === type.id
               ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'

@@ -20,14 +20,14 @@
             Perfect for quick meals, lunch packs, and unforgettable catering experiences.
           </p>
           <div class="flex space-x-5 pt-2">
-            <a href="#" class="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-white transition-colors transform hover:scale-110 duration-200">
-              <Facebook class="w-6 h-6" />
+            <a href="#" aria-label="Follow us on Facebook" class="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-white transition-colors transform hover:scale-110 duration-200">
+              <Facebook class="w-6 h-6" aria-hidden="true" />
             </a>
-            <a href="#" class="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-white transition-colors transform hover:scale-110 duration-200">
-              <Instagram class="w-6 h-6" />
+            <a href="#" aria-label="Follow us on Instagram" class="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-white transition-colors transform hover:scale-110 duration-200">
+              <Instagram class="w-6 h-6" aria-hidden="true" />
             </a>
-            <a href="#" class="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-white transition-colors transform hover:scale-110 duration-200">
-              <Twitter class="w-6 h-6" />
+            <a href="#" aria-label="Follow us on Twitter" class="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-white transition-colors transform hover:scale-110 duration-200">
+              <Twitter class="w-6 h-6" aria-hidden="true" />
             </a>
           </div>
         </div>
@@ -54,14 +54,16 @@
         <div>
           <h3 class="text-xl font-bold mb-6 text-gray-900 dark:text-white pb-2 border-b border-gray-200 dark:border-slate-800/50">Our Menu</h3>
           <ul class="space-y-4">
-            <li v-for="category in mockCategories" :key="category.id" 
-             @click="navigateToMenu(category.id)"
-            class="text-gray-700 hover:text-brand-500 cursor-pointer dark:text-gray-300 dark:hover:text-brand-300 transition-colors flex items-center group py-2"
-            >
+            <li v-for="category in mockCategories" :key="category.id">
+              <NuxtLink
+                :to="`/menu?category=${category.id}`"
+                class="text-gray-700 hover:text-brand-500 dark:text-gray-300 dark:hover:text-brand-300 transition-colors flex items-center group py-2"
+              >
                 <div class="w-1.5 h-1.5 bg-brand-500 rounded-full mr-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <span class="group-hover:translate-x-1 transition-transform duration-200">
                   {{ category.name }}
                 </span>
+              </NuxtLink>
             </li>
           </ul>
         </div>
@@ -137,7 +139,8 @@
     <!-- WhatsApp Float Button -->
     <a 
       href="https://wa.me/1234567890" 
-      target="_blank" 
+      target="_blank"
+      rel="noopener noreferrer"
       class="fixed bottom-8 right-8 bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-all duration-300 z-40 hover:scale-110 hover:shadow-2xl"
       aria-label="Chat on WhatsApp"
     >
@@ -158,8 +161,6 @@ import {
   MessageCircle 
 } from 'lucide-vue-next'
 
-import { navigateTo } from 'nuxt/app';
-
 import { mockCategories } from '../../utils/mockData';
 
 const quickLinks = [
@@ -170,8 +171,4 @@ const quickLinks = [
   { name: 'Promotions', href: '/promotion' },
   { name: 'Contact', href: '/contact' },
 ]
-
-const navigateToMenu = (categoryId: string) => {
-    navigateTo(`/menu?category=${categoryId}`)
-  }
 </script>

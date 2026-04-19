@@ -5,24 +5,28 @@
       <!-- Name & Email -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label for="contact-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Your Name *
           </label>
           <input
             v-model="formData.name"
+            id="contact-name"
             type="text"
+            autocomplete="name"
             required
             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             placeholder="John Doe"
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label for="contact-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Email Address *
           </label>
           <input
             v-model="formData.email"
+            id="contact-email"
             type="email"
+            autocomplete="email"
             required
             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             placeholder="john@example.com"
@@ -32,12 +36,14 @@
   
       <!-- Phone -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label for="contact-phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Phone Number
         </label>
         <input
           v-model="formData.phone"
+          id="contact-phone"
           type="tel"
+          autocomplete="tel"
           class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           placeholder="+1 (555) 123-4567"
         />
@@ -45,11 +51,12 @@
   
       <!-- Subject -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label for="contact-subject" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Subject *
         </label>
         <select
           v-model="formData.subject"
+          id="contact-subject"
           required
           class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white"
         >
@@ -65,11 +72,12 @@
   
       <!-- Message -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label for="contact-message" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Message *
         </label>
         <textarea
           v-model="formData.message"
+          id="contact-message"
           rows="5"
           required
           class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"

@@ -11,8 +11,8 @@
       variant="gradient"
     />
   
-      <div class="section-padding mx-3 md:mx-8 mt-[-60px] md:mt-[-80px] px-3 py-3 md:py-8 md:px-8">
-        <div class="container-narrow">
+      <div class="mt-[-60px] md:mt-[-80px] py-6 md:py-12">
+        <div class="container-narrow px-4 sm:px-6 lg:px-8">
 
           <div v-if="cart.items.length === 0" class="text-center py-12">
             <ShoppingCart class="w-24 h-24 text-gray-300 dark:text-gray-700 mx-auto mb-6" />
@@ -29,8 +29,8 @@
 
           <div v-else>
 
-            <div class="my-5 md:my-8 px-3 py-3 md:py-8 md:px-8 mt-0">
-              <div class="flex items-center justify-center space-x-4 md:space-x-12">
+            <div class="my-5 md:my-8 py-3 md:py-8">
+              <div class="flex items-center justify-center gap-3 sm:gap-6 md:gap-12 flex-wrap">
                 <div v-for="(step, index) in steps" :key="step.id" class="flex items-center">
                   <div class="flex flex-col items-center">
                     <div
@@ -43,7 +43,7 @@
                     >
                       {{ index + 1 }}
                     </div>
-                    <span class="mt-2 text-sm font-medium" :class="[
+                    <span class="mt-2 text-xs sm:text-sm font-medium" :class="[
                       currentStep >= index
                         ? 'text-brand-500'
                         : 'text-gray-500 dark:text-gray-400'
@@ -60,13 +60,13 @@
               </div>
             </div>
   
-            <div class="grid lg:grid-cols-3 gap-8 px-3 py-3 md:px-8 md:py-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 py-6 md:py-8">
 
-              <div class="lg:col-span-2">
+              <div class="order-2 lg:order-1 lg:col-span-2 min-w-0">
 
                 <div v-if="currentStep === 0" class="space-y-4">
                   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Review Your Order</h2>
-                  <div class="space-y-4 w-screen md:w-full">
+                  <div class="space-y-4 w-full">
                     <CartItem
                       v-for="item in cart.items"
                       :key="item.menuItem.id"
@@ -75,12 +75,12 @@
                       @remove="removeItem(item)"
                     />
                   </div>
-                  <div class="flex justify-between items-center pt-6 border-t">
-                    <NuxtLink to="/menu" class="text-brand-500 hover:text-brand-600 font-medium flex items-center">
+                  <div class="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t">
+                    <NuxtLink to="/menu" class="w-full sm:w-auto text-brand-500 hover:text-brand-600 font-medium flex items-center justify-center">
                       <ArrowLeft class="w-4 h-4 mr-2" />
                       Continue Shopping
                     </NuxtLink>
-                    <button @click="currentStep = 1" class="btn-primary">
+                    <button @click="currentStep = 1" class="btn-primary w-full sm:w-auto">
                       Continue to Delivery
                       <ArrowRight class="w-4 h-4 ml-2" />
                     </button>
@@ -99,11 +99,11 @@
                     submit-text="Continue to Payment"
                   />
                   
-                  <div class="flex justify-between pt-6 border-t">
-                    <button @click="currentStep = 0" class="btn-secondary">
+                  <div class="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 border-t">
+                    <button @click="currentStep = 0" class="btn-secondary w-full sm:w-auto">
                       Back to Cart
                     </button>
-                    <button @click="currentStep = 2" class="btn-primary">
+                    <button @click="currentStep = 2" class="btn-primary w-full sm:w-auto">
                       Continue to Payment
                       <ArrowRight class="w-4 h-4 ml-2" />
                     </button>
@@ -140,14 +140,14 @@
                     </div>
                   </div>
   
-                  <div class="flex justify-between pt-6 border-t">
-                    <button @click="currentStep = 1" class="btn-secondary">
+                  <div class="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 border-t">
+                    <button @click="currentStep = 1" class="btn-secondary w-full sm:w-auto">
                       Back to Details
                     </button>
                     <button
                       @click="submitOrder"
                       :disabled="isSubmitting"
-                      class="btn-primary"
+                      class="btn-primary w-full sm:w-auto"
                     >
                       <template v-if="isSubmitting">
                         <Loader2 class="w-5 h-5 animate-spin inline mr-2" />
@@ -162,7 +162,7 @@
               </div>
   
 
-              <div class="lg:col-span-1">
+              <div class="order-1 lg:order-2 lg:col-span-1">
                 <CartSummary
                   :items="cart.items"
                   :delivery-fee="deliveryFee"

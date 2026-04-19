@@ -5,24 +5,28 @@
       <!-- Contact Information -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label for="catering-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Contact Name *
           </label>
           <input
             v-model="formData.contactName"
+            id="catering-name"
             type="text"
+            autocomplete="name"
             required
             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             placeholder="John Doe"
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label for="catering-phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Phone Number *
           </label>
           <input
             v-model="formData.contactPhone"
+            id="catering-phone"
             type="tel"
+            autocomplete="tel"
             required
             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             placeholder="+1 (555) 123-4567"
@@ -31,12 +35,14 @@
       </div>
       
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label for="catering-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Email Address *
         </label>
         <input
           v-model="formData.contactEmail"
+          id="catering-email"
           type="email"
+          autocomplete="email"
           required
           class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           placeholder="john@example.com"
@@ -46,11 +52,12 @@
       <!-- Event Details -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label for="catering-event-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Event Date *
           </label>
           <input
             v-model="formData.eventDate"
+            id="catering-event-date"
             type="date"
             required
             :min="minDate"
@@ -58,11 +65,12 @@
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label for="catering-event-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Event Time *
           </label>
           <input
             v-model="formData.eventTime"
+            id="catering-event-time"
             type="time"
             required
             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white"
@@ -71,11 +79,12 @@
       </div>
       
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label for="catering-event-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Event Name / Occasion
         </label>
         <input
           v-model="formData.eventName"
+          id="catering-event-name"
           type="text"
           class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           placeholder="e.g., Company Annual Meeting, Sarah's Wedding"
@@ -84,13 +93,14 @@
       
       <!-- Budget -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label for="catering-budget" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Estimated Budget
         </label>
         <div class="relative">
           <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
           <input
             v-model="formData.budget"
+            id="catering-budget"
             type="number"
             min="0"
             step="100"
@@ -102,11 +112,12 @@
       
       <!-- Special Requests -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label for="catering-special-requests" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Special Requests / Notes
         </label>
         <textarea
           v-model="formData.specialRequests"
+          id="catering-special-requests"
           rows="4"
           class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           placeholder="Dietary restrictions, venue details, theme, etc."

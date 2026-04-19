@@ -13,6 +13,7 @@
             <a 
               href="https://maps.google.com/?q=123+Food+Street+City+Center"
               target="_blank"
+              rel="noopener noreferrer"
               class="inline-block mt-4 btn-primary text-sm"
             >
               Open in Google Maps
@@ -21,7 +22,7 @@
         </div>
         
         <!-- Map overlay for interactivity -->
-        <div class="absolute inset-0 cursor-pointer" @click="openGoogleMaps"></div>
+        <button class="absolute inset-0 w-full cursor-pointer bg-transparent border-0" @click="openGoogleMaps" aria-label="Open location in Google Maps"></button>
       </div>
       
       <!-- Location Details -->
@@ -64,6 +65,6 @@
   import { MapPin, Train, Car, Accessibility } from 'lucide-vue-next'
   
   const openGoogleMaps = () => {
-    window.open('https://maps.google.com/?q=123+Food+Street+City+Center', '_blank')
+    window.open('https://maps.google.com/?q=123+Food+Street+City+Center', '_blank', 'noopener,noreferrer')
   }
   </script>

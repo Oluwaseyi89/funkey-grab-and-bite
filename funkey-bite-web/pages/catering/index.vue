@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-5 px-3 py-3 md:mx-8 md:py-8 md:px-8">
+    <div class="container-narrow">
      
   <PageHeader
     title-before="Catering for"
@@ -33,7 +33,7 @@
       </div>
     </PageHeader>
 
-      <section class="section-padding px-3 py-3 md:py-8 md:px-8 my-3 md:my-8 bg-transparent dark:bg-slate-900">
+      <section class="section-padding mx-4 px-4 bg-transparent dark:bg-slate-900">
         <div class="container-narrow">
           <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
             Why Choose <span class="text-gradient">Funkey</span> Catering
@@ -52,7 +52,7 @@
       </section>
   
 
-      <section class="section-padding mx-5 md:mx-8 my-5 md:my-8 px-3 md:px-8 py-3 md:py-8 bg-transparent">
+      <section class="section-padding px-4 py-8 my-4 bg-transparent">
         <div class="container-narrow">
           <CateringPackages
             :selected-package="selectedPackage"
@@ -62,10 +62,10 @@
       </section>
   
 
-      <section ref="formSection" class="section-padding my-5 mx-5 md:my-8 md:mx-8 px-3 py-3 md:py-8 md:px-8 bg-white dark:bg-slate-900">
+      <section ref="formSection" class="section-padding mx-4 px-4 py-4 my-8 bg-white dark:bg-slate-900">
         <div class="container-narrow">
           <div class="max-w-4xl mx-auto">
-            <div class="grid lg:grid-cols-2 gap-12">
+            <div class="grid lg:grid-cols-2 gap-8 lg:gap-12">
 
               <div class="space-y-8">
                 <div>
@@ -124,20 +124,20 @@
       </section>
   
 
-      <section class="section-padding mx-3 my-3 md:mx-8 md:my-8 py-3 px-3 md:py-8 md:px-8 bg-gray-50 dark:bg-slate-800">
+      <section class="section-padding mx-4 py-4 bg-gray-50 dark:bg-slate-800">
         <div class="container-narrow">
           <CateringFAQ />
         </div>
       </section>
   
 
-      <section class="section-padding px-5 py-5 md:py-8 md:px-8 mx-3 my-3 md:mx-8 md:my-8 bg-white dark:bg-slate-900">
+      <section class="section-padding my-8 mx-4 px-4 py-4 bg-white dark:bg-slate-900">
         <div class="container-narrow">
           <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
             What Our <span class="text-gradient">Clients</span> Say
           </h2>
           
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
             <div 
               v-for="testimonial in testimonials" 
               :key="testimonial.name"
@@ -162,7 +162,7 @@
       </section>
   
 
-      <section class="bg-gradient-to-r from-brand-600 to-accent-600 px-5 py-5 md:px-8 md:py-8 mx-3 my-3 md:my-8 md:mx-8 text-white">
+      <section class="bg-gradient-to-r mx-4 px-4 my-8 py-8 from-brand-600 to-accent-600 text-white">
         <div class="container-narrow section-padding text-center">
           <h2 class="text-3xl font-bold mb-4">Ready to Plan Your Event?</h2>
           <p class="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
