@@ -1,8 +1,8 @@
 import { defineNuxtConfig } from 'nuxt/config'
 
 export default defineNuxtConfig({
-  devtools: { enabled: true },
-  
+  css: ['~/assets/css/main.css'],
+  devtools: { enabled: true },  
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxtjs/color-mode',
