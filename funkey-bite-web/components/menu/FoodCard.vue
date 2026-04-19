@@ -63,7 +63,7 @@
         
         <div v-if="item.nutritionalInfo" class="mb-4">
           <div class="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-2">
-            <Nutrient class="w-4 h-4 mr-2" />
+            <Flame class="w-4 h-4 mr-2" aria-hidden="true" />
             Nutritional Info
           </div>
           <div class="grid grid-cols-4 gap-2 text-xs">
@@ -113,7 +113,7 @@
   </template>
   
   <script setup lang="ts">
-  import { Plus, Clock } from 'lucide-vue-next'
+  import { Plus, Clock, Flame } from 'lucide-vue-next'
   import type { MenuItem } from '../../types/menu'
   import { onMounted, computed, ref } from 'vue'
   import { useNuxtApp } from 'nuxt/app'

@@ -4,11 +4,11 @@
         Our <span class="text-gradient">Catering</span> Packages
       </h2>
       
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
         <div
           v-for="pkg in packages"
           :key="pkg.id"
-          class="bg-white dark:bg-slate-800 rounded-2xl p-8 border-2 transition-all hover:scale-105 hover:shadow-2xl"
+          class="relative bg-white dark:bg-slate-800 rounded-2xl p-5 md:p-6 lg:p-8 border-2 transition-all hover:-translate-y-2 hover:shadow-2xl"
           :class="[
             pkg.popular 
               ? 'border-gray-200 dark:border-slate-700 shadow-xl' 
@@ -25,9 +25,9 @@
           
           <div class="text-center mb-6">
             <component :is="pkg.icon" class="w-12 h-12 mx-auto mb-4" :class="pkg.iconColor" />
-            <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ pkg.name }}</h3>
-            <div class="text-4xl font-bold text-brand-500 mb-2">
-              ${{ pkg.pricePerPerson }}<span class="text-lg text-gray-500">/person</span>
+            <h3 class="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ pkg.name }}</h3>
+            <div class="text-2xl lg:text-3xl font-bold text-brand-500 mb-2">
+              ₦{{ pkg.pricePerPerson }}<span class="text-lg text-gray-500">/person</span>
             </div>
             <p class="text-gray-600 dark:text-gray-400">{{ pkg.description }}</p>
           </div>
@@ -49,6 +49,7 @@
                 ? 'btn-primary'
                 : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
             ]"
+            :aria-pressed="selectedPackage === pkg.id"
           >
             {{ selectedPackage === pkg.id ? '✓ Selected' : 'Select Package' }}
           </button>
@@ -82,7 +83,7 @@
       id: 'standard',
       name: 'Standard',
       description: 'Perfect for office meetings and small gatherings',
-      pricePerPerson: 18.99,
+      pricePerPerson: 26586,
       minGuests: 10,
       features: [
         '3 Main Course Options',
@@ -99,7 +100,7 @@
       id: 'premium',
       name: 'Premium',
       description: 'Ideal for birthdays, anniversaries, and family events',
-      pricePerPerson: 24.99,
+      pricePerPerson: 34986,
       minGuests: 20,
       features: [
         '5 Main Course Options',
@@ -117,7 +118,7 @@
       id: 'executive',
       name: 'Executive',
       description: 'For corporate events and large celebrations',
-      pricePerPerson: 34.99,
+      pricePerPerson: 48986,
       minGuests: 50,
       features: [
         '7 Main Course Options',

@@ -1,10 +1,13 @@
 <template>
   <div class="min-h-screen flex flex-col bg-gradient-to-br from-white via-red-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
 
-    <LayoutHeader />
-    
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-brand-500 focus:text-white focus:rounded-lg focus:shadow-lg">
+      Skip to main content
+    </a>
 
-    <main class="flex-grow pt-28 pb-12 md:pt-32">
+    <LayoutHeader />
+
+    <main id="main-content" class="flex-grow pt-28 pb-12 md:pt-32">
       <slot />
     </main>
     

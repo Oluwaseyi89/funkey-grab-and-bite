@@ -33,7 +33,7 @@
               </span>
             </div>
           </div>
-          <span class="text-2xl font-bold text-brand-500">${{ item.price.toFixed(2) }}</span>
+          <span class="text-2xl font-bold text-brand-500">₦{{ item.price.toLocaleString() }}</span>
         </div>
   
         <p class="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">{{ item.description }}</p>

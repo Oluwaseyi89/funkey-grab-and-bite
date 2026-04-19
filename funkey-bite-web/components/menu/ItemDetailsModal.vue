@@ -13,6 +13,9 @@
       
       <div 
         ref="modalRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="item-modal-title"
         class="w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] md:rounded-2xl md:overflow-hidden"
         :class="[
           isMobile 
@@ -22,10 +25,10 @@
       >
         
         <div v-if="isMobile" class="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 p-4 flex items-center justify-between">
-          <button @click="handleClose" class="p-2">
+          <button @click="handleClose" class="p-2" aria-label="Go back">
             <X class="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </button>
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white truncate px-2">{{ item.name }}</h2>
+          <h2 id="item-modal-title" class="text-lg font-bold text-gray-900 dark:text-white truncate px-2">{{ item.name }}</h2>
           <div class="w-10"></div>
         </div>
 
@@ -34,6 +37,7 @@
           v-if="!isMobile"
           @click="handleClose" 
           class="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/90 dark:bg-slate-800/90 text-gray-800 dark:text-gray-200 hover:bg-white dark:hover:bg-slate-700 transition-colors shadow-lg"
+          aria-label="Close dialog"
         >
           <X class="w-5 h-5" />
         </button>
@@ -53,7 +57,7 @@
           <div class="p-6 md:p-8 overflow-y-auto">
             <div v-if="!isMobile" class="flex justify-between items-start mb-4">
               <div>
-                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ item.name }}</h2>
+                <h2 id="item-modal-title" class="text-2xl font-bold text-gray-900 dark:text-white">{{ item.name }}</h2>
                 <div class="flex items-center space-x-2 mt-2">
                   <Clock class="w-4 h-4 text-gray-500" />
                   <span class="text-gray-600 dark:text-gray-400">{{ item.preparationTime }} mins</span>

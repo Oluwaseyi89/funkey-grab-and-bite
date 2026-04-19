@@ -1,7 +1,7 @@
 <template>
     <div>
       <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Event Type</h3>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <button
           v-for="event in eventTypes"
           :key="event.id"

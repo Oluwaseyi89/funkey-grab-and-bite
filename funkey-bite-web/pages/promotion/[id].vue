@@ -137,7 +137,7 @@
                           <div>
                             <div class="text-sm text-gray-500">Original Price</div>
                             <div class="font-bold text-gray-900 dark:text-white">
-                              ${{ item.price.toFixed(2) }}
+                              ₦{{ item.price.toFixed(2) }}
                             </div>
                           </div>
                           <div>
