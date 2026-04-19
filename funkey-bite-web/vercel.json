@@ -1,8 +1,7 @@
 {
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/"
-    }
-  ]
+  "version": 2,
+  "framework": "nuxtjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".output",
+  "installCommand": "npm install"
 }

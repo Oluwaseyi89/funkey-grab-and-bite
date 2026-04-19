@@ -13,7 +13,7 @@
           </div>
         </NuxtLink>
 
-        <div class="hidden md:flex items-center space-x-8" role="menubar">
+        <!-- <div class="hidden md:flex items-center space-x-8" role="menubar">
           <NuxtLink 
             v-for="nav in navigation" 
             :key="nav.name"
@@ -22,6 +22,19 @@
             exact-active-class="nav-link--active"
             role="menuitem"
             tabindex="0"
+          >
+            {{ nav.name }}
+            <span class="absolute inset-0 rounded-full pointer-events-none nav-link-highlight"></span>
+          </NuxtLink>
+        </div> -->
+
+        <div class="hidden md:flex items-center space-x-8">
+          <NuxtLink 
+            v-for="nav in navigation" 
+            :key="nav.name"
+            :to="nav.href"
+            class="nav-link ..."
+            exact-active-class="nav-link--active"
           >
             {{ nav.name }}
             <span class="absolute inset-0 rounded-full pointer-events-none nav-link-highlight"></span>
@@ -48,7 +61,7 @@
            >
                <ShoppingCart class="w-5 h-5 text-white" />
                <span 
-                 v-if="totalItems > 0"
+                 v-if="isMounted && totalItems > 0"
                  class="absolute -top-1 -right-1 bg-white text-brand-500 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm"
                  aria-live="polite"
                  role="status"
@@ -59,7 +72,7 @@
            </NuxtLink>
 
           <button
-            @click="isMobileMenuOpen = !isMobileMenuOpen"
+            @click="toggleMobileMenu"
             class="md:hidden p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-700/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 transition-all duration-200 hover:scale-105"
             aria-label="Toggle mobile menu"
           >
@@ -284,38 +297,58 @@
 .dark .drawer-action-btn:hover { background: #1f2937; color: #9ca3af; }
 </style>
 
+
 <script setup lang="ts">
-import { Menu, ShoppingCart, Sun, Moon, Home, UtensilsCrossed, ShoppingBag, CalendarRange, Phone, X } from 'lucide-vue-next'
-import { useColorMode } from '@vueuse/core'
-import { useCartStore } from '../../stores/cart'
-import { ref } from 'vue'
-import { useRoute } from 'vue-router'
-import { watch } from 'vue'
-import { storeToRefs } from 'pinia'
+    import { 
+      Menu, ShoppingCart, Sun, Moon, Home, 
+      UtensilsCrossed, ShoppingBag, CalendarRange, Phone, X 
+    } from 'lucide-vue-next'
+    import { useColorMode } from '@vueuse/core'
+    import { useCartStore } from '../../stores/cart'
+    import { ref, onMounted, watch } from 'vue'
+    import { useRoute } from 'vue-router'
+    import { storeToRefs } from 'pinia'
 
-const colorMode = useColorMode()
-const cart = useCartStore()
-const { totalItems } = storeToRefs(cart)
+    // 1. State & Logic
+    const colorMode = useColorMode()
+    const cart = useCartStore()
+    const { totalItems } = storeToRefs(cart)
+    const route = useRoute()
 
-const isMobileMenuOpen = ref(false)
+    const isMobileMenuOpen = ref(false)
+    const isMounted = ref(false)
 
-const navigation = [
-  { name: 'Home', href: '/', icon: Home },
-  { name: 'Menu', href: '/menu', icon: UtensilsCrossed },
-  { name: 'Order', href: '/order', icon: ShoppingBag },
-  { name: 'Catering', href: '/catering', icon: CalendarRange },
-  { name: 'Contact', href: '/contact', icon: Phone },
-]
+    // 2. Navigation Data (Moved outside of dynamic logic)
+    const navigation = [
+      { name: 'Home', href: '/', icon: Home },
+      { name: 'Menu', href: '/menu', icon: UtensilsCrossed },
+      { name: 'Order', href: '/order', icon: ShoppingBag },
+      { name: 'Catering', href: '/catering', icon: CalendarRange },
+      { name: 'Contact', href: '/contact', icon: Phone },
+    ]
 
-const toggleTheme = () => {
-  colorMode.value = colorMode.value === 'dark' ? 'light' : 'dark'
-}
+    // 3. Lifecycle Hooks
+    onMounted(() => {
+      isMounted.value = true
+    })
 
-const route = useRoute()
-watch(() => route.path, () => {
-  isMobileMenuOpen.value = false
-})
+    // 4. Methods
+    const toggleTheme = () => {
+      // Prevent execution if called before hydration is complete
+      if (!isMounted.value) return
+      colorMode.value = colorMode.value === 'dark' ? 'light' : 'dark'
+    }
+
+    const toggleMobileMenu = () => {
+      isMobileMenuOpen.value = !isMobileMenuOpen.value
+    }
+
+    // Close drawer on route change
+    watch(() => route.path, () => {
+      isMobileMenuOpen.value = false
+    })
 </script>
+
 
 <style scoped>
 .text-gradient {
