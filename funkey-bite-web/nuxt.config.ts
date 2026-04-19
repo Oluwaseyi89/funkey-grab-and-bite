@@ -10,7 +10,10 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@vueuse/nuxt',
   ],
-  
+  features: {
+    inlineStyles: true // Inlines component styles directly into the HTML
+  },
+    
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1',
@@ -177,6 +180,7 @@ export default defineNuxtConfig({
   },
   
   nitro: {
+    preset: 'vercel',
     compressPublicAssets: true,
     prerender: {
       crawlLinks: true,
