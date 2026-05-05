@@ -1,0 +1,328 @@
+# Staging — cost-optimised mirror of production
+# Key differences from production:
+#   - Single NAT gateway (saves ~$32/month)
+#   - Aurora min_capacity = 0 (scales to zero when idle)
+#   - ECS desired_count = 1
+#   - ElastiCache single node
+#   - WAF disabled by default (enable with features.waf = true)
+#   - Workers and scheduler disabled by default
+
+module "networking" {
+  count  = var.features.networking ? 1 : 0
+  source = "../../modules/networking"
+
+  name_prefix        = local.name_prefix
+  environment        = local.env
+  aws_region         = var.aws_region
+  vpc_cidr           = "10.1.0.0/16"
+  az_count           = 2
+  single_nat_gateway = true # cost saving for staging
+}
+
+module "waf" {
+  count  = var.features.waf ? 1 : 0
+  source = "../../modules/waf"
+
+  name_prefix          = local.name_prefix
+  environment          = local.env
+  rate_limit_threshold = 1000
+}
+
+module "dns" {
+  count  = var.features.dns ? 1 : 0
+  source = "../../modules/dns"
+
+  domain_name = var.domain_name
+  create_zone = true
+  environment = local.env
+}
+
+module "ecr" {
+  count  = var.features.api ? 1 : 0
+  source = "../../modules/ecr"
+
+  name_prefix         = local.name_prefix
+  environment         = local.env
+  image_count_to_keep = 5
+}
+
+module "secrets" {
+  count  = var.features.secrets ? 1 : 0
+  source = "../../modules/secrets"
+
+  name_prefix      = local.name_prefix
+  environment      = local.env
+  ses_sender_email = var.ses_sender_email
+}
+
+module "aurora" {
+  count  = var.features.database ? 1 : 0
+  source = "../../modules/aurora"
+
+  name_prefix           = local.name_prefix
+  environment           = local.env
+  vpc_id                = local.vpc_id
+  data_subnet_ids       = local.data_subnet_ids
+  aurora_sg_id          = local.aurora_sg_id
+  database_name         = "funkey_grab_bite"
+  master_username       = "funkey_admin"
+  min_capacity          = 0 # scale to zero when idle
+  max_capacity          = 2
+  backup_retention_days = 1
+  enable_reader         = false # single instance for staging
+
+  depends_on = [module.networking]
+}
+
+module "elasticache" {
+  count  = var.features.cache ? 1 : 0
+  source = "../../modules/elasticache"
+
+  name_prefix        = local.name_prefix
+  environment        = local.env
+  vpc_id             = local.vpc_id
+  data_subnet_ids    = local.data_subnet_ids
+  elasticache_sg_id  = local.elasticache_sg_id
+  node_type          = "cache.t4g.micro"
+  num_cache_clusters = 1 # single node for staging
+  engine_version     = "7.1"
+
+  depends_on = [module.networking]
+}
+
+module "sqs" {
+  count  = var.features.queue ? 1 : 0
+  source = "../../modules/sqs"
+
+  name_prefix = local.name_prefix
+  environment = local.env
+}
+
+module "static_hosting_web" {
+  count  = var.features.web_app ? 1 : 0
+  source = "../../modules/static-hosting"
+
+  name_prefix    = local.name_prefix
+  bucket_purpose = "web"
+  environment    = local.env
+  force_destroy  = true # allow easy cleanup in staging
+}
+
+module "cloudfront_web" {
+  count  = var.features.web_app ? 1 : 0
+  source = "../../modules/cloudfront-spa"
+
+  name_prefix                 = local.name_prefix
+  app_name                    = "web"
+  environment                 = local.env
+  bucket_regional_domain_name = module.static_hosting_web[0].bucket_regional_domain_name
+  oac_id                      = module.static_hosting_web[0].oac_id
+  acm_certificate_arn         = local.certificate_arn
+  domain_aliases              = [var.domain_name]
+  waf_web_acl_arn             = local.waf_web_acl_arn
+
+  depends_on = [module.dns]
+}
+
+module "static_hosting_admin" {
+  count  = var.features.admin_app ? 1 : 0
+  source = "../../modules/static-hosting"
+
+  name_prefix    = local.name_prefix
+  bucket_purpose = "admin"
+  environment    = local.env
+  force_destroy  = true
+}
+
+module "cloudfront_admin" {
+  count  = var.features.admin_app ? 1 : 0
+  source = "../../modules/cloudfront-spa"
+
+  name_prefix                 = local.name_prefix
+  app_name                    = "admin"
+  environment                 = local.env
+  bucket_regional_domain_name = module.static_hosting_admin[0].bucket_regional_domain_name
+  oac_id                      = module.static_hosting_admin[0].oac_id
+  acm_certificate_arn         = local.certificate_arn
+  domain_aliases              = ["admin.${var.domain_name}"]
+  waf_web_acl_arn             = local.waf_web_acl_arn
+
+  depends_on = [module.dns]
+}
+
+# Secret shared between CloudFront (origin header) and ALB (listener rule)
+# Defined at env root to break the cloudfront_api ↔ alb dependency cycle
+resource "random_password" "cf_origin_secret" {
+  length  = 32
+  special = false
+}
+
+module "cloudfront_api" {
+  count  = var.features.api ? 1 : 0
+  source = "../../modules/cloudfront-api"
+
+  name_prefix                = local.name_prefix
+  environment                = local.env
+  alb_dns_name               = local.alb_dns_name
+  acm_certificate_arn        = local.certificate_arn
+  domain_aliases             = ["api.${var.domain_name}"]
+  waf_web_acl_arn            = local.waf_web_acl_arn
+  origin_secret_header_value = random_password.cf_origin_secret.result
+
+  depends_on = [module.dns]
+}
+
+module "alb" {
+  count  = var.features.api ? 1 : 0
+  source = "../../modules/alb"
+
+  name_prefix                    = local.name_prefix
+  environment                    = local.env
+  vpc_id                         = local.vpc_id
+  public_subnet_ids              = local.public_subnet_ids
+  alb_sg_id                      = local.alb_sg_id
+  acm_certificate_arn            = local.certificate_arn
+  cloudfront_secret_header_name  = local.cf_origin_secret_name
+  cloudfront_secret_header_value = local.cf_origin_secret_value
+
+  depends_on = [module.networking, module.dns]
+}
+
+module "ecs_api" {
+  count  = var.features.api ? 1 : 0
+  source = "../../modules/ecs-api"
+
+  name_prefix        = local.name_prefix
+  environment        = local.env
+  aws_region         = var.aws_region
+  vpc_id             = local.vpc_id
+  private_subnet_ids = local.private_subnet_ids
+  ecs_api_sg_id      = local.ecs_api_sg_id
+  target_group_arn   = module.alb[0].target_group_arn
+  ecr_repository_url = local.ecr_api_url
+  image_tag          = var.api_image_tag
+  task_cpu           = 256
+  task_memory        = 512
+  desired_count      = 1
+  min_capacity       = 1
+  max_capacity       = 2
+  db_secret_arn      = local.db_secret_arn
+  app_secrets_arn    = local.app_secrets_arn
+
+  depends_on = [module.networking, module.aurora, module.secrets, module.alb]
+}
+
+module "ecs_workers" {
+  count  = var.features.workers ? 1 : 0
+  source = "../../modules/ecs-workers"
+
+  name_prefix         = local.name_prefix
+  environment         = local.env
+  aws_region          = var.aws_region
+  vpc_id              = local.vpc_id
+  private_subnet_ids  = local.private_subnet_ids
+  ecs_workers_sg_id   = local.ecs_workers_sg_id
+  ecr_repository_url  = local.ecr_api_url
+  image_tag           = var.api_image_tag
+  task_cpu            = 256
+  task_memory         = 512
+  desired_count       = 1
+  db_secret_arn       = local.db_secret_arn
+  app_secrets_arn     = local.app_secrets_arn
+  sqs_order_queue_url = local.sqs_order_queue_url
+
+  depends_on = [module.networking, module.aurora, module.secrets, module.sqs]
+}
+
+module "lambda_catering" {
+  count  = var.features.lambda_catering ? 1 : 0
+  source = "../../modules/lambda-catering"
+
+  name_prefix            = local.name_prefix
+  environment            = local.env
+  aws_region             = var.aws_region
+  vpc_id                 = local.vpc_id
+  private_subnet_ids     = local.private_subnet_ids
+  lambda_sg_id           = local.lambda_sg_id
+  ecr_repository_url     = local.lambda_catering_ecr
+  image_tag              = var.api_image_tag
+  sqs_catering_queue_arn = local.sqs_catering_queue_arn
+  sqs_catering_queue_url = local.sqs_catering_queue_url
+  app_secrets_arn        = local.app_secrets_arn
+  ses_sender_email       = var.ses_sender_email
+  reserved_concurrency   = 2
+
+  depends_on = [module.networking, module.sqs, module.secrets, module.ecr]
+}
+
+module "eventbridge" {
+  count  = var.features.scheduler ? 1 : 0
+  source = "../../modules/eventbridge"
+
+  name_prefix                 = local.name_prefix
+  environment                 = local.env
+  ecs_api_cluster_arn         = try(module.ecs_api[0].cluster_arn, "")
+  ecs_api_task_definition_arn = try(module.ecs_api[0].task_definition_arn, "")
+  ecs_task_role_arn           = try(module.ecs_api[0].task_role_arn, "")
+  private_subnet_ids          = local.private_subnet_ids
+  ecs_api_sg_id               = local.ecs_api_sg_id
+
+  depends_on = [module.ecs_api]
+}
+
+module "monitoring" {
+  count  = var.features.monitoring ? 1 : 0
+  source = "../../modules/monitoring"
+
+  name_prefix                      = local.name_prefix
+  environment                      = local.env
+  aws_region                       = var.aws_region
+  alert_email                      = var.alert_email
+  enable_ecs_api_alarms            = var.features.api
+  enable_alb_alarms                = var.features.api
+  enable_aurora_alarms             = var.features.database
+  enable_redis_alarms              = var.features.cache
+  ecs_api_cluster_name             = try(module.ecs_api[0].cluster_name, "")
+  ecs_api_service_name             = try(module.ecs_api[0].service_name, "")
+  alb_arn_suffix                   = try(split(":", module.alb[0].alb_arn)[5], "")
+  target_group_arn_suffix          = try(split(":", module.alb[0].target_group_arn)[5], "")
+  aurora_cluster_identifier        = try(module.aurora[0].cluster_identifier, "")
+  elasticache_replication_group_id = try(module.elasticache[0].replication_group_id, "")
+}
+
+# Route 53 Records
+resource "aws_route53_record" "web_root" {
+  count   = (var.features.dns && var.features.web_app) ? 1 : 0
+  zone_id = local.zone_id
+  name    = var.domain_name
+  type    = "A"
+  alias {
+    name                   = module.cloudfront_web[0].cloudfront_domain_name
+    zone_id                = module.cloudfront_web[0].cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "admin" {
+  count   = (var.features.dns && var.features.admin_app) ? 1 : 0
+  zone_id = local.zone_id
+  name    = "admin.${var.domain_name}"
+  type    = "A"
+  alias {
+    name                   = module.cloudfront_admin[0].cloudfront_domain_name
+    zone_id                = module.cloudfront_admin[0].cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "api" {
+  count   = (var.features.dns && var.features.api) ? 1 : 0
+  zone_id = local.zone_id
+  name    = "api.${var.domain_name}"
+  type    = "A"
+  alias {
+    name                   = module.cloudfront_api[0].cloudfront_domain_name
+    zone_id                = module.cloudfront_api[0].cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+}

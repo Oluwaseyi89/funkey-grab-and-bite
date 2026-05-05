@@ -1,0 +1,26 @@
+# Copy this file to terraform.tfvars and fill in real values before applying.
+
+aws_region       = "us-east-1"
+project_name     = "funkey"
+domain_name      = "funkeygrabandbite.com"
+alert_email      = "ops@funkeygrabandbite.com"
+ses_sender_email = "noreply@funkeygrabandbite.com"
+api_image_tag    = "latest"
+
+# Feature flags — set to false to skip deployment of a component
+features = {
+  networking      = true
+  waf             = true
+  dns             = true
+  web_app         = true
+  admin_app       = true
+  api             = true
+  workers         = true
+  lambda_catering = true
+  database        = true
+  cache           = true
+  queue           = true
+  scheduler       = true
+  secrets         = true
+  monitoring      = true
+}
