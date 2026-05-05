@@ -65,15 +65,15 @@ resource "aws_rds_cluster_parameter_group" "main" {
 # ─────────────────────────────────────────────────────────────────
 
 resource "aws_rds_cluster" "main" {
-  cluster_identifier      = "${var.name_prefix}-aurora-cluster"
-  engine                  = "aurora-postgresql"
-  engine_mode             = "provisioned"
-  engine_version          = var.engine_version
-  database_name           = var.database_name
-  master_username         = var.master_username
-  master_password         = random_password.master.result
-  db_subnet_group_name    = aws_db_subnet_group.main.name
-  vpc_security_group_ids  = [var.aurora_sg_id]
+  cluster_identifier              = "${var.name_prefix}-aurora-cluster"
+  engine                          = "aurora-postgresql"
+  engine_mode                     = "provisioned"
+  engine_version                  = var.engine_version
+  database_name                   = var.database_name
+  master_username                 = var.master_username
+  master_password                 = random_password.master.result
+  db_subnet_group_name            = aws_db_subnet_group.main.name
+  vpc_security_group_ids          = [var.aurora_sg_id]
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.main.name
 
   serverlessv2_scaling_configuration {
@@ -102,15 +102,15 @@ resource "aws_rds_cluster" "main" {
 # ── Writer instance ───────────────────────────────────────────────
 
 resource "aws_rds_cluster_instance" "writer" {
-  identifier              = "${var.name_prefix}-aurora-writer"
-  cluster_identifier      = aws_rds_cluster.main.id
-  instance_class          = "db.serverless"
-  engine                  = aws_rds_cluster.main.engine
-  engine_version          = aws_rds_cluster.main.engine_version
-  db_subnet_group_name    = aws_db_subnet_group.main.name
-  publicly_accessible     = false
-  monitoring_interval     = 60
-  monitoring_role_arn     = aws_iam_role.rds_monitoring.arn
+  identifier                   = "${var.name_prefix}-aurora-writer"
+  cluster_identifier           = aws_rds_cluster.main.id
+  instance_class               = "db.serverless"
+  engine                       = aws_rds_cluster.main.engine
+  engine_version               = aws_rds_cluster.main.engine_version
+  db_subnet_group_name         = aws_db_subnet_group.main.name
+  publicly_accessible          = false
+  monitoring_interval          = 60
+  monitoring_role_arn          = aws_iam_role.rds_monitoring.arn
   performance_insights_enabled = true
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-aurora-writer" })
@@ -121,15 +121,15 @@ resource "aws_rds_cluster_instance" "writer" {
 resource "aws_rds_cluster_instance" "reader" {
   count = var.enable_reader ? 1 : 0
 
-  identifier              = "${var.name_prefix}-aurora-reader"
-  cluster_identifier      = aws_rds_cluster.main.id
-  instance_class          = "db.serverless"
-  engine                  = aws_rds_cluster.main.engine
-  engine_version          = aws_rds_cluster.main.engine_version
-  db_subnet_group_name    = aws_db_subnet_group.main.name
-  publicly_accessible     = false
-  monitoring_interval     = 60
-  monitoring_role_arn     = aws_iam_role.rds_monitoring.arn
+  identifier                   = "${var.name_prefix}-aurora-reader"
+  cluster_identifier           = aws_rds_cluster.main.id
+  instance_class               = "db.serverless"
+  engine                       = aws_rds_cluster.main.engine
+  engine_version               = aws_rds_cluster.main.engine_version
+  db_subnet_group_name         = aws_db_subnet_group.main.name
+  publicly_accessible          = false
+  monitoring_interval          = 60
+  monitoring_role_arn          = aws_iam_role.rds_monitoring.arn
   performance_insights_enabled = true
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-aurora-reader" })

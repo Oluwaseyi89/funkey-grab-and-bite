@@ -42,7 +42,7 @@ resource "aws_cloudwatch_log_group" "lambda_catering" {
 
 # ECS API — high CPU
 resource "aws_cloudwatch_metric_alarm" "ecs_api_cpu_high" {
-  count = var.ecs_api_cluster_name != "" ? 1 : 0
+  count = var.enable_ecs_api_alarms ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-ecs-api-cpu-high"
   alarm_description   = "ECS API CPU utilisation exceeded 85%"
@@ -66,7 +66,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_api_cpu_high" {
 
 # ECS API — high memory
 resource "aws_cloudwatch_metric_alarm" "ecs_api_memory_high" {
-  count = var.ecs_api_cluster_name != "" ? 1 : 0
+  count = var.enable_ecs_api_alarms ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-ecs-api-memory-high"
   alarm_description   = "ECS API memory utilisation exceeded 90%"
@@ -89,7 +89,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_api_memory_high" {
 
 # ALB — 5xx error rate
 resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
-  count = var.alb_arn_suffix != "" ? 1 : 0
+  count = var.enable_alb_alarms ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-alb-5xx-errors"
   alarm_description   = "ALB 5xx error count exceeded 10 in 1 minute"
@@ -111,7 +111,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
 
 # ALB — target response time
 resource "aws_cloudwatch_metric_alarm" "alb_latency" {
-  count = var.alb_arn_suffix != "" ? 1 : 0
+  count = var.enable_alb_alarms ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-alb-latency"
   alarm_description   = "ALB p95 target response time exceeded 2 seconds"
@@ -133,7 +133,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_latency" {
 
 # Aurora — low free storage
 resource "aws_cloudwatch_metric_alarm" "aurora_storage" {
-  count = var.aurora_cluster_identifier != "" ? 1 : 0
+  count = var.enable_aurora_alarms ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-aurora-storage-low"
   alarm_description   = "Aurora free local storage below 2 GiB"
@@ -155,7 +155,7 @@ resource "aws_cloudwatch_metric_alarm" "aurora_storage" {
 
 # Aurora — high DB connections
 resource "aws_cloudwatch_metric_alarm" "aurora_connections" {
-  count = var.aurora_cluster_identifier != "" ? 1 : 0
+  count = var.enable_aurora_alarms ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-aurora-connections-high"
   alarm_description   = "Aurora DB connections exceeded 50"
@@ -177,7 +177,7 @@ resource "aws_cloudwatch_metric_alarm" "aurora_connections" {
 
 # ElastiCache — evictions
 resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
-  count = var.elasticache_replication_group_id != "" ? 1 : 0
+  count = var.enable_redis_alarms ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-redis-evictions"
   alarm_description   = "Redis cache evictions indicate memory pressure"

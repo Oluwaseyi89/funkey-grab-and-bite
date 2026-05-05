@@ -46,9 +46,9 @@ module "dns" {
   count  = var.features.dns ? 1 : 0
   source = "../../modules/dns"
 
-  domain_name  = var.domain_name
-  create_zone  = true
-  environment  = local.env
+  domain_name = var.domain_name
+  create_zone = true
+  environment = local.env
 }
 
 # ── 4. ECR Repositories ───────────────────────────────────────────
@@ -183,20 +183,28 @@ module "cloudfront_admin" {
   depends_on = [module.dns, module.waf]
 }
 
+# Secret shared between CloudFront (origin header) and ALB (listener rule)
+# Defined at env root to break the cloudfront_api ↔ alb dependency cycle
+resource "random_password" "cf_origin_secret" {
+  length  = 32
+  special = false
+}
+
 # ── 13. CloudFront — API Edge ─────────────────────────────────────
 
 module "cloudfront_api" {
   count  = var.features.api ? 1 : 0
   source = "../../modules/cloudfront-api"
 
-  name_prefix         = local.name_prefix
-  environment         = local.env
-  alb_dns_name        = local.alb_dns_name
-  acm_certificate_arn = local.certificate_arn
-  domain_aliases      = ["api.${var.domain_name}"]
-  waf_web_acl_arn     = local.waf_web_acl_arn
+  name_prefix                = local.name_prefix
+  environment                = local.env
+  alb_dns_name               = local.alb_dns_name
+  acm_certificate_arn        = local.certificate_arn
+  domain_aliases             = ["api.${var.domain_name}"]
+  waf_web_acl_arn            = local.waf_web_acl_arn
+  origin_secret_header_value = random_password.cf_origin_secret.result
 
-  depends_on = [module.alb, module.dns, module.waf]
+  depends_on = [module.dns, module.waf]
 }
 
 # ── 14. ALB ───────────────────────────────────────────────────────
@@ -215,7 +223,7 @@ module "alb" {
   cloudfront_secret_header_value = local.cf_origin_secret_value
   health_check_path              = "/api/v1/settings"
 
-  depends_on = [module.networking, module.dns, module.cloudfront_api]
+  depends_on = [module.networking, module.dns]
 }
 
 # ── 15. ECS — API Cluster ─────────────────────────────────────────
@@ -319,6 +327,10 @@ module "monitoring" {
   environment                      = local.env
   aws_region                       = var.aws_region
   alert_email                      = var.alert_email
+  enable_ecs_api_alarms            = var.features.api
+  enable_alb_alarms                = var.features.api
+  enable_aurora_alarms             = var.features.database
+  enable_redis_alarms              = var.features.cache
   ecs_api_cluster_name             = try(module.ecs_api[0].cluster_name, "")
   ecs_api_service_name             = try(module.ecs_api[0].service_name, "")
   alb_arn_suffix                   = try(split(":", module.alb[0].alb_arn)[5], "")

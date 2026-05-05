@@ -39,27 +39,27 @@ resource "aws_iam_role_policy" "lambda_permissions" {
         Resource = var.sqs_catering_queue_arn
       },
       {
-        Sid    = "SESnotify"
-        Effect = "Allow"
-        Action = ["ses:SendEmail", "ses:SendRawEmail"]
+        Sid      = "SESnotify"
+        Effect   = "Allow"
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
         Resource = "*"
       },
       {
-        Sid    = "ReadSecrets"
-        Effect = "Allow"
-        Action = ["secretsmanager:GetSecretValue"]
+        Sid      = "ReadSecrets"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
         Resource = var.app_secrets_arn
       },
       {
-        Sid    = "XRay"
-        Effect = "Allow"
-        Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
         Resource = "*"
       },
       {
-        Sid    = "CloudWatchLogs"
-        Effect = "Allow"
-        Action = ["logs:CreateLogStream", "logs:PutLogEvents"]
+        Sid      = "CloudWatchLogs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
         Resource = "${aws_cloudwatch_log_group.lambda.arn}:*"
       }
     ]

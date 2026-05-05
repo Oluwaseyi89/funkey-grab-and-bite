@@ -48,15 +48,15 @@ variable "features" {
   # Staging default: lean deployment without workers, cache, and scheduler
   default = {
     networking      = true
-    waf             = false  # WAF adds cost; enable when demoing security
+    waf             = false # WAF adds cost; enable when demoing security
     dns             = true
     web_app         = true
     admin_app       = true
     api             = true
-    workers         = false  # Not needed for showcase; enable for full demo
-    lambda_catering = false  # Enable when Lambda func image is ready
+    workers         = false # Not needed for showcase; enable for full demo
+    lambda_catering = false # Enable when Lambda func image is ready
     database        = true
-    cache           = false  # App runs fine without Redis initially
+    cache           = false # App runs fine without Redis initially
     queue           = true
     scheduler       = false
     secrets         = true

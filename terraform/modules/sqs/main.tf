@@ -57,8 +57,8 @@ resource "aws_sqs_queue_policy" "order" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "DenyNonSSL"
-        Effect = "Deny"
+        Sid       = "DenyNonSSL"
+        Effect    = "Deny"
         Principal = { AWS = "*" }
         Action    = "sqs:*"
         Resource  = aws_sqs_queue.order.arn
@@ -75,8 +75,8 @@ resource "aws_sqs_queue_policy" "catering" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "DenyNonSSL"
-        Effect = "Deny"
+        Sid       = "DenyNonSSL"
+        Effect    = "Deny"
         Principal = { AWS = "*" }
         Action    = "sqs:*"
         Resource  = aws_sqs_queue.catering.arn

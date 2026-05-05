@@ -25,6 +25,6 @@ output "origin_secret_header_name" {
 
 output "origin_secret_header_value" {
   description = "Secret header value expected by ALB (store in Secrets Manager and rotate)"
-  value       = random_password.cf_origin_secret.result
+  value       = var.origin_secret_header_value
   sensitive   = true
 }

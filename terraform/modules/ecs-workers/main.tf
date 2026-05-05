@@ -51,19 +51,19 @@ resource "aws_ecs_task_definition" "workers" {
       command = ["./funkey-bite-api", "-mode=worker"]
 
       secrets = [
-        { name = "DB_HOST",     valueFrom = "${var.db_secret_arn}:host::" },
-        { name = "DB_PORT",     valueFrom = "${var.db_secret_arn}:port::" },
-        { name = "DB_USER",     valueFrom = "${var.db_secret_arn}:username::" },
+        { name = "DB_HOST", valueFrom = "${var.db_secret_arn}:host::" },
+        { name = "DB_PORT", valueFrom = "${var.db_secret_arn}:port::" },
+        { name = "DB_USER", valueFrom = "${var.db_secret_arn}:username::" },
         { name = "DB_PASSWORD", valueFrom = "${var.db_secret_arn}:password::" },
-        { name = "DB_NAME",     valueFrom = "${var.db_secret_arn}:dbname::" },
-        { name = "JWT_SECRET",  valueFrom = "${var.app_secrets_arn}:JWT_SECRET::" },
+        { name = "DB_NAME", valueFrom = "${var.db_secret_arn}:dbname::" },
+        { name = "JWT_SECRET", valueFrom = "${var.app_secrets_arn}:JWT_SECRET::" },
       ]
 
       environment = [
-        { name = "ENVIRONMENT",          value = var.environment },
-        { name = "DB_SSLMODE",           value = "require" },
-        { name = "AWS_REGION",           value = var.aws_region },
-        { name = "SQS_ORDER_QUEUE_URL",  value = var.sqs_order_queue_url },
+        { name = "ENVIRONMENT", value = var.environment },
+        { name = "DB_SSLMODE", value = "require" },
+        { name = "AWS_REGION", value = var.aws_region },
+        { name = "SQS_ORDER_QUEUE_URL", value = var.sqs_order_queue_url },
       ]
 
       logConfiguration = {

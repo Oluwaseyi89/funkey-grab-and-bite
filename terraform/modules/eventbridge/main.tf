@@ -59,10 +59,10 @@ resource "aws_iam_role_policy" "scheduler_ecs" {
 
 # Daily promotion expiry check — runs nightly at 00:05 UTC
 resource "aws_scheduler_schedule" "promotion_expiry" {
-  count = var.ecs_api_cluster_arn != "" ? 1 : 0
+  count = 1
 
-  name       = "${var.name_prefix}-promotion-expiry"
-  group_name = "default"
+  name        = "${var.name_prefix}-promotion-expiry"
+  group_name  = "default"
   description = "Expire promotions that have passed valid_until"
 
   schedule_expression          = "cron(5 0 * * ? *)"
@@ -76,6 +76,16 @@ resource "aws_scheduler_schedule" "promotion_expiry" {
     arn      = var.ecs_api_cluster_arn
     role_arn = aws_iam_role.scheduler.arn
 
+    # Pass container command override as JSON input (ecs_parameters has no overrides block)
+    input = jsonencode({
+      containerOverrides = [
+        {
+          name    = "funkey-api"
+          command = ["./funkey-bite-api", "-task=expire-promotions"]
+        }
+      ]
+    })
+
     ecs_parameters {
       task_definition_arn = var.ecs_api_task_definition_arn
       task_count          = 1
@@ -86,20 +96,13 @@ resource "aws_scheduler_schedule" "promotion_expiry" {
         security_groups  = [var.ecs_api_sg_id]
         subnets          = var.private_subnet_ids
       }
-
-      overrides {
-        container_override {
-          name    = "funkey-api"
-          command = ["./funkey-bite-api", "-task=expire-promotions"]
-        }
-      }
     }
   }
 }
 
 # Daily sales report snapshot — runs at 01:00 UTC
 resource "aws_scheduler_schedule" "daily_report" {
-  count = var.ecs_api_cluster_arn != "" ? 1 : 0
+  count = 1
 
   name        = "${var.name_prefix}-daily-report"
   group_name  = "default"
@@ -117,6 +120,15 @@ resource "aws_scheduler_schedule" "daily_report" {
     arn      = var.ecs_api_cluster_arn
     role_arn = aws_iam_role.scheduler.arn
 
+    input = jsonencode({
+      containerOverrides = [
+        {
+          name    = "funkey-api"
+          command = ["./funkey-bite-api", "-task=daily-report"]
+        }
+      ]
+    })
+
     ecs_parameters {
       task_definition_arn = var.ecs_api_task_definition_arn
       task_count          = 1
@@ -126,13 +138,6 @@ resource "aws_scheduler_schedule" "daily_report" {
         assign_public_ip = false
         security_groups  = [var.ecs_api_sg_id]
         subnets          = var.private_subnet_ids
-      }
-
-      overrides {
-        container_override {
-          name    = "funkey-api"
-          command = ["./funkey-bite-api", "-task=daily-report"]
-        }
       }
     }
   }

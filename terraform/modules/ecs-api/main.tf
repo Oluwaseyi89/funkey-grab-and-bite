@@ -66,22 +66,22 @@ resource "aws_ecs_task_definition" "api" {
 
       # Pull secrets from Secrets Manager at task start — never in env vars
       secrets = [
-        { name = "JWT_SECRET",          valueFrom = "${var.app_secrets_arn}:JWT_SECRET::" },
-        { name = "DB_HOST",             valueFrom = "${var.db_secret_arn}:host::" },
-        { name = "DB_PORT",             valueFrom = "${var.db_secret_arn}:port::" },
-        { name = "DB_USER",             valueFrom = "${var.db_secret_arn}:username::" },
-        { name = "DB_PASSWORD",         valueFrom = "${var.db_secret_arn}:password::" },
-        { name = "DB_NAME",             valueFrom = "${var.db_secret_arn}:dbname::" },
-        { name = "SES_SENDER_EMAIL",    valueFrom = "${var.app_secrets_arn}:SES_SENDER_EMAIL::" },
-        { name = "TWILIO_ACCOUNT_SID",  valueFrom = "${var.app_secrets_arn}:TWILIO_ACCOUNT_SID::" },
-        { name = "TWILIO_AUTH_TOKEN",   valueFrom = "${var.app_secrets_arn}:TWILIO_AUTH_TOKEN::" },
+        { name = "JWT_SECRET", valueFrom = "${var.app_secrets_arn}:JWT_SECRET::" },
+        { name = "DB_HOST", valueFrom = "${var.db_secret_arn}:host::" },
+        { name = "DB_PORT", valueFrom = "${var.db_secret_arn}:port::" },
+        { name = "DB_USER", valueFrom = "${var.db_secret_arn}:username::" },
+        { name = "DB_PASSWORD", valueFrom = "${var.db_secret_arn}:password::" },
+        { name = "DB_NAME", valueFrom = "${var.db_secret_arn}:dbname::" },
+        { name = "SES_SENDER_EMAIL", valueFrom = "${var.app_secrets_arn}:SES_SENDER_EMAIL::" },
+        { name = "TWILIO_ACCOUNT_SID", valueFrom = "${var.app_secrets_arn}:TWILIO_ACCOUNT_SID::" },
+        { name = "TWILIO_AUTH_TOKEN", valueFrom = "${var.app_secrets_arn}:TWILIO_AUTH_TOKEN::" },
         { name = "TWILIO_PHONE_NUMBER", valueFrom = "${var.app_secrets_arn}:TWILIO_PHONE_NUMBER::" },
       ]
 
       environment = [
         { name = "ENVIRONMENT", value = var.environment },
-        { name = "DB_SSLMODE",  value = "require" },
-        { name = "AWS_REGION",  value = var.aws_region },
+        { name = "DB_SSLMODE", value = "require" },
+        { name = "AWS_REGION", value = var.aws_region },
       ]
 
       healthCheck = {

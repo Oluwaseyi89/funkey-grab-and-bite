@@ -31,10 +31,22 @@ variable "ecs_api_service_name" {
   default     = ""
 }
 
+variable "enable_ecs_api_alarms" {
+  description = "Enable ECS API alarms"
+  type        = bool
+  default     = true
+}
+
 variable "alb_arn_suffix" {
   description = "ALB ARN suffix (for CloudWatch metrics)"
   type        = string
   default     = ""
+}
+
+variable "enable_alb_alarms" {
+  description = "Enable ALB alarms"
+  type        = bool
+  default     = true
 }
 
 variable "target_group_arn_suffix" {
@@ -49,10 +61,22 @@ variable "aurora_cluster_identifier" {
   default     = ""
 }
 
+variable "enable_aurora_alarms" {
+  description = "Enable Aurora alarms"
+  type        = bool
+  default     = true
+}
+
 variable "elasticache_replication_group_id" {
   description = "ElastiCache replication group ID"
   type        = string
   default     = ""
+}
+
+variable "enable_redis_alarms" {
+  description = "Enable Redis alarms"
+  type        = bool
+  default     = true
 }
 
 variable "tags" {

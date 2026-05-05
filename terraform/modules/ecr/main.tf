@@ -7,10 +7,10 @@ locals {
         rulePriority = 1
         description  = "Keep last ${var.image_count_to_keep} tagged images"
         selection = {
-          tagStatus   = "tagged"
+          tagStatus     = "tagged"
           tagPrefixList = ["v", "sha-", "latest"]
-          countType   = "imageCountMoreThan"
-          countNumber = var.image_count_to_keep
+          countType     = "imageCountMoreThan"
+          countNumber   = var.image_count_to_keep
         }
         action = { type = "expire" }
       },

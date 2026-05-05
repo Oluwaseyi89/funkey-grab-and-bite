@@ -25,8 +25,8 @@ locals {
   waf_web_acl_arn = try(module.waf[0].web_acl_arn, "")
   alb_dns_name    = try(module.alb[0].alb_dns_name, "")
 
-  cf_origin_secret_name  = try(module.cloudfront_api[0].origin_secret_header_name, "X-CloudFront-Secret")
-  cf_origin_secret_value = try(module.cloudfront_api[0].origin_secret_header_value, "placeholder")
+  cf_origin_secret_name  = "X-CloudFront-Secret"
+  cf_origin_secret_value = random_password.cf_origin_secret.result
 
   db_secret_arn   = try(module.aurora[0].db_secret_arn, "")
   app_secrets_arn = try(module.secrets[0].app_secrets_arn, "")

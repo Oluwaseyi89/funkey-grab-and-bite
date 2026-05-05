@@ -25,16 +25,16 @@ resource "aws_secretsmanager_secret_version" "app_secrets" {
 
   # Initial placeholder — replace values via CLI or Console before deploy
   secret_string = jsonencode({
-    JWT_SECRET            = var.jwt_secret_initial_value
-    SES_SENDER_EMAIL      = var.ses_sender_email
-    TWILIO_ACCOUNT_SID    = "REPLACE_ME"
-    TWILIO_AUTH_TOKEN     = "REPLACE_ME"
-    TWILIO_PHONE_NUMBER   = "REPLACE_ME"
-    DEFAULT_ADMIN_EMAIL   = "admin@funkeygrabandbite.com"
+    JWT_SECRET             = var.jwt_secret_initial_value
+    SES_SENDER_EMAIL       = var.ses_sender_email
+    TWILIO_ACCOUNT_SID     = "REPLACE_ME"
+    TWILIO_AUTH_TOKEN      = "REPLACE_ME"
+    TWILIO_PHONE_NUMBER    = "REPLACE_ME"
+    DEFAULT_ADMIN_EMAIL    = "admin@funkeygrabandbite.com"
     DEFAULT_ADMIN_USERNAME = "admin"
     DEFAULT_ADMIN_PASSWORD = "REPLACE_ME_STRONG_PASSWORD"
-    DEFAULT_ADMIN_ROLE    = "admin"
-    AWS_REGION            = "us-east-1"
+    DEFAULT_ADMIN_ROLE     = "admin"
+    AWS_REGION             = "us-east-1"
   })
 
   # Prevent Terraform from overwriting manually updated values on re-apply

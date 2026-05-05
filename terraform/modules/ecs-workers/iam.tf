@@ -60,21 +60,21 @@ resource "aws_iam_role_policy" "ecs_task_permissions" {
         Resource = "*"
       },
       {
-        Sid    = "SESAccess"
-        Effect = "Allow"
-        Action = ["ses:SendEmail", "ses:SendRawEmail"]
+        Sid      = "SESAccess"
+        Effect   = "Allow"
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
         Resource = "*"
       },
       {
-        Sid    = "XRayAccess"
-        Effect = "Allow"
-        Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Sid      = "XRayAccess"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
         Resource = "*"
       },
       {
-        Sid    = "CloudWatchLogs"
-        Effect = "Allow"
-        Action = ["logs:CreateLogStream", "logs:PutLogEvents"]
+        Sid      = "CloudWatchLogs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
         Resource = "${aws_cloudwatch_log_group.workers.arn}:*"
       }
     ]

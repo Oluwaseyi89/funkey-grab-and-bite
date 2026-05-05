@@ -7,14 +7,8 @@
 #   - WAF ACL attached
 
 locals {
-  origin_id = "${var.name_prefix}-alb-origin"
-  # Secret header value is generated once; rotate via Secrets Manager in production
-  origin_custom_header_name  = "X-CloudFront-Secret"
-}
-
-resource "random_password" "cf_origin_secret" {
-  length  = 32
-  special = false
+  origin_id                 = "${var.name_prefix}-alb-origin"
+  origin_custom_header_name = "X-CloudFront-Secret"
 }
 
 resource "aws_cloudfront_distribution" "main" {
@@ -32,7 +26,7 @@ resource "aws_cloudfront_distribution" "main" {
     # Used by ALB listener rule to ensure only CloudFront can reach the ALB
     custom_header {
       name  = local.origin_custom_header_name
-      value = random_password.cf_origin_secret.result
+      value = var.origin_secret_header_value
     }
 
     custom_origin_config {

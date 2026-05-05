@@ -171,7 +171,7 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags      = merge(var.tags, { Name = "${var.name_prefix}-alb-sg" })
+  tags = merge(var.tags, { Name = "${var.name_prefix}-alb-sg" })
   lifecycle { create_before_destroy = true }
 }
 
@@ -195,7 +195,7 @@ resource "aws_security_group" "ecs_api" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags      = merge(var.tags, { Name = "${var.name_prefix}-ecs-api-sg" })
+  tags = merge(var.tags, { Name = "${var.name_prefix}-ecs-api-sg" })
   lifecycle { create_before_destroy = true }
 }
 
@@ -211,7 +211,7 @@ resource "aws_security_group" "ecs_workers" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags      = merge(var.tags, { Name = "${var.name_prefix}-ecs-workers-sg" })
+  tags = merge(var.tags, { Name = "${var.name_prefix}-ecs-workers-sg" })
   lifecycle { create_before_destroy = true }
 }
 
@@ -235,7 +235,7 @@ resource "aws_security_group" "aurora" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags      = merge(var.tags, { Name = "${var.name_prefix}-aurora-sg" })
+  tags = merge(var.tags, { Name = "${var.name_prefix}-aurora-sg" })
   lifecycle { create_before_destroy = true }
 }
 
@@ -259,7 +259,7 @@ resource "aws_security_group" "elasticache" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags      = merge(var.tags, { Name = "${var.name_prefix}-elasticache-sg" })
+  tags = merge(var.tags, { Name = "${var.name_prefix}-elasticache-sg" })
   lifecycle { create_before_destroy = true }
 }
 
@@ -275,7 +275,7 @@ resource "aws_security_group" "lambda" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags      = merge(var.tags, { Name = "${var.name_prefix}-lambda-sg" })
+  tags = merge(var.tags, { Name = "${var.name_prefix}-lambda-sg" })
   lifecycle { create_before_destroy = true }
 }
 

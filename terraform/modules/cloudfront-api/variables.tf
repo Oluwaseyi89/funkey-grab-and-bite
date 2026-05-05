@@ -42,6 +42,12 @@ variable "price_class" {
   default     = "PriceClass_100"
 }
 
+variable "origin_secret_header_value" {
+  description = "Secret value injected as a custom origin header to prevent direct ALB access"
+  type        = string
+  sensitive   = true
+}
+
 variable "tags" {
   description = "Tags applied to all resources"
   type        = map(string)
