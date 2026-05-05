@@ -1,0 +1,23 @@
+aws_region       = "us-east-1"
+project_name     = "funkey"
+domain_name      = "staging.funkeygrabandbite.com"
+alert_email      = "dev@funkeygrabandbite.com"
+ses_sender_email = "noreply@funkeygrabandbite.com"
+api_image_tag    = "latest"
+
+features = {
+  networking      = true
+  waf             = false
+  dns             = true
+  web_app         = true
+  admin_app       = true
+  api             = true
+  workers         = false
+  lambda_catering = false
+  database        = true
+  cache           = false
+  queue           = true
+  scheduler       = false
+  secrets         = true
+  monitoring      = true
+}

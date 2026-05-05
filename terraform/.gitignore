@@ -1,0 +1,39 @@
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files (may contain secrets)
+*.tfvars
+!*.tfvars.example
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI config
+.terraformrc
+terraform.rc
+
+# Lock file (commit this to version control)
+# .terraform.lock.hcl
+
+# Ignore plan files
+*.tfplan
+
+# Ignore generated zip archives for Lambda
+*.zip
+
+# OS / editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
