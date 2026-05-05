@@ -16,15 +16,16 @@ Production-grade, modular AWS infrastructure for the **Funkey Grab & Bite** food
 3. [Module Reference](#module-reference)
 4. [Prerequisites](#prerequisites)
 5. [First-Time Setup](#first-time-setup)
-6. [Feature Flags](#feature-flags)
-7. [Deploy Order (Full Stack)](#deploy-order-full-stack)
-8. [Targeted Deploys](#targeted-deploys)
-9. [Environment Differences](#environment-differences)
-10. [Post-Deploy Steps](#post-deploy-steps)
-11. [CI/CD Integration](#cicd-integration)
-12. [Makefile Reference](#makefile-reference)
-13. [Security Controls](#security-controls)
-14. [Troubleshooting](#troubleshooting)
+6. [Preflight Checks (No Apply)](#preflight-checks-no-apply)
+7. [Feature Flags](#feature-flags)
+8. [Deploy Order (Full Stack)](#deploy-order-full-stack)
+9. [Targeted Deploys](#targeted-deploys)
+10. [Environment Differences](#environment-differences)
+11. [Post-Deploy Steps](#post-deploy-steps)
+12. [CI/CD Integration](#cicd-integration)
+13. [Makefile Reference](#makefile-reference)
+14. [Security Controls](#security-controls)
+15. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -112,7 +113,8 @@ terraform/
 ├── scripts/
 │   ├── bootstrap-state.sh          # One-time: create S3 bucket + DynamoDB table
 │   ├── deploy.sh                   # Targeted apply (ENV + component args)
-│   └── plan.sh                     # Targeted plan  (ENV + component args)
+│   ├── plan.sh                     # Targeted plan  (ENV + component args)
+│   └── tf-all.sh                   # Safe fmt/validate/plan runner for both envs
 │
 ├── modules/                        # Reusable, independently callable modules
 │   ├── networking/                 # VPC, subnets, NAT, SGs, VPC endpoints
@@ -201,6 +203,11 @@ This creates:
 - S3 bucket `funkey-terraform-state` (versioned, AES-256, private)
 - DynamoDB table `funkey-terraform-locks` (PAY_PER_REQUEST)
 
+If your AWS account already has a different state bucket/region, update both backend files before init:
+
+- `environments/staging/backend.tf`
+- `environments/production/backend.tf`
+
 ### 2. Configure your variables
 
 ```bash
@@ -220,7 +227,8 @@ nano environments/staging/terraform.tfvars
 | `alert_email` | Email address for CloudWatch alarm notifications |
 | `ses_sender_email` | Verified SES email address for the API |
 | `api_image_tag` | ECR image tag for the Go API (e.g. `latest`) |
-| `lambda_image_tag` | ECR image tag for the Lambda (e.g. `latest`) |
+
+Note: Lambda currently reuses `api_image_tag`.
 
 ### 3. Initialise Terraform
 
@@ -239,6 +247,30 @@ make plan ENV=staging
 
 ---
 
+## Preflight Checks (No Apply)
+
+Run these checks before any apply:
+
+```bash
+cd terraform
+
+# Formatting
+./scripts/tf-all.sh fmt
+
+# Validate both environments without backend state access
+./scripts/tf-all.sh validate
+
+# Plan both environments in a temporary backend-free workspace
+./scripts/tf-all.sh plan
+```
+
+What this gives you:
+- catches HCL/schema errors early
+- avoids accidental applies
+- avoids backend lock/state issues during quick verification
+
+---
+
 ## Feature Flags
 
 Each module is guarded by a boolean flag inside the `features` variable. Set flags to `false` to skip components you don't need for a particular showcase.
@@ -246,19 +278,19 @@ Each module is guarded by a boolean flag inside the `features` variable. Set fla
 ```hcl
 # environments/production/terraform.tfvars
 features = {
-  waf              = true    # WAF v2 WebACL (CloudFront)
-  cdn_web          = true    # CloudFront + S3 for Nuxt web app
-  cdn_admin        = true    # CloudFront + S3 for React admin
-  cdn_api          = true    # CloudFront edge in front of ALB
-  alb              = true    # Application Load Balancer
-  ecs_api          = true    # Go API on ECS Fargate
-  ecs_workers      = true    # Background worker tasks on ECS
+  networking      = true    # VPC, subnets, SG, endpoints
+  waf             = true    # WAF v2 WebACL (CloudFront)
+  dns             = true    # Route53 zone + ACM + records
+  web_app         = true    # CloudFront + S3 for Nuxt web app
+  admin_app       = true    # CloudFront + S3 for React admin
+  api             = true    # ALB + API edge + ECS API stack
+  workers         = true    # Background worker tasks on ECS
   lambda_catering  = true    # Catering notifier Lambda
-  aurora           = true    # Aurora PostgreSQL Serverless v2
-  elasticache      = true    # ElastiCache Redis
-  sqs              = true    # SQS order + catering queues
+  database         = true    # Aurora PostgreSQL Serverless v2
+  cache            = true    # ElastiCache Redis
+  queue            = true    # SQS order + catering queues
   scheduler        = true    # EventBridge Scheduler rules
-  ecr              = true    # ECR repositories
+  secrets          = true    # Secrets Manager entries
   monitoring       = true    # CloudWatch alarms, dashboard, SNS
 }
 ```
@@ -267,10 +299,10 @@ features = {
 
 | Goal | Flags to enable |
 |---|---|
-| **Minimal API** | `networking` always on + `aurora` + `ecr` + `ecs_api` + `alb` + `cdn_api` |
-| **Frontend only** | `cdn_web` + `cdn_admin` + `waf` |
-| **Full backend** | all except `cdn_web`, `cdn_admin` |
-| **Event-driven demo** | `ecs_workers` + `sqs` + `lambda_catering` + `scheduler` |
+| **Minimal API** | `networking` + `dns` + `api` + `database` + `secrets` |
+| **Frontend only** | `networking` + `dns` + `web_app` + `admin_app` (+ optional `waf`) |
+| **Full backend** | `networking` + `dns` + `api` + `workers` + `database` + `cache` + `queue` + `scheduler` + `secrets` + `monitoring` |
+| **Event-driven demo** | `networking` + `dns` + `api` + `workers` + `queue` + `lambda_catering` + `scheduler` + `secrets` |
 | **Full production** | all `true` (default) |
 
 ---

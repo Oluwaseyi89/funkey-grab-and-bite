@@ -7,6 +7,8 @@
 ![Nuxt](https://img.shields.io/badge/Web-Nuxt%204-00DC82?logo=nuxtdotjs&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/UI-Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/Frontend-TypeScript-3178C6?logo=typescript&logoColor=white)
+![AWS](https://img.shields.io/badge/Cloud-AWS-232F3E?logo=amazon-aws&logoColor=white)
+![Terraform](https://img.shields.io/badge/IaC-Terraform-844FBA?logo=terraform&logoColor=white)
 
 Funkey Grab & Bite is a full-stack digital operations platform for a modern fast-food and catering business. It unifies direct customer ordering, promotion-driven conversion, admin-level operations control, and operational data visibility into one system. The platform is designed to support both day-to-day service excellence and long-term scalability.
 
@@ -16,6 +18,8 @@ For contributors, this repository offers a clear modular architecture (API, publ
 - [Product Vision](#-product-vision)
 - [Business Value](#-business-value)
 - [System Architecture](#-system-architecture)
+- [AWS Infrastructure Design](#-aws-infrastructure-design)
+- [Terraform IaC Structure](#-terraform-iac-structure)
 - [Repository Structure](#-repository-structure)
 - [Core Platform Modules](#-core-platform-modules)
 - [API Surface](#-api-surface)
@@ -86,6 +90,122 @@ Order, inventory, user, and promotion events form the foundation for predictive 
 														 +--------------------+
 ```
 
+## ☁️ AWS Infrastructure Design
+Infrastructure is provisioned with Terraform and follows an edge-first AWS design with isolated service tiers.
+
+- DNS and certificates: Route 53 + ACM.
+- Edge protection: optional AWS WAF in front of CloudFront.
+- Static delivery: dedicated CloudFront and private S3 origins for web and admin.
+- API edge and compute: CloudFront API edge -> ALB -> ECS Fargate API service.
+- Async workloads: ECS workers + Lambda + SQS + EventBridge Scheduler.
+- Data layer: Aurora PostgreSQL Serverless v2 + ElastiCache Redis.
+- Ops visibility: CloudWatch logs/alarms/dashboard + SNS notifications.
+
+High-level infrastructure flow:
+
+```text
+Route53 -> WAF -> CloudFront(web/admin/api)
+        -> S3 (web/admin) OR ALB -> ECS API
+ECS/Lambda -> Aurora + Redis + SQS + Secrets Manager
+EventBridge -> scheduled ECS tasks
+CloudWatch/SNS -> monitoring and alerting
+```
+
+Implemented cloud architecture diagram:
+
+```text
+			┌──────────────────────────────────────────────────────┐
+			│                   Route 53 (DNS)                    │
+			│   funkeygrabandbite.com / api / admin / www         │
+			└──────────────┬───────────────────────────────────────┘
+				       │
+			┌──────────────▼───────────────────────────────────────┐
+			│             AWS WAF v2 + Shield Standard             │
+			│      CRS · KnownBadInputs · SQLi · Rate-limiting     │
+			└──────┬───────────────────────────┬────────────────────┘
+			       │                           │
+	      ┌────────────────▼──────┐       ┌───────────▼──────────────────┐
+	      │  CloudFront (Web SPA) │       │  CloudFront (Admin SPA)      │
+	      │  Nuxt storefront      │       │  React admin dashboard        │
+	      └────────┬─────────────┘       └───────────┬──────────────────┘
+		       │ OAC                              │ OAC
+	      ┌────────▼─────────────┐       ┌───────────▼──────────────────┐
+	      │  S3 Bucket (Web)     │       │  S3 Bucket (Admin)           │
+	      │  Private + versioned │       │  Private + versioned         │
+	      └──────────────────────┘       └──────────────────────────────┘
+
+			┌──────────────────────────────────────┐
+			│       CloudFront (API Edge)          │
+			│ CachingDisabled · AllViewer policy   │
+			│ Origin Shield · WebSocket support    │
+			└────────────────┬─────────────────────┘
+					 │ secret header
+			┌────────────────▼─────────────────────┐
+			│      Application Load Balancer       │
+			│ HTTP->HTTPS redirect + header guard  │
+			└────────────────┬─────────────────────┘
+					 │
+	  ┌──────────────────────────────┴────────────────────────────────┐
+	  │                                                               │
+┌─────────▼──────────────┐                               ┌───────────────▼───────────┐
+│   ECS Fargate (API)    │                               │  ECS Fargate (Workers)    │
+│   Go/Gin REST API      │                               │  Background task runners   │
+│   Auto scaling         │                               │  FARGATE_SPOT preferred    │
+└─────────┬──────────────┘                               └───────────────────────────┘
+	  │
+┌─────────▼────────────────────────────────────────────────────────────────────────┐
+│                               Data and Messaging Layer                          │
+│                                                                                 │
+│  ┌──────────────────────────┐  ┌────────────────────┐  ┌──────────────────────┐ │
+│  │  Aurora PostgreSQL Sv2   │  │  ElastiCache Redis │  │  SQS + DLQs          │ │
+│  │  Multi-AZ + reader       │  │  7.1 encryption    │  │  Order + Catering    │ │
+│  └──────────────────────────┘  └────────────────────┘  └──────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│                            Async and Scheduled Work                              │
+│                                                                                  │
+│  ┌──────────────────────────────────┐        ┌──────────────────────────────────┐│
+│  │  Lambda (Catering Notifier)      │        │ EventBridge Scheduler            ││
+│  │  Container image + VPC           │        │ Promo expiry and daily reports   ││
+│  │  SQS event source mapping        │        │ ECS task trigger                 ││
+│  └──────────────────────────────────┘        └──────────────────────────────────┘│
+└───────────────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│                         Security, Secrets and Monitoring                         │
+│  Secrets Manager · IAM roles · CloudWatch logs/alarms/dashboard · SNS alerts    │
+└───────────────────────────────────────────────────────────────────────────────────┘
+```
+
+Detailed infrastructure operations guide:
+[terraform/README.md](terraform/README.md)
+
+## 🧱 Terraform IaC Structure
+Terraform implementation lives in [terraform](terraform) and is organized for reusable modules and environment compositions.
+
+- Modules: [terraform/modules](terraform/modules)
+Contains reusable units for networking, DNS, WAF, CloudFront, ALB, ECS, Lambda, Aurora, Redis, SQS, EventBridge, Secrets, and Monitoring.
+- Environment roots: [terraform/environments/staging](terraform/environments/staging) and [terraform/environments/production](terraform/environments/production)
+Each environment toggles components with feature flags, so you can deploy services individually or together.
+- Scripts: [terraform/scripts](terraform/scripts)
+Contains helper scripts for targeted deploy/plan and safe no-apply checks.
+
+Common workflows:
+
+```bash
+cd terraform
+
+# safe checks (no apply)
+./scripts/tf-all.sh fmt
+./scripts/tf-all.sh validate
+./scripts/tf-all.sh plan
+
+# regular workflows
+make plan ENV=staging
+make deploy-api ENV=production
+```
+
 ## 🗂️ Repository Structure
 ```text
 funkey-grab-and-bite/
@@ -107,6 +227,11 @@ funkey-grab-and-bite/
 │   ├── src/stores/                   # Zustand state domains
 │   ├── src/contexts/                 # Auth/socket/theme providers
 │   └── package.json                  # Admin build/runtime scripts
+├── terraform/                        # AWS infrastructure as code (Terraform)
+│   ├── modules/                      # Reusable infrastructure modules
+│   ├── environments/                 # staging and production root compositions
+│   ├── scripts/                      # fmt/validate/plan/deploy helper scripts
+│   └── README.md                     # Infrastructure setup and operations guide
 └── funkey-bite-web/                  # Public customer-facing web app (Nuxt)
 	├── pages/                        # Menu, order, catering, promotions, legal, contact
 	├── components/                   # Reusable domain UI blocks
