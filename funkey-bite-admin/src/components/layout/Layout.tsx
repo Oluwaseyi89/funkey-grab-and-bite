@@ -6,7 +6,7 @@ import { useSocket } from '../../contexts/SocketContext';
 import { Bell, Wifi, WifiOff } from 'lucide-react';
 
 const Layout: React.FC = () => {
-  const { isConnected } = useSocket();
+  const { isConnected, isRealtimeEnabled } = useSocket();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -26,11 +26,13 @@ const Layout: React.FC = () => {
               <div className="flex items-center space-x-2">
                 {isConnected ? (
                   <Wifi className="h-4 w-4 text-green-500" />
+                ) : !isRealtimeEnabled ? (
+                  <WifiOff className="h-4 w-4 text-yellow-500" />
                 ) : (
                   <WifiOff className="h-4 w-4 text-red-500" />
                 )}
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {isConnected ? 'Connected' : 'Disconnected'}
+                  {isConnected ? 'Connected' : isRealtimeEnabled ? 'Disconnected' : 'Realtime Disabled'}
                 </span>
               </div>
               

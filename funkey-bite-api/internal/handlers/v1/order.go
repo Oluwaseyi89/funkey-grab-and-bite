@@ -10,6 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
+	"funkey-grab-and-bite/funkey-bite-api/internal/realtime"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
 )
@@ -153,6 +154,8 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 			return
 		}
 	}
+
+	realtime.GlobalHub.Broadcast("new_order", createdOrder)
 
 	c.JSON(http.StatusCreated, createdOrder)
 }

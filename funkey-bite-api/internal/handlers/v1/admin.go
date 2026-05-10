@@ -5,11 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
+	"funkey-grab-and-bite/funkey-bite-api/internal/realtime"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 )
 
@@ -165,6 +167,12 @@ func (h *AdminHandler) UpdateOrderStatus(c *gin.Context) {
 		})
 		return
 	}
+
+	realtime.GlobalHub.Broadcast("order_updated", gin.H{
+		"id":        orderID,
+		"status":    req.Status,
+		"updatedAt": time.Now(),
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Order status updated successfully",

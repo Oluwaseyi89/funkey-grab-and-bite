@@ -62,6 +62,11 @@ func (w *responseCaptureWriter) Written() bool {
 
 func ResponseEnvelopeMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if strings.EqualFold(c.GetHeader("Upgrade"), "websocket") {
+			c.Next()
+			return
+		}
+
 		capture := &responseCaptureWriter{
 			ResponseWriter: c.Writer,
 			body:           bytes.NewBuffer(nil),

@@ -43,6 +43,19 @@ export default defineConfig([
 ])
 ```
 
+## Realtime Status
+
+Realtime subscriptions are implemented via WebSocket in the admin app and backend API.
+
+- Default behavior: `VITE_REALTIME_MODE=websocket`
+- To disable realtime explicitly: `VITE_REALTIME_MODE=disabled`
+- Socket endpoint: `/api/v1/admin/realtime/ws?token=<admin_jwt>`
+
+Current live events:
+
+- `new_order`
+- `order_updated`
+
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js

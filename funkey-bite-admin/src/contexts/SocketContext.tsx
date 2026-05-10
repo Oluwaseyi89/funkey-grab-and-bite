@@ -1,207 +1,148 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
-import { useAuthStore } from '../stores/authStore';
-import { useOrderStore } from '../stores/orderStore';
-import { useNotificationStore } from '../stores/notificationStore';
-import { useCateringStore } from '../stores/cateringStore';
-import { useInventoryStore } from '../stores/inventoryStore';
-import { useUserStore } from '../stores/userStore';
-import type { Order, CateringRequest, InventoryAlert, User } from '../types';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+
+type RealtimeSocket = {
+  on: (event: string, handler: (payload: any) => void) => void;
+  off: (event: string, handler: (payload: any) => void) => void;
+  disconnect: () => void;
+};
 
 interface SocketContextType {
-  socket: Socket | null;
+  socket: RealtimeSocket | null;
   isConnected: boolean;
+  isRealtimeEnabled: boolean;
 }
 
 const SocketContext = createContext<SocketContextType>({
   socket: null,
   isConnected: false,
+  isRealtimeEnabled: false,
 });
 
 export const useSocket = () => useContext(SocketContext);
 
+const WEBSOCKET_RECONNECT_DELAY_MS = 3000;
+
+const buildRealtimeUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+  const baseUrl = new URL(apiUrl);
+  baseUrl.protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+  baseUrl.pathname = '/api/v1/admin/realtime/ws';
+  return baseUrl;
+};
+
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const realtimeMode = (import.meta.env.VITE_REALTIME_MODE || 'websocket').toLowerCase();
+  const isRealtimeEnabled = realtimeMode === 'websocket' || realtimeMode === 'socket-io';
   const [isConnected, setIsConnected] = useState(false);
-  const { token } = useAuthStore();
+  const [socket, setSocket] = useState<RealtimeSocket | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shouldReconnectRef = useRef(true);
+  const listenersRef = useRef<Map<string, Set<(payload: any) => void>>>(new Map());
+
+  const socketApi = useMemo<RealtimeSocket>(
+    () => ({
+      on: (event, handler) => {
+        const current = listenersRef.current.get(event) || new Set();
+        current.add(handler);
+        listenersRef.current.set(event, current);
+      },
+      off: (event, handler) => {
+        const current = listenersRef.current.get(event);
+        if (!current) return;
+        current.delete(handler);
+        if (current.size === 0) {
+          listenersRef.current.delete(event);
+        }
+      },
+      disconnect: () => {
+        shouldReconnectRef.current = false;
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
+        wsRef.current?.close();
+        wsRef.current = null;
+        setIsConnected(false);
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
-    if (!token) return;
-
-    const socketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080';
-    const newSocket = io(socketUrl, {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-    });
-
-    newSocket.on('connect', () => {
-      console.log('Socket connected');
-      setIsConnected(true);
-    });
-
-    newSocket.on('disconnect', () => {
-      console.log('Socket disconnected');
+    if (!isRealtimeEnabled) {
+      setSocket(null);
       setIsConnected(false);
-    });
+      console.info('Realtime is disabled. Set VITE_REALTIME_MODE=websocket to enable live admin events.');
+      return;
+    }
 
-    newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-    });
+    shouldReconnectRef.current = true;
+    setSocket(socketApi);
 
-    newSocket.on('new_order', (order: Order) => {
-      useOrderStore.getState().addOrder(order);
-      useNotificationStore.getState().addNotification({
-        id: Date.now(),
-        userId: 0,
-        type: 'order',
-        title: 'New Order Received',
-        message: `Order #${order.orderNumber} from ${order.customerName}`,
-        isRead: false,
-        referenceId: order.id,
-        referenceType: 'order',
-        createdAt: new Date().toISOString(),
-      });
-    });
+    const connect = () => {
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        setIsConnected(false);
+        return;
+      }
 
-    newSocket.on('order_updated', (order: Order) => {
-      useOrderStore.getState().updateOrder(order.id, order);
-      useNotificationStore.getState().addNotification({
-        id: Date.now(),
-        userId: 0,
-        type: 'order',
-        title: 'Order Updated',
-        message: `Order #${order.orderNumber} status changed to ${order.status}`,
-        isRead: false,
-        referenceId: order.id,
-        referenceType: 'order',
-        createdAt: new Date().toISOString(),
-      });
-    });
+      const wsUrl = buildRealtimeUrl();
+      wsUrl.searchParams.set('token', token);
 
-    newSocket.on('new_catering_request', (request: CateringRequest) => {
-      useCateringStore.getState().addRequest(request);
-      useNotificationStore.getState().addNotification({
-        id: Date.now(),
-        userId: 0,
-        type: 'catering',
-        title: 'New Catering Request',
-        message: `${request.contactName} - ${request.eventName || 'Event'}`,
-        isRead: false,
-        referenceId: request.id,
-        referenceType: 'catering',
-        createdAt: new Date().toISOString(),
-      });
-    });
+      const ws = new WebSocket(wsUrl.toString());
+      wsRef.current = ws;
 
-    newSocket.on('catering_request_updated', (request: CateringRequest) => {
-      useCateringStore.getState().updateRequest(request.id, request);
-      useNotificationStore.getState().addNotification({
-        id: Date.now(),
-        userId: 0,
-        type: 'catering',
-        title: 'Catering Request Updated',
-        message: `${request.contactName}'s request status: ${request.status}`,
-        isRead: false,
-        referenceId: request.id,
-        referenceType: 'catering',
-        createdAt: new Date().toISOString(),
-      });
-    });
+      ws.onopen = () => {
+        setIsConnected(true);
+      };
 
-    newSocket.on('inventory_alert', (alert: InventoryAlert) => {
-      useInventoryStore.getState().addAlert(alert);
-      useNotificationStore.getState().addNotification({
-        id: Date.now(),
-        userId: 0,
-        type: 'inventory',
-        title: 'Inventory Alert',
-        message: alert.message,
-        isRead: false,
-        referenceId: alert.id,
-        referenceType: 'inventory',
-        createdAt: new Date().toISOString(),
-      });
-    });
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          const eventName = payload?.event;
+          if (typeof eventName !== 'string') return;
 
-    newSocket.on('inventory_updated', (alert: InventoryAlert) => {
-      useInventoryStore.getState().updateAlert(alert.id, alert);
-    });
+          const handlers = listenersRef.current.get(eventName);
+          if (!handlers || handlers.size === 0) return;
 
-    newSocket.on('new_customer', (customer: User) => {
-      useUserStore.getState().addCustomer(customer);
-      useNotificationStore.getState().addNotification({
-        id: Date.now(),
-        userId: 0,
-        type: 'customer',
-        title: 'New Customer Registered',
-        message: `New customer: ${customer.fullName}`,
-        isRead: false,
-        referenceId: customer.id,
-        referenceType: 'customer',
-        createdAt: new Date().toISOString(),
-      });
-    });
+          handlers.forEach((handler) => {
+            handler(payload.data);
+          });
+        } catch (error) {
+          console.error('Failed to parse realtime message', error);
+        }
+      };
 
-    newSocket.on('system_notification', (notification: any) => {
-      useNotificationStore.getState().addNotification({
-        id: Date.now(),
-        userId: 0,
-        type: notification.type || 'system',
-        title: notification.title || 'System Notification',
-        message: notification.message || 'New system notification',
-        isRead: false,
-        referenceId: notification.referenceId,
-        referenceType: notification.referenceType,
-        createdAt: new Date().toISOString(),
-      });
-    });
+      ws.onclose = () => {
+        setIsConnected(false);
+        wsRef.current = null;
 
-    newSocket.on('menu_updated', () => {
-      useNotificationStore.getState().addNotification({
-        id: Date.now(),
-        userId: 0,
-        type: 'menu',
-        title: 'Menu Updated',
-        message: 'Menu items have been updated',
-        isRead: false,
-        createdAt: new Date().toISOString(),
-      });
-    });
+        if (!shouldReconnectRef.current) return;
+        reconnectTimerRef.current = setTimeout(connect, WEBSOCKET_RECONNECT_DELAY_MS);
+      };
 
-    newSocket.on('promotion_updated', () => {
-      useNotificationStore.getState().addNotification({
-        id: Date.now(),
-        userId: 0,
-        type: 'promotion',
-        title: 'Promotion Updated',
-        message: 'Promotions have been updated',
-        isRead: false,
-        createdAt: new Date().toISOString(),
-      });
-    });
+      ws.onerror = () => {
+        ws.close();
+      };
+    };
 
-    setSocket(newSocket);
+    connect();
 
     return () => {
-      newSocket.off('connect');
-      newSocket.off('disconnect');
-      newSocket.off('connect_error');
-      newSocket.off('new_order');
-      newSocket.off('order_updated');
-      newSocket.off('new_catering_request');
-      newSocket.off('catering_request_updated');
-      newSocket.off('inventory_alert');
-      newSocket.off('inventory_updated');
-      newSocket.off('new_customer');
-      newSocket.off('system_notification');
-      newSocket.off('menu_updated');
-      newSocket.off('promotion_updated');
-      newSocket.disconnect();
+      shouldReconnectRef.current = false;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      wsRef.current?.close();
+      wsRef.current = null;
+      setIsConnected(false);
     };
-  }, [token]);
+  }, [isRealtimeEnabled, socketApi]);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected }}>
+    <SocketContext.Provider value={{ socket, isConnected, isRealtimeEnabled }}>
       {children}
     </SocketContext.Provider>
   );

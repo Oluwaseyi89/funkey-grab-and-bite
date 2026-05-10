@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/database"
+	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -13,7 +14,6 @@ import (
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 	v1 "funkey-grab-and-bite/funkey-bite-api/internal/handlers/v1"
 	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
-	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
 
 	"github.com/ulule/limiter/v3"
@@ -80,6 +80,7 @@ func main() {
 	promotionHandler := v1.NewPromotionHandler(promotionService)
 	inventoryHandler := v1.NewInventoryHandler(inventoryService)
 	healthHandler := v1.NewHealthHandler()
+	realtimeHandler := v1.NewRealtimeHandler(adminRepo)
 
 	store := memory.NewStore()
 	rate := limiter.Rate{
@@ -118,6 +119,7 @@ func main() {
 		public.GET("/promotions/validate", promotionHandler.ValidatePromotion)
 		public.GET("/promotions/active", promotionHandler.GetActivePromotions)
 		public.POST("/admin/auth/login", adminHandler.AdminLogin)
+		public.GET("/admin/realtime/ws", realtimeHandler.ConnectAdmin)
 
 	}
 
