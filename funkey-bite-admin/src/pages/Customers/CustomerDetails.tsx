@@ -26,6 +26,7 @@ import {
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getUsers, getOrders } from '../../api/adminApi';
+import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { User as Customer, Order } from '../../types';
 
 const CustomerDetails: React.FC = () => {
@@ -65,8 +66,13 @@ const CustomerDetails: React.FC = () => {
         const data = await getOrders({ page: 1, limit: 10, userId: parseInt(id) });
         return data;
       } catch (error) {
+        if (isBackendUnavailableError(error)) {
+          toast.error('Backend is unavailable. Showing empty customer orders state.');
+          return { data: [], pagination: { total: 0 } };
+        }
+
         toast.error('Failed to load customer orders');
-        return { data: [], pagination: { total: 0 } };
+        throw error;
       }
     },
     enabled: !!customer && !!id,

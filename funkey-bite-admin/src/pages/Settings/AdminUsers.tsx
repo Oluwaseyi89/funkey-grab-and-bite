@@ -32,6 +32,7 @@ import {
   updateAdminUser, 
   deleteAdminUser 
 } from '../../api/adminApi';
+import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { AdminUser } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -74,8 +75,13 @@ const AdminUsers: React.FC = () => {
         const data = await getAdminUsers(params);
         return data;
       } catch (error) {
+        if (isBackendUnavailableError(error)) {
+          toast.error('Backend is unavailable. Showing empty admin users state.');
+          return { data: [], pagination: { total: 0, totalPages: 0 } };
+        }
+
         toast.error('Failed to load admin users');
-        return { data: [], pagination: { total: 0, totalPages: 0 } };
+        throw error;
       }
     },
   });

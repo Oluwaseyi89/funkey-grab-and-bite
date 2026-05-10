@@ -31,6 +31,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { getPromotions } from '../../api/adminApi';
+import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { Promotion, PromotionStatus, PromotionType } from '../../types';
 import { usePromotionStore } from '../../stores/promotionStore';
 
@@ -60,8 +61,13 @@ const PromotionList: React.FC = () => {
         }
         return { data: [], pagination: { total: 0, totalPages: 0 } };
       } catch (error) {
+        if (isBackendUnavailableError(error)) {
+          toast.error('Backend is unavailable. Showing empty promotions state.');
+          return { data: [], pagination: { total: 0, totalPages: 0 } };
+        }
+
         toast.error('Failed to load promotions');
-        return { data: [], pagination: { total: 0, totalPages: 0 } };
+        throw error;
       }
     },
   });

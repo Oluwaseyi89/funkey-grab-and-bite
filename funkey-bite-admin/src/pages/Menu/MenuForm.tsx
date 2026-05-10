@@ -19,6 +19,7 @@ import {
 import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { getCategories, createMenuItem, updateMenuItem, getMenuItemByID } from '../../api/adminApi';
+import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { MenuItem, MenuCategory, NutritionalInfo } from '../../types';
 
 const menuItemSchema = z.object({
@@ -57,8 +58,13 @@ const MenuForm: React.FC = () => {
         const data = await getCategories();
         return Array.isArray(data) ? data : [];
       } catch (error) {
+        if (isBackendUnavailableError(error)) {
+          toast.error('Backend is unavailable. Showing empty category state.');
+          return [];
+        }
+
         toast.error('Failed to load categories');
-        return [];
+        throw error;
       }
     },
   });

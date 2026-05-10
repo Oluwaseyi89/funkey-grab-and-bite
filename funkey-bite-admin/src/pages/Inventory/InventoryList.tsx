@@ -27,6 +27,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { getInventory, getLowStock, getInventoryAlerts } from '../../api/adminApi';
+import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { InventoryItem, InventoryAlert } from '../../types';
 import { useInventoryStore } from '../../stores/inventoryStore';
 
@@ -50,8 +51,13 @@ const InventoryList: React.FC = () => {
         }
         return { data: [], pagination: { total: 0, totalPages: 0 } };
       } catch (error) {
+        if (isBackendUnavailableError(error)) {
+          toast.error('Backend is unavailable. Showing empty inventory state.');
+          return { data: [], pagination: { total: 0, totalPages: 0 } };
+        }
+
         toast.error('Failed to load inventory');
-        return { data: [], pagination: { total: 0, totalPages: 0 } };
+        throw error;
       }
     },
   });
@@ -63,7 +69,11 @@ const InventoryList: React.FC = () => {
         const data = await getLowStock();
         return Array.isArray(data) ? data : [];
       } catch (error) {
-        return [];
+        if (isBackendUnavailableError(error)) {
+          return [];
+        }
+
+        throw error;
       }
     },
   });
@@ -79,7 +89,11 @@ const InventoryList: React.FC = () => {
         }
         return [];
       } catch (error) {
-        return [];
+        if (isBackendUnavailableError(error)) {
+          return [];
+        }
+
+        throw error;
       }
     },
   });
