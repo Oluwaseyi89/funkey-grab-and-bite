@@ -435,6 +435,100 @@ func (h *AdminHandler) DeleteMenuItem(c *gin.Context) {
 	})
 }
 
+// CreateMenuCategory creates a new menu category.
+// @Summary Create menu category
+// @Description Create a menu category for admin category management
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param category body models.MenuCategory true "Category details"
+// @Success 201 {object} models.MenuCategory
+// @Router /admin/menu/categories [post]
+func (h *AdminHandler) CreateMenuCategory(c *gin.Context) {
+	var category models.MenuCategory
+
+	if err := c.ShouldBindJSON(&category); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	createdCategory, err := h.adminService.CreateMenuCategory(&category)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, createdCategory)
+}
+
+type updateCategoryRequest struct {
+	Name         *string `json:"name"`
+	Description  *string `json:"description"`
+	DisplayOrder *int    `json:"displayOrder"`
+	IsActive     *bool   `json:"isActive"`
+}
+
+// UpdateMenuCategory updates an existing menu category.
+// @Summary Update menu category
+// @Description Update a menu category for admin category management
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Category ID"
+// @Param category body updateCategoryRequest true "Category updates"
+// @Success 200 {object} models.MenuCategory
+// @Router /admin/menu/categories/{id} [put]
+func (h *AdminHandler) UpdateMenuCategory(c *gin.Context) {
+	categoryID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
+
+	existingCategory, err := h.adminService.GetMenuCategoryByID(categoryID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch category"})
+		return
+	}
+
+	if existingCategory == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+		return
+	}
+
+	var req updateCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	if req.Name != nil {
+		existingCategory.Name = *req.Name
+	}
+	if req.Description != nil {
+		existingCategory.Description = *req.Description
+	}
+	if req.DisplayOrder != nil {
+		existingCategory.DisplayOrder = *req.DisplayOrder
+	}
+	if req.IsActive != nil {
+		existingCategory.IsActive = *req.IsActive
+	}
+
+	if err := h.adminService.UpdateMenuCategory(existingCategory); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, existingCategory)
+}
+
 // Add to the existing AdminHandler struct and methods...
 
 // AdminLogin authenticates admin users

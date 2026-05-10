@@ -204,7 +204,7 @@ func (r *MenuRepository) GetByCategory(categoryID int) ([]models.MenuItem, error
 
 func (r *MenuRepository) GetCategories() ([]models.MenuCategory, error) {
 	query := `
-		SELECT id, name, description, display_order, is_active
+		SELECT id, name, description, display_order, is_active, created_at
 		FROM menu_categories
 		WHERE is_active = true
 		ORDER BY display_order
@@ -226,6 +226,7 @@ func (r *MenuRepository) GetCategories() ([]models.MenuCategory, error) {
 			&category.Description,
 			&category.DisplayOrder,
 			&category.IsActive,
+			&category.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan menu category: %w", err)
@@ -235,6 +236,86 @@ func (r *MenuRepository) GetCategories() ([]models.MenuCategory, error) {
 	}
 
 	return categories, nil
+}
+
+func (r *MenuRepository) GetCategoryByID(id int) (*models.MenuCategory, error) {
+	query := `
+		SELECT id, name, description, display_order, is_active, created_at
+		FROM menu_categories
+		WHERE id = $1
+	`
+
+	var category models.MenuCategory
+	err := r.db.QueryRow(query, id).Scan(
+		&category.ID,
+		&category.Name,
+		&category.Description,
+		&category.DisplayOrder,
+		&category.IsActive,
+		&category.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get menu category: %w", err)
+	}
+
+	return &category, nil
+}
+
+func (r *MenuRepository) CreateCategory(category *models.MenuCategory) (*models.MenuCategory, error) {
+	query := `
+		INSERT INTO menu_categories (name, description, display_order, is_active)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, created_at
+	`
+
+	err := r.db.QueryRow(
+		query,
+		category.Name,
+		category.Description,
+		category.DisplayOrder,
+		category.IsActive,
+	).Scan(&category.ID, &category.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create menu category: %w", err)
+	}
+
+	return category, nil
+}
+
+func (r *MenuRepository) UpdateCategory(category *models.MenuCategory) error {
+	query := `
+		UPDATE menu_categories
+		SET name = $1,
+			description = $2,
+			display_order = $3,
+			is_active = $4
+		WHERE id = $5
+	`
+
+	result, err := r.db.Exec(
+		query,
+		category.Name,
+		category.Description,
+		category.DisplayOrder,
+		category.IsActive,
+		category.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update menu category: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check category update result: %w", err)
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 func (r *MenuRepository) Search(query string, categoryID *int, limit, offset int) ([]models.MenuItem, int, error) {

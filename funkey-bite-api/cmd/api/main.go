@@ -168,6 +168,8 @@ func main() {
 		admin.POST("/menu/items", adminHandler.CreateMenuItem)
 		admin.PUT("/menu/items/:id", adminHandler.UpdateMenuItem)
 		admin.DELETE("/menu/items/:id", adminHandler.DeleteMenuItem)
+		admin.POST("/menu/categories", adminHandler.CreateMenuCategory)
+		admin.PUT("/menu/categories/:id", adminHandler.UpdateMenuCategory)
 
 		admin.GET("/catering/requests", cateringHandler.GetAllRequests)
 		admin.PATCH("/catering/requests/:id/status", cateringHandler.UpdateRequestStatus)

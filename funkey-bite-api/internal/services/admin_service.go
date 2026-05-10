@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
@@ -35,6 +36,9 @@ type AdminService interface {
 	UpdateMenuItem(item *models.MenuItem) error
 	DeleteMenuItem(id int) error
 	GetMenuItemByID(id int) (*models.MenuItem, error)
+	CreateMenuCategory(category *models.MenuCategory) (*models.MenuCategory, error)
+	GetMenuCategoryByID(id int) (*models.MenuCategory, error)
+	UpdateMenuCategory(category *models.MenuCategory) error
 
 	GetAllCateringRequests(page, limit int, status string) ([]models.CateringRequest, int, error)
 }
@@ -345,6 +349,38 @@ func (s *adminService) DeleteMenuItem(id int) error {
 
 func (s *adminService) GetMenuItemByID(id int) (*models.MenuItem, error) {
 	return s.menuRepo.GetByID(id)
+}
+
+func (s *adminService) CreateMenuCategory(category *models.MenuCategory) (*models.MenuCategory, error) {
+	if strings.TrimSpace(category.Name) == "" {
+		return nil, fmt.Errorf("category name is required")
+	}
+
+	if category.DisplayOrder < 1 {
+		category.DisplayOrder = 1
+	}
+
+	return s.menuRepo.CreateCategory(category)
+}
+
+func (s *adminService) GetMenuCategoryByID(id int) (*models.MenuCategory, error) {
+	return s.menuRepo.GetCategoryByID(id)
+}
+
+func (s *adminService) UpdateMenuCategory(category *models.MenuCategory) error {
+	if category == nil {
+		return fmt.Errorf("category is required")
+	}
+
+	if strings.TrimSpace(category.Name) == "" {
+		return fmt.Errorf("category name is required")
+	}
+
+	if category.DisplayOrder < 1 {
+		return fmt.Errorf("display order must be greater than 0")
+	}
+
+	return s.menuRepo.UpdateCategory(category)
 }
 
 func (s *adminService) GetAllCateringRequests(page, limit int, status string) ([]models.CateringRequest, int, error) {
