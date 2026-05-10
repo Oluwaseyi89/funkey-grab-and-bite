@@ -79,6 +79,7 @@ func main() {
 	settingsHandler := v1.NewSettingsHandler(settingsService)
 	promotionHandler := v1.NewPromotionHandler(promotionService)
 	inventoryHandler := v1.NewInventoryHandler(inventoryService)
+	healthHandler := v1.NewHealthHandler()
 
 	store := memory.NewStore()
 	rate := limiter.Rate{
@@ -94,9 +95,13 @@ func main() {
 	r.Use(middleware.CORSMiddleware())
 	r.Use(middleware.LoggerMiddleware())
 
+	// Stable health endpoint used by frontend fallback logic
+	r.GET("/health", healthHandler.GetHealthLegacy)
+
 	// Public routes
 	public := r.Group("/api/v1")
 	public.Use(ginLimiter.NewMiddleware(limiterInstance))
+	public.GET("/health", healthHandler.GetHealth)
 
 	public.GET("/order/track/:phone/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrderPublic)
 
