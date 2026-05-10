@@ -1,0 +1,59 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Funkey Bite API Contract",
+    "version": "2026-05-10",
+    "description": "Canonical route contract consumed by the admin and web frontends."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local API server"
+    }
+  ],
+  "paths": {
+    "/health": {"get": {"operationId": "getLegacyHealth", "summary": "Legacy health check", "responses": {"200": {"description": "API health status"}}}},
+    "/api/v1/health": {"get": {"operationId": "getHealth", "summary": "Versioned health check", "responses": {"200": {"description": "API health status"}}}},
+    "/api/v1/menu": {"get": {"operationId": "getMenu", "summary": "List menu items", "responses": {"200": {"description": "Menu items"}}}},
+    "/api/v1/menu/{id}": {"get": {"operationId": "getMenuItem", "summary": "Get menu item by ID", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Menu item"}}}},
+    "/api/v1/menu/categories": {"get": {"operationId": "getMenuCategories", "summary": "List menu categories", "responses": {"200": {"description": "Menu categories"}}}},
+    "/api/v1/menu/category": {"get": {"operationId": "getMenuByCategory", "summary": "Get menu items by category", "parameters": [{"name": "category_id", "in": "query", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Menu items for category"}}}},
+    "/api/v1/menu/search": {"get": {"operationId": "searchMenu", "summary": "Search menu items", "responses": {"200": {"description": "Paginated search results"}}}},
+    "/api/v1/menu/featured": {"get": {"operationId": "getFeaturedMenuItems", "summary": "Get featured menu items", "responses": {"200": {"description": "Featured menu items"}}}},
+    "/api/v1/menu/tags": {"get": {"operationId": "getMenuByTags", "summary": "Get menu items by tags", "responses": {"200": {"description": "Menu items for tags"}}}},
+    "/api/v1/orders": {"post": {"operationId": "createOrder", "summary": "Create order", "responses": {"201": {"description": "Created order"}}}},
+    "/api/v1/orders/track/{orderNumber}": {"get": {"operationId": "trackOrder", "summary": "Track order by order number", "parameters": [{"name": "orderNumber", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "Tracked order"}}}},
+    "/api/v1/order/track/{phone}/{orderNumber}": {"get": {"operationId": "trackOrderPublic", "summary": "Track order by phone and order number", "parameters": [{"name": "phone", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "orderNumber", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "Tracked order"}}}},
+    "/api/v1/catering/requests": {"post": {"operationId": "createCateringRequest", "summary": "Create catering request", "responses": {"201": {"description": "Created catering request"}}}},
+    "/api/v1/promotions/active": {"get": {"operationId": "getActivePromotions", "summary": "Get active promotions", "responses": {"200": {"description": "Active promotions"}}}},
+    "/api/v1/promotions/validate": {"get": {"operationId": "validatePromotion", "summary": "Validate promotion", "responses": {"200": {"description": "Promotion validation result"}}}},
+    "/api/v1/admin/auth/login": {"post": {"operationId": "adminLogin", "summary": "Admin login", "responses": {"200": {"description": "Authenticated admin"}}}},
+    "/api/v1/admin/auth/logout": {"post": {"operationId": "adminLogout", "summary": "Admin logout", "responses": {"200": {"description": "Logout acknowledgement"}}}},
+    "/api/v1/admin/auth/password": {"patch": {"operationId": "updateAdminPassword", "summary": "Update admin password", "responses": {"200": {"description": "Password update acknowledgement"}}}},
+    "/api/v1/admin/realtime/ws": {"get": {"operationId": "connectAdminRealtime", "summary": "Open admin realtime websocket", "parameters": [{"name": "token", "in": "query", "required": true, "schema": {"type": "string"}}], "responses": {"101": {"description": "WebSocket connection established"}}}},
+    "/api/v1/admin/users/admins": {"get": {"operationId": "getAdminUsers", "summary": "List admin users", "responses": {"200": {"description": "Paginated admin users"}}}, "post": {"operationId": "createAdminUser", "summary": "Create admin user", "responses": {"201": {"description": "Created admin user"}}}},
+    "/api/v1/admin/users/admins/{id}": {"put": {"operationId": "updateAdminUser", "summary": "Update admin user", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Updated admin user"}}}, "delete": {"operationId": "deleteAdminUser", "summary": "Delete admin user", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Delete acknowledgement"}}}},
+    "/api/v1/admin/dashboard/stats": {"get": {"operationId": "getDashboardStats", "summary": "Get dashboard stats", "responses": {"200": {"description": "Dashboard stats"}}}},
+    "/api/v1/admin/dashboard/stats/today": {"get": {"operationId": "getTodayStats", "summary": "Get today's dashboard stats", "responses": {"200": {"description": "Today's dashboard stats"}}}},
+    "/api/v1/admin/reports/sales": {"get": {"operationId": "getSalesReport", "summary": "Get sales report", "responses": {"200": {"description": "Sales report"}}}},
+    "/api/v1/admin/orders": {"get": {"operationId": "getAdminOrders", "summary": "List admin orders", "responses": {"200": {"description": "Paginated orders"}}}},
+    "/api/v1/admin/orders/{id}": {"get": {"operationId": "getAdminOrder", "summary": "Get admin order by ID", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Order details"}}}},
+    "/api/v1/admin/orders/{id}/status": {"patch": {"operationId": "updateOrderStatus", "summary": "Update order status", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Order status update acknowledgement"}}}},
+    "/api/v1/admin/users": {"get": {"operationId": "getUsers", "summary": "List users", "responses": {"200": {"description": "Paginated users"}}}},
+    "/api/v1/admin/users/{id}/status": {"patch": {"operationId": "updateUserStatus", "summary": "Update user status", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "User status update acknowledgement"}}}},
+    "/api/v1/admin/menu/items": {"get": {"operationId": "getAdminMenuItems", "summary": "List admin menu items", "responses": {"200": {"description": "Menu items"}}}, "post": {"operationId": "createMenuItem", "summary": "Create menu item", "responses": {"201": {"description": "Created menu item"}}}},
+    "/api/v1/admin/menu/items/{id}": {"get": {"operationId": "getAdminMenuItem", "summary": "Get admin menu item", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Menu item"}}}, "put": {"operationId": "updateMenuItem", "summary": "Update menu item", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Updated menu item"}}}, "delete": {"operationId": "deleteMenuItem", "summary": "Delete menu item", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Delete acknowledgement"}}}},
+    "/api/v1/admin/menu/categories": {"post": {"operationId": "createMenuCategory", "summary": "Create menu category", "responses": {"201": {"description": "Created menu category"}}}},
+    "/api/v1/admin/menu/categories/{id}": {"put": {"operationId": "updateMenuCategory", "summary": "Update menu category", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Updated menu category"}}}},
+    "/api/v1/admin/inventory": {"get": {"operationId": "getInventory", "summary": "List inventory items", "responses": {"200": {"description": "Inventory items"}}}},
+    "/api/v1/admin/inventory/low-stock": {"get": {"operationId": "getLowStock", "summary": "Get low stock inventory items", "responses": {"200": {"description": "Low stock inventory items"}}}},
+    "/api/v1/admin/inventory/stock": {"patch": {"operationId": "updateInventoryStock", "summary": "Update inventory stock", "responses": {"200": {"description": "Updated inventory item"}}}},
+    "/api/v1/admin/inventory/restock": {"post": {"operationId": "restockInventoryItem", "summary": "Restock inventory item", "responses": {"200": {"description": "Restocked inventory item"}}}},
+    "/api/v1/admin/inventory/alerts": {"get": {"operationId": "getInventoryAlerts", "summary": "Get inventory alerts", "responses": {"200": {"description": "Inventory alerts"}}}},
+    "/api/v1/admin/catering/requests": {"get": {"operationId": "getAdminCateringRequests", "summary": "List catering requests", "responses": {"200": {"description": "Paginated catering requests"}}}},
+    "/api/v1/admin/catering/requests/{id}/status": {"patch": {"operationId": "updateCateringRequestStatus", "summary": "Update catering request status", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Catering status update acknowledgement"}}}},
+    "/api/v1/admin/promotions": {"get": {"operationId": "getPromotions", "summary": "List promotions", "responses": {"200": {"description": "Paginated promotions"}}}, "post": {"operationId": "createPromotion", "summary": "Create promotion", "responses": {"201": {"description": "Created promotion"}}}},
+    "/api/v1/admin/promotions/{id}": {"get": {"operationId": "getPromotion", "summary": "Get promotion", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Promotion"}}}, "put": {"operationId": "updatePromotion", "summary": "Update promotion", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Updated promotion"}}}, "delete": {"operationId": "deletePromotion", "summary": "Delete promotion", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}], "responses": {"200": {"description": "Delete acknowledgement"}}}},
+    "/api/v1/admin/settings": {"get": {"operationId": "getBusinessSettings", "summary": "Get business settings", "responses": {"200": {"description": "Business settings"}}}, "put": {"operationId": "updateBusinessSettings", "summary": "Update business settings", "responses": {"200": {"description": "Updated business settings"}}}}
+  }
+}

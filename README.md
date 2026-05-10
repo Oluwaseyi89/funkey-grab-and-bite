@@ -258,6 +258,15 @@ funkey-grab-and-bite/
 - REST API exposing customer, user, and admin workflows.
 - Layered architecture: handlers -> services -> repository.
 - JWT-based auth for users and admins.
+
+## 📘 API Contract
+The canonical route contract lives in [funkey-bite-api/openapi/openapi.json](funkey-bite-api/openapi/openapi.json).
+
+- Backend maintenance command: `cd funkey-bite-api && make contract`
+- Admin validation command: `cd funkey-bite-admin && npm run contract:check`
+- Web validation command: `cd funkey-bite-web && npm run contract:check`
+
+Frontend route helpers should only call endpoints declared in that contract.
 - Centralized middleware for CORS, rate limiting, and auth checks.
 
 ## 🔌 API Surface

@@ -38,11 +38,29 @@ export class ApiService {
     try {
       const res = await fetch(`${this.baseURL}${endpoint}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return (await res.json()) as T
+      const payload = await res.json()
+      return this.unwrapPayload<T>(payload)
     } catch (err) {
       console.error(`API error at ${endpoint}:`, err)
       return mockData
     }
+  }
+
+  private unwrapPayload<T>(payload: unknown): T {
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      'success' in payload &&
+      typeof (payload as { success?: unknown }).success === 'boolean'
+    ) {
+      const envelope = payload as { success: boolean; data?: T; error?: { message?: string } }
+      if (!envelope.success) {
+        throw new Error(envelope.error?.message || 'API request failed')
+      }
+      return (envelope.data ?? payload) as T
+    }
+
+    return payload as T
   }
 
   async getMenuCategories(): Promise<MenuCategory[]> {
@@ -50,13 +68,15 @@ export class ApiService {
   }
 
   async getMenuItems(categoryId?: string): Promise<MenuItem[]> {
-    const items = await this.fetchWithFallback('/menu/items', mockMenuItems)
-    return categoryId ? items.filter(i => i.categoryId === categoryId) : items
+    if (categoryId) {
+      return this.fetchWithFallback(`/menu/category?category_id=${encodeURIComponent(categoryId)}`, mockMenuItems)
+    }
+
+    return this.fetchWithFallback('/menu', mockMenuItems)
   }
 
   async getMenuItem(id: string): Promise<MenuItem | null> {
-    const items = await this.fetchWithFallback('/menu/items', mockMenuItems)
-    return items.find(i => i.id === id) || null
+    return this.fetchWithFallback(`/menu/${id}`, mockMenuItems.find(i => i.id === id) || null)
   }
 
   async createOrder(orderData: Partial<Order>): Promise<Order> {
@@ -78,23 +98,23 @@ export class ApiService {
       headers: this.headers,
       body: JSON.stringify(orderData),
     })
-    return (await res.json()) as Order
+    return this.unwrapPayload<Order>(await res.json())
   }
 
   async getOrder(orderNumber: string): Promise<Order | null> {
-    return this.fetchWithFallback(`/orders/${orderNumber}`, mockOrders[0] || null)
+    return this.fetchWithFallback(`/orders/track/${encodeURIComponent(orderNumber)}`, mockOrders[0] || null)
   }
 
   async submitCateringRequest(req: CateringRequest): Promise<CateringRequest> {
     if (!this.isBackendAvailable) {
       return { ...req, id: Math.random().toString(36).substr(2, 9), status: 'pending', createdAt: new Date().toISOString() }
     }
-    const res = await fetch(`${this.baseURL}/catering`, {
+    const res = await fetch(`${this.baseURL}/catering/requests`, {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify(req),
     })
-    return (await res.json()) as CateringRequest
+    return this.unwrapPayload<CateringRequest>(await res.json())
   }
 
   async getActivePromotions(): Promise<any[]> {

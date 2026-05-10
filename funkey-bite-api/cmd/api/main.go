@@ -161,6 +161,7 @@ func main() {
 		admin.GET("/reports/sales", adminHandler.GetSalesReport)
 
 		admin.GET("/orders", adminHandler.GetAllOrders)
+		admin.GET("/orders/:id", orderHandler.GetOrder)
 		admin.PATCH("/orders/:id/status", adminHandler.UpdateOrderStatus)
 
 		admin.GET("/users", adminHandler.GetAllUsers)
