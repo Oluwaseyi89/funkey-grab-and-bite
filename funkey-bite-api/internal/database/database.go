@@ -137,6 +137,9 @@ func runMigrations(db *sql.DB) error {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
+		`ALTER TABLE catering_requests
+		ADD COLUMN IF NOT EXISTS package VARCHAR(100)`,
+
 		`CREATE TABLE IF NOT EXISTS admin_users (
 			id SERIAL PRIMARY KEY,
 			username VARCHAR(100) UNIQUE NOT NULL,
@@ -247,6 +250,9 @@ func runMigrations(db *sql.DB) error {
 			setweight(to_tsvector('english', COALESCE(description, '')), 'B') ||
 			setweight(to_tsvector('english', COALESCE(tags::text, '')), 'C')
 		) STORED`,
+
+		`ALTER TABLE menu_items
+		ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
 
 		`CREATE INDEX IF NOT EXISTS idx_menu_items_search 
 		ON menu_items USING GIN(search_vector)`,

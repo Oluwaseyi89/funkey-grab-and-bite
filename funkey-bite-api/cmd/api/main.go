@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/database"
@@ -92,6 +94,20 @@ func main() {
 	// Setup router
 	r := gin.New()
 	r.Use(gin.Recovery())
+
+	trustedProxies := []string{"127.0.0.1", "::1"}
+	if configuredTrustedProxies := strings.TrimSpace(os.Getenv("TRUSTED_PROXIES")); configuredTrustedProxies != "" {
+		trustedProxies = []string{}
+		for _, proxy := range strings.Split(configuredTrustedProxies, ",") {
+			value := strings.TrimSpace(proxy)
+			if value != "" {
+				trustedProxies = append(trustedProxies, value)
+			}
+		}
+	}
+	if err := r.SetTrustedProxies(trustedProxies); err != nil {
+		log.Fatalf("failed to set trusted proxies: %v", err)
+	}
 
 	// Middleware
 	r.Use(middleware.CORSMiddleware())

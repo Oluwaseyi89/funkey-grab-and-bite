@@ -51,16 +51,6 @@ func LoggerMiddleware() gin.HandlerFunc {
 			zap.String("user-agent", c.Request.UserAgent()),
 		)
 
-		if gin.Mode() == gin.DebugMode {
-			fmt.Printf("[GIN] %v | %3d | %13v | %15s | %-7s %s\n",
-				end.Format("2006/01/02 - 15:04:05"),
-				statusCode,
-				latency,
-				clientIP,
-				method,
-				path,
-			)
-		}
 	}
 }
 
