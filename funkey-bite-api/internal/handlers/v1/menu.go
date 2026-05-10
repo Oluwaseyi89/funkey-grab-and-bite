@@ -95,6 +95,9 @@ func (h *MenuHandler) GetCategories(c *gin.Context) {
 		})
 		return
 	}
+	if categories == nil {
+		categories = []models.MenuCategory{}
+	}
 
 	c.JSON(http.StatusOK, categories)
 }
@@ -131,6 +134,9 @@ func (h *MenuHandler) GetMenuByCategory(c *gin.Context) {
 			"error": "Failed to fetch menu items by category",
 		})
 		return
+	}
+	if menuItems == nil {
+		menuItems = []models.MenuItem{}
 	}
 
 	c.JSON(http.StatusOK, menuItems)

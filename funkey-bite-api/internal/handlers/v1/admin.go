@@ -75,6 +75,9 @@ func (h *AdminHandler) GetSalesReport(c *gin.Context) {
 		})
 		return
 	}
+	if report == nil {
+		report = []models.SalesReport{}
+	}
 
 	c.JSON(http.StatusOK, report)
 }
@@ -102,6 +105,9 @@ func (h *AdminHandler) GetAllOrders(c *gin.Context) {
 			"error": "Failed to get orders",
 		})
 		return
+	}
+	if orders == nil {
+		orders = []models.Order{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -188,6 +194,9 @@ func (h *AdminHandler) GetAllUsers(c *gin.Context) {
 			"error": "Failed to get users",
 		})
 		return
+	}
+	if users == nil {
+		users = []models.User{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -285,6 +294,9 @@ func (h *AdminHandler) GetMenuItems(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get menu items"})
 		return
+	}
+	if items == nil {
+		items = []models.MenuItem{}
 	}
 
 	c.JSON(http.StatusOK, items)
@@ -612,6 +624,9 @@ func (h *AdminHandler) GetAdminUsers(c *gin.Context) {
 			"error": "Failed to get admin users",
 		})
 		return
+	}
+	if admins == nil {
+		admins = []models.AdminUser{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

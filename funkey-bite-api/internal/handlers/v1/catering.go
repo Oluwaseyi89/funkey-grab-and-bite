@@ -138,6 +138,9 @@ func (h *CateringHandler) GetUserRequests(c *gin.Context) {
 		})
 		return
 	}
+	if requests == nil {
+		requests = []models.CateringRequest{}
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"requests": requests,
@@ -238,6 +241,9 @@ func (h *CateringHandler) GetAllRequests(c *gin.Context) {
 			"error": "Failed to fetch catering requests",
 		})
 		return
+	}
+	if requests == nil {
+		requests = []models.CateringRequest{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
