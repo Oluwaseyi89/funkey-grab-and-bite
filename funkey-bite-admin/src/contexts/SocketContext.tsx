@@ -88,9 +88,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       const wsUrl = buildRealtimeUrl();
-      wsUrl.searchParams.set('token', token);
-
-      const ws = new WebSocket(wsUrl.toString());
+      const ws = new WebSocket(wsUrl.toString(), [`jwt.${token}`]);
       wsRef.current = ws;
 
       ws.onopen = () => {

@@ -32,6 +32,17 @@ func NewRealtimeHandler(adminRepo repository.IAdminRepository) *RealtimeHandler 
 
 func (h *RealtimeHandler) ConnectAdmin(c *gin.Context) {
 	tokenString := strings.TrimSpace(c.Query("token"))
+	selectedProtocol := ""
+
+	for _, protocol := range websocket.Subprotocols(c.Request) {
+		candidate := strings.TrimSpace(protocol)
+		if strings.HasPrefix(candidate, "jwt.") {
+			tokenString = strings.TrimPrefix(candidate, "jwt.")
+			selectedProtocol = candidate
+			break
+		}
+	}
+
 	if tokenString == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication token is required"})
 		return
@@ -53,7 +64,12 @@ func (h *RealtimeHandler) ConnectAdmin(c *gin.Context) {
 		return
 	}
 
-	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	responseHeader := http.Header{}
+	if selectedProtocol != "" {
+		responseHeader.Set("Sec-WebSocket-Protocol", selectedProtocol)
+	}
+
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, responseHeader)
 	if err != nil {
 		return
 	}

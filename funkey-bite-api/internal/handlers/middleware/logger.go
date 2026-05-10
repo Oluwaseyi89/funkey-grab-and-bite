@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +25,7 @@ func LoggerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
-		query := c.Request.URL.RawQuery
+		query := redactQueryString(c.Request.URL.RawQuery)
 
 		c.Next()
 
@@ -60,6 +62,32 @@ func LoggerMiddleware() gin.HandlerFunc {
 			)
 		}
 	}
+}
+
+func redactQueryString(rawQuery string) string {
+	if strings.TrimSpace(rawQuery) == "" {
+		return ""
+	}
+
+	values, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return ""
+	}
+
+	sensitiveKeys := map[string]struct{}{
+		"token":         {},
+		"access_token":  {},
+		"refresh_token": {},
+		"authorization": {},
+	}
+
+	for key := range values {
+		if _, isSensitive := sensitiveKeys[strings.ToLower(key)]; isSensitive {
+			values.Set(key, "[REDACTED]")
+		}
+	}
+
+	return values.Encode()
 }
 
 func GetLogger() *zap.Logger {

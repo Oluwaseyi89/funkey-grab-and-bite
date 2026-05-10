@@ -90,7 +90,8 @@ func main() {
 	limiterInstance := limiter.New(store, rate)
 
 	// Setup router
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
 
 	// Middleware
 	r.Use(middleware.CORSMiddleware())
