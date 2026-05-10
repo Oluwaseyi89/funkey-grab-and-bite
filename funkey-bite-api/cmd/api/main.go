@@ -123,6 +123,7 @@ func main() {
 	menuRoutes := public.Group("/menu")
 	{
 		menuRoutes.GET("/", menuHandler.GetMenu)
+		menuRoutes.GET("/categories", menuHandler.GetCategories)
 		menuRoutes.GET("/search", menuHandler.SearchMenu)
 		menuRoutes.GET("/featured", menuHandler.GetFeaturedItems)
 		menuRoutes.GET("/tags", menuHandler.GetMenuByTags)
