@@ -94,6 +94,7 @@ func main() {
 	// Middleware
 	r.Use(middleware.CORSMiddleware())
 	r.Use(middleware.LoggerMiddleware())
+	r.Use(middleware.ResponseEnvelopeMiddleware())
 
 	// Stable health endpoint used by frontend fallback logic
 	r.GET("/health", healthHandler.GetHealthLegacy)
