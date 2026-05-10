@@ -1,8 +1,23 @@
 import api from './axiosConfig';
 
+export interface ApiHelperResponse<T> {
+  data: T;
+  meta?: any;
+  envelope?: any;
+}
+
 export const apiGet = async <T>(url: string, params?: any): Promise<T> => {
   const response = await api.get(url, { params });
   return response.data;
+};
+
+export const apiGetResponse = async <T>(url: string, params?: any): Promise<ApiHelperResponse<T>> => {
+  const response = await api.get(url, { params });
+  return {
+    data: response.data,
+    meta: (response as any).meta,
+    envelope: (response as any).envelope,
+  };
 };
 
 export const apiPost = async <T>(url: string, data?: any): Promise<T> => {
