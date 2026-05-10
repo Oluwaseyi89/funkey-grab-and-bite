@@ -67,6 +67,9 @@ func (f *fakeAdminService) UpdateUserStatus(userID int, isActive bool) error {
 func (f *fakeAdminService) CreateMenuItem(item *models.MenuItem) (*models.MenuItem, error) {
 	return nil, nil
 }
+func (f *fakeAdminService) GetMenuItems(page, limit int, categoryID *int, query string) ([]models.MenuItem, error) {
+	return nil, nil
+}
 func (f *fakeAdminService) UpdateMenuItem(item *models.MenuItem) error { return nil }
 func (f *fakeAdminService) DeleteMenuItem(id int) error                { return nil }
 func (f *fakeAdminService) GetMenuItemByID(id int) (*models.MenuItem, error) {

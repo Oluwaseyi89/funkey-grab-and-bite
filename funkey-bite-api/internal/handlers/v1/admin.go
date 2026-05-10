@@ -253,6 +253,74 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 	})
 }
 
+// GetMenuItems returns menu items for admin screens.
+// @Summary Get menu items
+// @Description Get menu items with optional pagination and filters
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(20)
+// @Param categoryId query int false "Filter by category ID"
+// @Param query query string false "Search by name/description"
+// @Success 200 {array} models.MenuItem
+// @Router /admin/menu/items [get]
+func (h *AdminHandler) GetMenuItems(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	query := c.Query("query")
+
+	var categoryID *int
+	if categoryIDStr := c.Query("categoryId"); categoryIDStr != "" {
+		id, err := strconv.Atoi(categoryIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+			return
+		}
+		categoryID = &id
+	}
+
+	items, err := h.adminService.GetMenuItems(page, limit, categoryID, query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get menu items"})
+		return
+	}
+
+	c.JSON(http.StatusOK, items)
+}
+
+// GetMenuItem returns a single menu item by ID.
+// @Summary Get menu item
+// @Description Get a menu item by ID for admin screens
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Menu Item ID"
+// @Success 200 {object} models.MenuItem
+// @Router /admin/menu/items/{id} [get]
+func (h *AdminHandler) GetMenuItem(c *gin.Context) {
+	itemID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid menu item ID"})
+		return
+	}
+
+	item, err := h.adminService.GetMenuItemByID(itemID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get menu item"})
+		return
+	}
+
+	if item == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Menu item not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, item)
+}
+
 // CreateMenuItem creates a new menu item
 // @Summary Create menu item
 // @Description Create a new menu item

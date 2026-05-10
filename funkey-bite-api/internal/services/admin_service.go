@@ -31,6 +31,7 @@ type AdminService interface {
 	UpdateUserStatus(userID int, isActive bool) error
 
 	CreateMenuItem(item *models.MenuItem) (*models.MenuItem, error)
+	GetMenuItems(page, limit int, categoryID *int, query string) ([]models.MenuItem, error)
 	UpdateMenuItem(item *models.MenuItem) error
 	DeleteMenuItem(id int) error
 	GetMenuItemByID(id int) (*models.MenuItem, error)
@@ -299,6 +300,23 @@ func (s *adminService) CreateMenuItem(item *models.MenuItem) (*models.MenuItem, 
 	}
 
 	return s.adminRepo.CreateMenuItem(item)
+}
+
+func (s *adminService) GetMenuItems(page, limit int, categoryID *int, query string) ([]models.MenuItem, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+
+	items, _, err := s.menuRepo.Search(query, categoryID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get menu items: %w", err)
+	}
+
+	return items, nil
 }
 
 func (s *adminService) UpdateMenuItem(item *models.MenuItem) error {

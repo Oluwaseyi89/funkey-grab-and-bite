@@ -163,6 +163,8 @@ func main() {
 		admin.GET("/users", adminHandler.GetAllUsers)
 		admin.PATCH("/users/:id/status", adminHandler.UpdateUserStatus)
 
+		admin.GET("/menu/items", adminHandler.GetMenuItems)
+		admin.GET("/menu/items/:id", adminHandler.GetMenuItem)
 		admin.POST("/menu/items", adminHandler.CreateMenuItem)
 		admin.PUT("/menu/items/:id", adminHandler.UpdateMenuItem)
 		admin.DELETE("/menu/items/:id", adminHandler.DeleteMenuItem)
