@@ -180,6 +180,7 @@
         v-if="showConfirmation"
         :order-number="orderNumber"
         :estimated-time="estimatedTime"
+        :customer-phone="orderData.customerPhone || ''"
         @close="showConfirmation = false"
       />
     </div>

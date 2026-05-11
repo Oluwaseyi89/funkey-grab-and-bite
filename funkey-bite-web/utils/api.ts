@@ -174,7 +174,7 @@ export class ApiService {
 
   private normalizeOrder(order: BackendOrder): Order {
     return {
-      id: String(order.id),
+      id: order.id != null ? String(order.id) : (order.orderNumber ?? order.order_number ?? `local-${Date.now()}`),
       orderNumber: order.orderNumber ?? order.order_number ?? `FG-${Date.now()}`,
       customerName: order.customerName ?? order.customer_name ?? 'Guest',
       customerPhone: order.customerPhone ?? order.customer_phone ?? '',
@@ -381,19 +381,20 @@ export class ApiService {
     }
   }
 
-  async getOrder(orderNumber: string): Promise<Order | null> {
+  async getOrder(phone: string, orderNumber: string): Promise<Order | null> {
+    const endpoint = `/order/track/${encodeURIComponent(phone)}/${encodeURIComponent(orderNumber)}`
     if (!this.isBackendAvailable && this.checkBackendStatus.value) {
-      this.notifyFallback('/orders/track/:orderNumber', 'backend-unavailable')
+      this.notifyFallback('/order/track/:phone/:orderNumber', 'backend-unavailable')
       return mockOrders[0] || null
     }
 
     try {
-      const payload = await this.fetchJSON<BackendOrder>(`/orders/track/${encodeURIComponent(orderNumber)}`)
+      const payload = await this.fetchJSON<BackendOrder>(endpoint)
       return this.normalizeOrder(payload)
     } catch (err) {
       if (this.isBackendUnavailableError(err)) {
         this.markBackendUnavailable()
-        this.notifyFallback('/orders/track/:orderNumber', 'backend-unavailable')
+        this.notifyFallback('/order/track/:phone/:orderNumber', 'backend-unavailable')
         return mockOrders[0] || null
       }
 
