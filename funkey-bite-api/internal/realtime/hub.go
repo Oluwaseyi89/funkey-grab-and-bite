@@ -15,30 +15,40 @@ type eventMessage struct {
 }
 
 type client struct {
-	conn *websocket.Conn
-	send chan []byte
+	adminID int
+	conn    *websocket.Conn
+	send    chan []byte
 }
 
 type Hub struct {
-	mu      sync.RWMutex
-	clients map[*client]struct{}
+	mu             sync.RWMutex
+	clients        map[*client]struct{}
+	clientsByAdmin map[int]*client
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		clients: make(map[*client]struct{}),
+		clients:        make(map[*client]struct{}),
+		clientsByAdmin: make(map[int]*client),
 	}
 }
 
 var GlobalHub = NewHub()
 
-func (h *Hub) RegisterConnection(conn *websocket.Conn) {
+func (h *Hub) RegisterConnection(conn *websocket.Conn, adminID int) {
 	c := &client{
-		conn: conn,
-		send: make(chan []byte, 32),
+		adminID: adminID,
+		conn:    conn,
+		send:    make(chan []byte, 32),
 	}
 
 	h.mu.Lock()
+	if existing, exists := h.clientsByAdmin[adminID]; exists {
+		delete(h.clients, existing)
+		delete(h.clientsByAdmin, adminID)
+		_ = existing.conn.Close()
+	}
+	h.clientsByAdmin[adminID] = c
 	h.clients[c] = struct{}{}
 	h.mu.Unlock()
 
@@ -121,6 +131,9 @@ func (h *Hub) unregister(c *client) {
 	}
 
 	delete(h.clients, c)
+	if existing, exists := h.clientsByAdmin[c.adminID]; exists && existing == c {
+		delete(h.clientsByAdmin, c.adminID)
+	}
 	close(c.send)
 	_ = c.conn.Close()
 }

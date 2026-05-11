@@ -20,7 +20,8 @@ const SocketContext = createContext<SocketContextType>({
 
 export const useSocket = () => useContext(SocketContext);
 
-const WEBSOCKET_RECONNECT_DELAY_MS = 3000;
+const WEBSOCKET_RECONNECT_BASE_DELAY_MS = 1000;
+const WEBSOCKET_RECONNECT_MAX_DELAY_MS = 30000;
 
 const buildRealtimeUrl = () => {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -37,6 +38,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [socket, setSocket] = useState<RealtimeSocket | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const isConnectingRef = useRef(false);
   const shouldReconnectRef = useRef(true);
   const listenersRef = useRef<Map<string, Set<(payload: any) => void>>>(new Map());
 
@@ -57,6 +60,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       },
       disconnect: () => {
         shouldReconnectRef.current = false;
+        isConnectingRef.current = false;
+        reconnectAttemptRef.current = 0;
         if (reconnectTimerRef.current) {
           clearTimeout(reconnectTimerRef.current);
           reconnectTimerRef.current = null;
@@ -80,18 +85,48 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     shouldReconnectRef.current = true;
     setSocket(socketApi);
 
+    const scheduleReconnect = () => {
+      if (!shouldReconnectRef.current) return;
+
+      reconnectAttemptRef.current += 1;
+      const exponentialDelay = Math.min(
+        WEBSOCKET_RECONNECT_BASE_DELAY_MS * (2 ** (reconnectAttemptRef.current - 1)),
+        WEBSOCKET_RECONNECT_MAX_DELAY_MS,
+      );
+      const jitter = Math.floor(Math.random() * 500);
+      const delay = exponentialDelay + jitter;
+
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+      reconnectTimerRef.current = setTimeout(connect, delay);
+    };
+
     const connect = () => {
+      if (isConnectingRef.current) {
+        return;
+      }
+
+      const existingWs = wsRef.current;
+      if (existingWs && (existingWs.readyState === WebSocket.OPEN || existingWs.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+
       const token = localStorage.getItem('admin_token');
       if (!token) {
+        reconnectAttemptRef.current = 0;
         setIsConnected(false);
         return;
       }
 
+      isConnectingRef.current = true;
       const wsUrl = buildRealtimeUrl();
       const ws = new WebSocket(wsUrl.toString(), [`jwt.${token}`]);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        isConnectingRef.current = false;
+        reconnectAttemptRef.current = 0;
         setIsConnected(true);
       };
 
@@ -113,11 +148,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
 
       ws.onclose = () => {
+        isConnectingRef.current = false;
         setIsConnected(false);
         wsRef.current = null;
 
         if (!shouldReconnectRef.current) return;
-        reconnectTimerRef.current = setTimeout(connect, WEBSOCKET_RECONNECT_DELAY_MS);
+        scheduleReconnect();
       };
 
       ws.onerror = () => {
@@ -129,6 +165,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     return () => {
       shouldReconnectRef.current = false;
+      isConnectingRef.current = false;
+      reconnectAttemptRef.current = 0;
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;

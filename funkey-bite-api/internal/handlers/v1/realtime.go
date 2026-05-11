@@ -74,5 +74,5 @@ func (h *RealtimeHandler) ConnectAdmin(c *gin.Context) {
 		return
 	}
 
-	realtime.GlobalHub.RegisterConnection(conn)
+	realtime.GlobalHub.RegisterConnection(conn, claims.UserID)
 }
