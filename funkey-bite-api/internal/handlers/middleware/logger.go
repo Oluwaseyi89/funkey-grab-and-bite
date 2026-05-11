@@ -42,14 +42,36 @@ func LoggerMiddleware() gin.HandlerFunc {
 			path = path + "?" + query
 		}
 
-		logger.Info("HTTP Request",
+		requestID := GetRequestID(c)
+		errorFields := []zap.Field{}
+		if statusCode >= 500 {
+			errorMessages := make([]string, 0, len(c.Errors))
+			for _, errItem := range c.Errors {
+				errorMessages = append(errorMessages, errItem.Error())
+			}
+			errorFields = append(errorFields,
+				zap.Int("error_count", len(errorMessages)),
+				zap.Strings("errors", errorMessages),
+			)
+		}
+
+		logFields := []zap.Field{
 			zap.Int("status", statusCode),
 			zap.String("method", method),
 			zap.String("path", path),
 			zap.String("ip", clientIP),
 			zap.Duration("latency", latency),
+			zap.String("request_id", requestID),
 			zap.String("user-agent", c.Request.UserAgent()),
-		)
+		}
+		logFields = append(logFields, errorFields...)
+
+		if statusCode >= 500 {
+			logger.Error("HTTP Request Failed", logFields...)
+			return
+		}
+
+		logger.Info("HTTP Request", logFields...)
 
 	}
 }

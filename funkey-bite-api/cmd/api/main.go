@@ -93,7 +93,7 @@ func main() {
 
 	// Setup router
 	r := gin.New()
-	r.Use(gin.Recovery())
+	r.Use(middleware.RecoveryMiddleware())
 
 	trustedProxies := []string{"127.0.0.1", "::1"}
 	if configuredTrustedProxies := strings.TrimSpace(os.Getenv("TRUSTED_PROXIES")); configuredTrustedProxies != "" {
@@ -111,6 +111,7 @@ func main() {
 
 	// Middleware
 	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.RequestIDMiddleware())
 	r.Use(middleware.LoggerMiddleware())
 	r.Use(middleware.ResponseEnvelopeMiddleware())
 

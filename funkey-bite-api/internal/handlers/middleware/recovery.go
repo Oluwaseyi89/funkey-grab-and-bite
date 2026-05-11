@@ -15,11 +15,13 @@ func RecoveryMiddleware() gin.HandlerFunc {
 			if err := recover(); err != nil {
 				stack := debug.Stack()
 				logger := GetLogger()
+				requestID := GetRequestID(c)
 				logger.Error("Panic recovered",
 					zap.Any("error", err),
 					zap.String("stack", string(stack)),
 					zap.String("path", c.Request.URL.Path),
 					zap.String("method", c.Request.Method),
+					zap.String("request_id", requestID),
 				)
 
 				if gin.Mode() == gin.DebugMode {
@@ -28,8 +30,9 @@ func RecoveryMiddleware() gin.HandlerFunc {
 				}
 
 				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": "Internal server error",
-					"code":  "INTERNAL_SERVER_ERROR",
+					"error":     "Internal server error",
+					"code":      "INTERNAL_SERVER_ERROR",
+					"requestId": requestID,
 				})
 
 				c.Abort()
