@@ -207,8 +207,11 @@
   import OrderTypeSelector from '../../components/order/OrderTypeSelector.vue'
   import CustomerInfoForm from '../../components/order/CustomerInfoForm.vue'
   import OrderConfirmation from '../../components/order/OrderConfirmation.vue'
+  import { useApi } from '../../utils/api'
   
   const cart = useCartStore()
+  const api = useApi()
+  const { $toast } = useNuxtApp()
   
   const currentStep = ref(0)
   const isSubmitting = ref(false)
@@ -286,18 +289,42 @@
     isSubmitting.value = true
   
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-  
-      orderNumber.value = `FG-${Date.now().toString().slice(-6)}`
-      
-      const now = new Date()
-      now.setMinutes(now.getMinutes() + 30)
-      estimatedTime.value = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const orderPayload: Partial<Order> = {
+        customerName: orderData.value.customerName,
+        customerPhone: orderData.value.customerPhone,
+        customerEmail: orderData.value.customerEmail,
+        orderType: orderData.value.orderType,
+        notes: orderData.value.notes,
+        totalAmount: orderTotal.value,
+        items: cart.items.map((item) => ({
+          menuItemId: item.menuItem.id,
+          name: item.menuItem.name,
+          quantity: item.quantity,
+          unitPrice: item.menuItem.price,
+          specialInstructions: item.specialInstructions,
+        })),
+      }
+
+      const createdOrder = await api.createOrder(orderPayload)
+
+      orderNumber.value = createdOrder.orderNumber
+
+      if (createdOrder.estimatedReadyTime) {
+        estimatedTime.value = new Date(createdOrder.estimatedReadyTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      } else {
+        const now = new Date()
+        now.setMinutes(now.getMinutes() + 30)
+        estimatedTime.value = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
   
       cart.clearCart()
   
       showConfirmation.value = true
       currentStep.value = 0
+
+      if ($toast && typeof $toast.success === 'function') {
+        $toast.success('Order submitted successfully.')
+      }
   
       orderData.value = {
         orderType: 'pickup',
@@ -309,6 +336,10 @@
   
     } catch (error) {
       console.error('Order submission failed:', error)
+        if ($toast && typeof $toast.error === 'function') {
+          const message = error instanceof Error ? error.message : 'Failed to submit order'
+          $toast.error(message)
+        }
     } finally {
       isSubmitting.value = false
     }

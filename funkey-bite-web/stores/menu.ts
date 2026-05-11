@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { MenuCategory, MenuItem } from '~/types/menu'
-import { api } from '~/utils/api'
+import { useApi } from '~/utils/api'
 
 export const useMenuStore = defineStore('menu', {
   state: () => ({
@@ -33,6 +33,7 @@ export const useMenuStore = defineStore('menu', {
     async fetchCategories() {
       this.isLoading = true
       try {
+        const api = useApi()
         this.categories = await api.getMenuCategories()
         this.error = null
       } catch (err) {
@@ -46,6 +47,7 @@ export const useMenuStore = defineStore('menu', {
     async fetchMenuItems(categoryId?: string) {
       this.isLoading = true
       try {
+        const api = useApi()
         this.items = await api.getMenuItems(categoryId)
         this.selectedCategory = categoryId || null
         this.error = null
@@ -60,6 +62,7 @@ export const useMenuStore = defineStore('menu', {
     async fetchMenuItem(id: string) {
       this.isLoading = true
       try {
+        const api = useApi()
         return await api.getMenuItem(id)
       } catch (err) {
         this.error = 'Failed to load menu item'
