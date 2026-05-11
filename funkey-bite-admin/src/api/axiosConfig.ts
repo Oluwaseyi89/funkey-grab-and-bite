@@ -32,12 +32,13 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
-    
     if (response.data && typeof response.data === 'object' && 'success' in response.data) {
       if (response.data.success) {
         return {
           ...response,
-          data: response.data.data || response.data // Fallback to whole response if no data field
+          data: response.data.data || response.data,
+          meta: response.data.meta,
+          envelope: response.data,
         };
       } else {
         const error = new Error(response.data.error?.message || 'API request failed');

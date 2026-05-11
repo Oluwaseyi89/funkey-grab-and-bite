@@ -229,7 +229,10 @@
   import CateringRequestForm from '../../components/catering/CateringRequestForm.vue'
   import CateringFAQ from '../../components/catering/CateringFAQ.vue'
   import { Phone } from 'lucide-vue-next'
+  import { useApi } from '../../utils/api'
 
+  const { $toast } = useNuxtApp()
+  const api = useApi()
   
   const formSection = ref<HTMLElement>()
   const selectedPackage = ref('premium')
@@ -304,15 +307,33 @@
     isSubmitting.value = true
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      
+      await api.submitCateringRequest({
+        contactName: data.contactName || '',
+        contactPhone: data.contactPhone || '',
+        contactEmail: data.contactEmail,
+        eventName: data.eventName,
+        eventDate: data.eventDate || '',
+        eventTime: data.eventTime,
+        guestCount: data.guestCount || guestCount.value,
+        eventType: data.eventType || selectedEvent.value,
+        package: selectedPackage.value,
+        budget: data.budget,
+        specialRequests: data.specialRequests,
+      })
+
       showSuccessModal.value = true
+      if ($toast && typeof $toast.success === 'function') {
+        $toast.success('Catering request submitted successfully.')
+      }
       
       resetForm()
       
     } catch (error) {
       console.error('Submission failed:', error)
+      if ($toast && typeof $toast.error === 'function') {
+        const message = error instanceof Error ? error.message : 'Failed to submit catering request'
+        $toast.error(message)
+      }
     } finally {
       isSubmitting.value = false
     }

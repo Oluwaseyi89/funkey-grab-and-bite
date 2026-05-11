@@ -6,7 +6,7 @@ ENV_FILE := .env
 ENV_EXAMPLE := .env.example
 GO ?= go
 
-.PHONY: help env bootstrap deps tidy fmt vet test test-race check run dev build start clean
+.PHONY: help env bootstrap deps tidy fmt vet test test-race contract check run dev build start clean
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -39,7 +39,10 @@ test: ## Run the test suite
 test-race: ## Run tests with the race detector
 	$(GO) test -race ./...
 
-check: fmt vet test ## Run formatting, vetting, and tests
+contract: ## Validate the canonical OpenAPI contract against admin and web consumers
+	node ../scripts/check-openapi-contract.mjs all
+
+check: fmt vet test contract ## Run formatting, vetting, tests, and contract validation
 
 run: ## Run the API with go run
 	$(GO) run $(CMD_DIR)

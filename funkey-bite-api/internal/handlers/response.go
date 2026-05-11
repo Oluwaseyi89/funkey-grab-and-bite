@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"reflect"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,14 +23,14 @@ type APIError struct {
 func Success(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
-		Data:    data,
+		Data:    normalizeNilSlice(data),
 	})
 }
 
 func Created(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
-		Data:    data,
+		Data:    normalizeNilSlice(data),
 	})
 }
 
@@ -62,7 +63,7 @@ func Paginated(c *gin.Context, data interface{}, page, limit, total int) {
 
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
-		Data:    data,
+		Data:    normalizeNilSlice(data),
 		Meta: map[string]interface{}{
 			"pagination": map[string]interface{}{
 				"page":       page,
@@ -72,4 +73,17 @@ func Paginated(c *gin.Context, data interface{}, page, limit, total int) {
 			},
 		},
 	})
+}
+
+func normalizeNilSlice(data interface{}) interface{} {
+	if data == nil {
+		return data
+	}
+
+	v := reflect.ValueOf(data)
+	if v.Kind() == reflect.Slice && v.IsNil() {
+		return reflect.MakeSlice(v.Type(), 0, 0).Interface()
+	}
+
+	return data
 }

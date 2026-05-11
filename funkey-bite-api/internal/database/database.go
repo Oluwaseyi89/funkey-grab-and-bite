@@ -137,6 +137,9 @@ func runMigrations(db *sql.DB) error {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
+		`ALTER TABLE catering_requests
+		ADD COLUMN IF NOT EXISTS package VARCHAR(100)`,
+
 		`CREATE TABLE IF NOT EXISTS admin_users (
 			id SERIAL PRIMARY KEY,
 			username VARCHAR(100) UNIQUE NOT NULL,
@@ -248,12 +251,19 @@ func runMigrations(db *sql.DB) error {
 			setweight(to_tsvector('english', COALESCE(tags::text, '')), 'C')
 		) STORED`,
 
+		`ALTER TABLE menu_items
+		ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+
 		`CREATE INDEX IF NOT EXISTS idx_menu_items_search 
 		ON menu_items USING GIN(search_vector)`,
 	}
 
 	if err := runMigrationsWithStatements(db, migrations); err != nil {
 		return err
+	}
+
+	if err := ensureDefaultMenuCategories(db); err != nil {
+		return fmt.Errorf("default menu categories seed failed: %w", err)
 	}
 
 	if err := ensureDefaultAdminUser(db); err != nil {
@@ -269,6 +279,87 @@ func runMigrationsWithStatements(db *sql.DB, migrations []string) error {
 		_, err := db.Exec(migration)
 		if err != nil {
 			return fmt.Errorf("migration %d failed: %w", i+1, err)
+		}
+	}
+
+	return nil
+}
+
+type defaultMenuCategory struct {
+	Name         string
+	Description  string
+	DisplayOrder int
+}
+
+func ensureDefaultMenuCategories(db *sql.DB) error {
+	defaultCategories := []defaultMenuCategory{
+		{
+			Name:         "Chips & Chicken",
+			Description:  "Crispy golden fries with our signature chicken",
+			DisplayOrder: 1,
+		},
+		{
+			Name:         "Noodles",
+			Description:  "Delicious noodle dishes with fresh ingredients",
+			DisplayOrder: 2,
+		},
+		{
+			Name:         "Shawarma",
+			Description:  "Authentic shawarma wraps and plates",
+			DisplayOrder: 3,
+		},
+		{
+			Name:         "Drinks",
+			Description:  "Refreshing beverages",
+			DisplayOrder: 4,
+		},
+		{
+			Name:         "Soup & Food Bowls",
+			Description:  "Hearty soups and nutritious bowls (Pre-order)",
+			DisplayOrder: 5,
+		},
+		{
+			Name:         "Lunch Packs",
+			Description:  "Complete meal deals for lunch",
+			DisplayOrder: 6,
+		},
+	}
+
+	for _, category := range defaultCategories {
+		var exists bool
+		err := db.QueryRow(
+			`SELECT EXISTS(
+				SELECT 1 FROM menu_categories WHERE LOWER(name) = LOWER($1::text)
+			)`,
+			category.Name,
+		).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("failed checking category %q: %w", category.Name, err)
+		}
+
+		if !exists {
+			_, err = db.Exec(
+				`INSERT INTO menu_categories (name, description, display_order, is_active)
+				 VALUES ($1, $2, $3, true)`,
+				category.Name,
+				category.Description,
+				category.DisplayOrder,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to seed category %q: %w", category.Name, err)
+			}
+		}
+
+		_, err = db.Exec(
+			`UPDATE menu_categories
+			 SET description = $2, display_order = $3, is_active = true
+			 WHERE LOWER(name) = LOWER($1::text)`,
+			category.Name,
+			category.Description,
+			category.DisplayOrder,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update category %q: %w", category.Name, err)
 		}
 	}
 

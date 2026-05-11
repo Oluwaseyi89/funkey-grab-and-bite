@@ -23,11 +23,23 @@
             <Clock class="w-4 h-4" />
             <span>Estimated ready: {{ estimatedTime }}</span>
           </div>
+
+          <div v-if="liveStatus" class="mt-4 flex items-center justify-center gap-2">
+            <span class="text-sm text-gray-500 dark:text-gray-400">Live status:</span>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold capitalize" :class="statusClass">
+              {{ liveStatus }}
+            </span>
+          </div>
         </div>
         
         <div class="space-y-3">
-          <button @click="$emit('close')" class="w-full btn-primary">
-            Track Order
+          <button
+            @click="trackOrder"
+            :disabled="isTracking"
+            class="w-full btn-primary flex items-center justify-center gap-2"
+          >
+            <Loader2 v-if="isTracking" class="w-4 h-4 animate-spin" />
+            <span>{{ liveStatus ? 'Refresh Status' : 'Track Order' }}</span>
           </button>
           <button @click="$emit('close')" class="w-full btn-secondary">
             Back to Menu
@@ -42,14 +54,48 @@
   </template>
   
   <script setup lang="ts">
-  import { CheckCircle, Clock } from 'lucide-vue-next'
-  
-  defineProps<{
+  import { ref, computed } from 'vue'
+  import { CheckCircle, Clock, Loader2 } from 'lucide-vue-next'
+  import { useApi } from '../../utils/api'
+
+  const props = defineProps<{
     orderNumber: string
     estimatedTime: string
+    customerPhone: string
   }>()
-  
+
   defineEmits<{
     close: []
   }>()
+
+  const api = useApi()
+  const isTracking = ref(false)
+  const liveStatus = ref('')
+
+  const statusClass = computed(() => {
+    switch (liveStatus.value) {
+      case 'pending':   return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+      case 'confirmed': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+      case 'preparing': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+      case 'ready':     return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+      case 'completed': return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+      case 'cancelled': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+      default:          return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+    }
+  })
+
+  const trackOrder = async () => {
+    if (!props.customerPhone || !props.orderNumber) return
+    isTracking.value = true
+    try {
+      const order = await api.getOrder(props.customerPhone, props.orderNumber)
+      if (order) {
+        liveStatus.value = order.status
+      }
+    } catch {
+      // silent — status badge simply won't appear on error
+    } finally {
+      isTracking.value = false
+    }
+  }
   </script>

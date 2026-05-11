@@ -20,6 +20,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { getMenuItems, deleteMenuItem } from '../../api/adminApi';
+import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { MenuItem } from '../../types';
 
 const MenuList: React.FC = () => {
@@ -40,8 +41,13 @@ const MenuList: React.FC = () => {
         const data = await getMenuItems(params);
         return Array.isArray(data) ? data : [];
       } catch (error) {
+        if (isBackendUnavailableError(error)) {
+          toast.error('Backend is unavailable. Showing empty menu state.');
+          return [];
+        }
+
         toast.error('Failed to load menu items');
-        return [];
+        throw error;
       }
     },
   });

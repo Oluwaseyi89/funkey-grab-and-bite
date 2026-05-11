@@ -5,11 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
+	"funkey-grab-and-bite/funkey-bite-api/internal/realtime"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 )
 
@@ -75,6 +77,9 @@ func (h *AdminHandler) GetSalesReport(c *gin.Context) {
 		})
 		return
 	}
+	if report == nil {
+		report = []models.SalesReport{}
+	}
 
 	c.JSON(http.StatusOK, report)
 }
@@ -102,6 +107,9 @@ func (h *AdminHandler) GetAllOrders(c *gin.Context) {
 			"error": "Failed to get orders",
 		})
 		return
+	}
+	if orders == nil {
+		orders = []models.Order{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -160,6 +168,12 @@ func (h *AdminHandler) UpdateOrderStatus(c *gin.Context) {
 		return
 	}
 
+	realtime.GlobalHub.Broadcast("order_updated", gin.H{
+		"id":        orderID,
+		"status":    req.Status,
+		"updatedAt": time.Now(),
+	})
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Order status updated successfully",
 		"orderId": orderID,
@@ -188,6 +202,9 @@ func (h *AdminHandler) GetAllUsers(c *gin.Context) {
 			"error": "Failed to get users",
 		})
 		return
+	}
+	if users == nil {
+		users = []models.User{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -251,6 +268,77 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 		"userId":   userID,
 		"isActive": req.IsActive,
 	})
+}
+
+// GetMenuItems returns menu items for admin screens.
+// @Summary Get menu items
+// @Description Get menu items with optional pagination and filters
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(20)
+// @Param categoryId query int false "Filter by category ID"
+// @Param query query string false "Search by name/description"
+// @Success 200 {array} models.MenuItem
+// @Router /admin/menu/items [get]
+func (h *AdminHandler) GetMenuItems(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	query := c.Query("query")
+
+	var categoryID *int
+	if categoryIDStr := c.Query("categoryId"); categoryIDStr != "" {
+		id, err := strconv.Atoi(categoryIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+			return
+		}
+		categoryID = &id
+	}
+
+	items, err := h.adminService.GetMenuItems(page, limit, categoryID, query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get menu items"})
+		return
+	}
+	if items == nil {
+		items = []models.MenuItem{}
+	}
+
+	c.JSON(http.StatusOK, items)
+}
+
+// GetMenuItem returns a single menu item by ID.
+// @Summary Get menu item
+// @Description Get a menu item by ID for admin screens
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Menu Item ID"
+// @Success 200 {object} models.MenuItem
+// @Router /admin/menu/items/{id} [get]
+func (h *AdminHandler) GetMenuItem(c *gin.Context) {
+	itemID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid menu item ID"})
+		return
+	}
+
+	item, err := h.adminService.GetMenuItemByID(itemID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get menu item"})
+		return
+	}
+
+	if item == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Menu item not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, item)
 }
 
 // CreateMenuItem creates a new menu item
@@ -367,6 +455,100 @@ func (h *AdminHandler) DeleteMenuItem(c *gin.Context) {
 	})
 }
 
+// CreateMenuCategory creates a new menu category.
+// @Summary Create menu category
+// @Description Create a menu category for admin category management
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param category body models.MenuCategory true "Category details"
+// @Success 201 {object} models.MenuCategory
+// @Router /admin/menu/categories [post]
+func (h *AdminHandler) CreateMenuCategory(c *gin.Context) {
+	var category models.MenuCategory
+
+	if err := c.ShouldBindJSON(&category); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	createdCategory, err := h.adminService.CreateMenuCategory(&category)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, createdCategory)
+}
+
+type updateCategoryRequest struct {
+	Name         *string `json:"name"`
+	Description  *string `json:"description"`
+	DisplayOrder *int    `json:"displayOrder"`
+	IsActive     *bool   `json:"isActive"`
+}
+
+// UpdateMenuCategory updates an existing menu category.
+// @Summary Update menu category
+// @Description Update a menu category for admin category management
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Category ID"
+// @Param category body updateCategoryRequest true "Category updates"
+// @Success 200 {object} models.MenuCategory
+// @Router /admin/menu/categories/{id} [put]
+func (h *AdminHandler) UpdateMenuCategory(c *gin.Context) {
+	categoryID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
+
+	existingCategory, err := h.adminService.GetMenuCategoryByID(categoryID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch category"})
+		return
+	}
+
+	if existingCategory == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+		return
+	}
+
+	var req updateCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	if req.Name != nil {
+		existingCategory.Name = *req.Name
+	}
+	if req.Description != nil {
+		existingCategory.Description = *req.Description
+	}
+	if req.DisplayOrder != nil {
+		existingCategory.DisplayOrder = *req.DisplayOrder
+	}
+	if req.IsActive != nil {
+		existingCategory.IsActive = *req.IsActive
+	}
+
+	if err := h.adminService.UpdateMenuCategory(existingCategory); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, existingCategory)
+}
+
 // Add to the existing AdminHandler struct and methods...
 
 // AdminLogin authenticates admin users
@@ -450,6 +632,9 @@ func (h *AdminHandler) GetAdminUsers(c *gin.Context) {
 			"error": "Failed to get admin users",
 		})
 		return
+	}
+	if admins == nil {
+		admins = []models.AdminUser{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

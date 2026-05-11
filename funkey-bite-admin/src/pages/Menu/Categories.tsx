@@ -14,6 +14,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { getCategories } from '../../api/adminApi';
+import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { MenuCategory } from '../../types';
 
 const Categories: React.FC = () => {
@@ -27,8 +28,13 @@ const Categories: React.FC = () => {
         const data = await getCategories();
         return Array.isArray(data) ? data : [];
       } catch (error) {
+        if (isBackendUnavailableError(error)) {
+          toast.error('Backend is unavailable. Showing empty category state.');
+          return [];
+        }
+
         toast.error('Failed to load categories');
-        return [];
+        throw error;
       }
     },
   });

@@ -67,10 +67,22 @@ func (f *fakeAdminService) UpdateUserStatus(userID int, isActive bool) error {
 func (f *fakeAdminService) CreateMenuItem(item *models.MenuItem) (*models.MenuItem, error) {
 	return nil, nil
 }
+func (f *fakeAdminService) GetMenuItems(page, limit int, categoryID *int, query string) ([]models.MenuItem, error) {
+	return nil, nil
+}
 func (f *fakeAdminService) UpdateMenuItem(item *models.MenuItem) error { return nil }
 func (f *fakeAdminService) DeleteMenuItem(id int) error                { return nil }
 func (f *fakeAdminService) GetMenuItemByID(id int) (*models.MenuItem, error) {
 	return nil, nil
+}
+func (f *fakeAdminService) CreateMenuCategory(category *models.MenuCategory) (*models.MenuCategory, error) {
+	return nil, nil
+}
+func (f *fakeAdminService) GetMenuCategoryByID(id int) (*models.MenuCategory, error) {
+	return nil, nil
+}
+func (f *fakeAdminService) UpdateMenuCategory(category *models.MenuCategory) error {
+	return nil
 }
 func (f *fakeAdminService) GetAllCateringRequests(page, limit int, status string) ([]models.CateringRequest, int, error) {
 	return nil, 0, nil

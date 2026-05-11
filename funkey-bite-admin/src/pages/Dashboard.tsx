@@ -49,8 +49,10 @@ const Dashboard: React.FC = () => {
       refetchOrders();
     };
 
-    const handleOrderUpdated = (order: Order) => {
-      toast(`Order #${order.orderNumber} updated: ${order.status}`);
+    const handleOrderUpdated = (order: Partial<Order> & { id?: number; status?: string }) => {
+      const orderLabel = order.orderNumber || order.id || 'Unknown';
+      const statusLabel = order.status || 'updated';
+      toast(`Order #${orderLabel} updated: ${statusLabel}`);
       refetchOrders();
     };
 

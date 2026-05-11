@@ -21,12 +21,16 @@ func (r *MenuRepository) GetByID(id int) (*models.MenuItem, error) {
 	query := `
 		SELECT id, category_id, name, description, price, image_url, 
 		       is_available, is_pre_order, preparation_time, tags, 
-		       nutritional_info
+		       nutritional_info, created_at
 		FROM menu_items
 		WHERE id = $1
 	`
 
 	var item models.MenuItem
+	var categoryID sql.NullInt64
+	var description sql.NullString
+	var imageURL sql.NullString
+	var preparationTime sql.NullInt64
 	var tagsJSON []byte
 	var nutritionalInfoJSON []byte
 	var tags []string
@@ -34,14 +38,14 @@ func (r *MenuRepository) GetByID(id int) (*models.MenuItem, error) {
 	row := r.db.QueryRow(query, id)
 	err := row.Scan(
 		&item.ID,
-		&item.CategoryID,
+		&categoryID,
 		&item.Name,
-		&item.Description,
+		&description,
 		&item.Price,
-		&item.ImageURL,
+		&imageURL,
 		&item.IsAvailable,
 		&item.IsPreOrder,
-		&item.PreparationTime,
+		&preparationTime,
 		&tagsJSON,
 		&nutritionalInfoJSON,
 		&item.CreatedAt,
@@ -52,6 +56,19 @@ func (r *MenuRepository) GetByID(id int) (*models.MenuItem, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get menu item: %w", err)
+	}
+
+	if description.Valid {
+		item.Description = description.String
+	}
+	if imageURL.Valid {
+		item.ImageURL = imageURL.String
+	}
+	if categoryID.Valid {
+		item.CategoryID = int(categoryID.Int64)
+	}
+	if preparationTime.Valid {
+		item.PreparationTime = int(preparationTime.Int64)
 	}
 
 	if len(tagsJSON) > 0 {
@@ -78,7 +95,7 @@ func (r *MenuRepository) GetAll() ([]models.MenuItem, error) {
 	query := `
 		SELECT id, category_id, name, description, price, image_url, 
 		       is_available, is_pre_order, preparation_time, tags, 
-		       nutritional_info
+		       nutritional_info, created_at
 		FROM menu_items
 		WHERE is_available = true
 		ORDER BY category_id, name
@@ -93,26 +110,43 @@ func (r *MenuRepository) GetAll() ([]models.MenuItem, error) {
 	var items []models.MenuItem
 	for rows.Next() {
 		var item models.MenuItem
+		var categoryID sql.NullInt64
+		var description sql.NullString
+		var imageURL sql.NullString
+		var preparationTime sql.NullInt64
 		var tagsJSON []byte
 		var nutritionalInfoJSON []byte
 		var tags []string
 
 		err := rows.Scan(
 			&item.ID,
-			&item.CategoryID,
+			&categoryID,
 			&item.Name,
-			&item.Description,
+			&description,
 			&item.Price,
-			&item.ImageURL,
+			&imageURL,
 			&item.IsAvailable,
 			&item.IsPreOrder,
-			&item.PreparationTime,
+			&preparationTime,
 			&tagsJSON,
 			&nutritionalInfoJSON,
 			&item.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan menu item: %w", err)
+		}
+
+		if description.Valid {
+			item.Description = description.String
+		}
+		if imageURL.Valid {
+			item.ImageURL = imageURL.String
+		}
+		if categoryID.Valid {
+			item.CategoryID = int(categoryID.Int64)
+		}
+		if preparationTime.Valid {
+			item.PreparationTime = int(preparationTime.Int64)
 		}
 
 		if len(tagsJSON) > 0 {
@@ -142,7 +176,7 @@ func (r *MenuRepository) GetByCategory(categoryID int) ([]models.MenuItem, error
 	query := `
 		SELECT id, category_id, name, description, price, image_url, 
 		       is_available, is_pre_order, preparation_time, tags, 
-		       nutritional_info
+		       nutritional_info, created_at
 		FROM menu_items
 		WHERE category_id = $1 AND is_available = true
 		ORDER BY name
@@ -157,26 +191,43 @@ func (r *MenuRepository) GetByCategory(categoryID int) ([]models.MenuItem, error
 	var items []models.MenuItem
 	for rows.Next() {
 		var item models.MenuItem
+		var categoryID sql.NullInt64
+		var description sql.NullString
+		var imageURL sql.NullString
+		var preparationTime sql.NullInt64
 		var tagsJSON []byte
 		var nutritionalInfoJSON []byte
 		var tags []string
 
 		err := rows.Scan(
 			&item.ID,
-			&item.CategoryID,
+			&categoryID,
 			&item.Name,
-			&item.Description,
+			&description,
 			&item.Price,
-			&item.ImageURL,
+			&imageURL,
 			&item.IsAvailable,
 			&item.IsPreOrder,
-			&item.PreparationTime,
+			&preparationTime,
 			&tagsJSON,
 			&nutritionalInfoJSON,
 			&item.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan menu item: %w", err)
+		}
+
+		if description.Valid {
+			item.Description = description.String
+		}
+		if imageURL.Valid {
+			item.ImageURL = imageURL.String
+		}
+		if categoryID.Valid {
+			item.CategoryID = int(categoryID.Int64)
+		}
+		if preparationTime.Valid {
+			item.PreparationTime = int(preparationTime.Int64)
 		}
 
 		if len(tagsJSON) > 0 {
@@ -204,7 +255,7 @@ func (r *MenuRepository) GetByCategory(categoryID int) ([]models.MenuItem, error
 
 func (r *MenuRepository) GetCategories() ([]models.MenuCategory, error) {
 	query := `
-		SELECT id, name, description, display_order, is_active
+		SELECT id, name, description, display_order, is_active, created_at
 		FROM menu_categories
 		WHERE is_active = true
 		ORDER BY display_order
@@ -226,6 +277,7 @@ func (r *MenuRepository) GetCategories() ([]models.MenuCategory, error) {
 			&category.Description,
 			&category.DisplayOrder,
 			&category.IsActive,
+			&category.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan menu category: %w", err)
@@ -235,6 +287,86 @@ func (r *MenuRepository) GetCategories() ([]models.MenuCategory, error) {
 	}
 
 	return categories, nil
+}
+
+func (r *MenuRepository) GetCategoryByID(id int) (*models.MenuCategory, error) {
+	query := `
+		SELECT id, name, description, display_order, is_active, created_at
+		FROM menu_categories
+		WHERE id = $1
+	`
+
+	var category models.MenuCategory
+	err := r.db.QueryRow(query, id).Scan(
+		&category.ID,
+		&category.Name,
+		&category.Description,
+		&category.DisplayOrder,
+		&category.IsActive,
+		&category.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get menu category: %w", err)
+	}
+
+	return &category, nil
+}
+
+func (r *MenuRepository) CreateCategory(category *models.MenuCategory) (*models.MenuCategory, error) {
+	query := `
+		INSERT INTO menu_categories (name, description, display_order, is_active)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, created_at
+	`
+
+	err := r.db.QueryRow(
+		query,
+		category.Name,
+		category.Description,
+		category.DisplayOrder,
+		category.IsActive,
+	).Scan(&category.ID, &category.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create menu category: %w", err)
+	}
+
+	return category, nil
+}
+
+func (r *MenuRepository) UpdateCategory(category *models.MenuCategory) error {
+	query := `
+		UPDATE menu_categories
+		SET name = $1,
+			description = $2,
+			display_order = $3,
+			is_active = $4
+		WHERE id = $5
+	`
+
+	result, err := r.db.Exec(
+		query,
+		category.Name,
+		category.Description,
+		category.DisplayOrder,
+		category.IsActive,
+		category.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update menu category: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check category update result: %w", err)
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 func (r *MenuRepository) Search(query string, categoryID *int, limit, offset int) ([]models.MenuItem, int, error) {
@@ -274,6 +406,8 @@ func (r *MenuRepository) Search(query string, categoryID *int, limit, offset int
 		countQuery += whereClause
 	}
 
+	countParams := append([]interface{}{}, params...)
+
 	if query != "" {
 		baseQuery += ` ORDER BY 
             ts_rank(search_vector, plainto_tsquery('english', $1)) DESC,
@@ -294,15 +428,6 @@ func (r *MenuRepository) Search(query string, categoryID *int, limit, offset int
 	}
 
 	var total int
-	countParams := params
-	if query != "" {
-		if limit > 0 {
-			countParams = countParams[:len(countParams)-1]
-			if offset > 0 {
-				countParams = countParams[:len(countParams)-1]
-			}
-		}
-	}
 
 	err := r.db.QueryRow(countQuery, countParams...).Scan(&total)
 	if err != nil {
@@ -376,25 +501,42 @@ func (r *MenuRepository) scanMenuItems(rows *sql.Rows) ([]models.MenuItem, error
 
 	for rows.Next() {
 		var item models.MenuItem
+		var categoryID sql.NullInt64
+		var description sql.NullString
+		var imageURL sql.NullString
+		var preparationTime sql.NullInt64
 		var tagsJSON []byte
 		var nutritionalInfoJSON []byte
 
 		err := rows.Scan(
 			&item.ID,
-			&item.CategoryID,
+			&categoryID,
 			&item.Name,
-			&item.Description,
+			&description,
 			&item.Price,
-			&item.ImageURL,
+			&imageURL,
 			&item.IsAvailable,
 			&item.IsPreOrder,
-			&item.PreparationTime,
+			&preparationTime,
 			&tagsJSON,
 			&nutritionalInfoJSON,
 			&item.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan menu item: %w", err)
+		}
+
+		if description.Valid {
+			item.Description = description.String
+		}
+		if imageURL.Valid {
+			item.ImageURL = imageURL.String
+		}
+		if categoryID.Valid {
+			item.CategoryID = int(categoryID.Int64)
+		}
+		if preparationTime.Valid {
+			item.PreparationTime = int(preparationTime.Int64)
 		}
 
 		var tags []string

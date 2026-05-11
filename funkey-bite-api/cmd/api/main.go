@@ -2,9 +2,12 @@ package main
 
 import (
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/database"
+	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -13,7 +16,6 @@ import (
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 	v1 "funkey-grab-and-bite/funkey-bite-api/internal/handlers/v1"
 	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
-	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
 
 	"github.com/ulule/limiter/v3"
@@ -79,6 +81,8 @@ func main() {
 	settingsHandler := v1.NewSettingsHandler(settingsService)
 	promotionHandler := v1.NewPromotionHandler(promotionService)
 	inventoryHandler := v1.NewInventoryHandler(inventoryService)
+	healthHandler := v1.NewHealthHandler()
+	realtimeHandler := v1.NewRealtimeHandler(adminRepo)
 
 	store := memory.NewStore()
 	rate := limiter.Rate{
@@ -88,15 +92,36 @@ func main() {
 	limiterInstance := limiter.New(store, rate)
 
 	// Setup router
-	r := gin.Default()
+	r := gin.New()
+	r.Use(middleware.RecoveryMiddleware())
+
+	trustedProxies := []string{"127.0.0.1", "::1"}
+	if configuredTrustedProxies := strings.TrimSpace(os.Getenv("TRUSTED_PROXIES")); configuredTrustedProxies != "" {
+		trustedProxies = []string{}
+		for _, proxy := range strings.Split(configuredTrustedProxies, ",") {
+			value := strings.TrimSpace(proxy)
+			if value != "" {
+				trustedProxies = append(trustedProxies, value)
+			}
+		}
+	}
+	if err := r.SetTrustedProxies(trustedProxies); err != nil {
+		log.Fatalf("failed to set trusted proxies: %v", err)
+	}
 
 	// Middleware
 	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.RequestIDMiddleware())
 	r.Use(middleware.LoggerMiddleware())
+	r.Use(middleware.ResponseEnvelopeMiddleware())
+
+	// Stable health endpoint used by frontend fallback logic
+	r.GET("/health", healthHandler.GetHealthLegacy)
 
 	// Public routes
 	public := r.Group("/api/v1")
 	public.Use(ginLimiter.NewMiddleware(limiterInstance))
+	public.GET("/health", healthHandler.GetHealth)
 
 	public.GET("/order/track/:phone/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrderPublic)
 
@@ -112,12 +137,14 @@ func main() {
 		public.GET("/promotions/validate", promotionHandler.ValidatePromotion)
 		public.GET("/promotions/active", promotionHandler.GetActivePromotions)
 		public.POST("/admin/auth/login", adminHandler.AdminLogin)
+		public.GET("/admin/realtime/ws", realtimeHandler.ConnectAdmin)
 
 	}
 
 	menuRoutes := public.Group("/menu")
 	{
 		menuRoutes.GET("/", menuHandler.GetMenu)
+		menuRoutes.GET("/categories", menuHandler.GetCategories)
 		menuRoutes.GET("/search", menuHandler.SearchMenu)
 		menuRoutes.GET("/featured", menuHandler.GetFeaturedItems)
 		menuRoutes.GET("/tags", menuHandler.GetMenuByTags)
@@ -152,14 +179,19 @@ func main() {
 		admin.GET("/reports/sales", adminHandler.GetSalesReport)
 
 		admin.GET("/orders", adminHandler.GetAllOrders)
+		admin.GET("/orders/:id", orderHandler.GetOrder)
 		admin.PATCH("/orders/:id/status", adminHandler.UpdateOrderStatus)
 
 		admin.GET("/users", adminHandler.GetAllUsers)
 		admin.PATCH("/users/:id/status", adminHandler.UpdateUserStatus)
 
+		admin.GET("/menu/items", adminHandler.GetMenuItems)
+		admin.GET("/menu/items/:id", adminHandler.GetMenuItem)
 		admin.POST("/menu/items", adminHandler.CreateMenuItem)
 		admin.PUT("/menu/items/:id", adminHandler.UpdateMenuItem)
 		admin.DELETE("/menu/items/:id", adminHandler.DeleteMenuItem)
+		admin.POST("/menu/categories", adminHandler.CreateMenuCategory)
+		admin.PUT("/menu/categories/:id", adminHandler.UpdateMenuCategory)
 
 		admin.GET("/catering/requests", cateringHandler.GetAllRequests)
 		admin.PATCH("/catering/requests/:id/status", cateringHandler.UpdateRequestStatus)
