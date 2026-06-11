@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"funkey-grab-and-bite/funkey-bite-api/internal/app"
+	"funkey-grab-and-bite/funkey-bite-api/internal/realtime"
 	"log"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -12,24 +13,32 @@ import (
 	ginadapter "github.com/awslabs/aws-lambda-go-api-proxy/gin"
 )
 
+// LambdaSilentBroadcaster drops broadcast requests silently to prevent hanging loops in serverless space
+type LambdaSilentBroadcaster struct{}
+
+func (s *LambdaSilentBroadcaster) Broadcast(event string, data interface{}) {
+	// In Lambda, real-time broadcasts are ignored internally to maintain ephemerality.
+	// (Can be piped out to AWS EventBridge or API Gateway WebSockets here if needed later).
+}
+
 var ginLambda *ginadapter.GinLambda
 
 func init() {
 	log.Println("Initializing Funkey Grab-and-Bite API in AWS LAMBDA Mode...")
 
-	// Initialize the exact same engine setup used locally
+	// 1. Swap the stateful Hub with our lightweight, serverless-safe broadcaster stub
+	realtime.GlobalBroadcaster = &LambdaSilentBroadcaster{}
+
+	// 2. Initialize the exact same engine setup safely
 	router, _ := app.SetupEngine()
 
-	// Wrap the Gin engine inside the API Gateway proxy adapter
 	ginLambda = ginadapter.New(router)
 }
 
-// Handler intercepts API Gateway proxy events and routes them through Gin
 func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	return ginLambda.ProxyWithContext(ctx, req)
 }
 
 func main() {
-	// Hand off execution control to the AWS serverless runtime
 	lambda.Start(Handler)
 }
