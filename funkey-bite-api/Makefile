@@ -1,12 +1,14 @@
 APP_NAME := funkey-bite-api
+LAMBDA_NAME := bootstrap
 CMD_DIR := ./cmd/api
 BIN_DIR := ./bin
 BIN_PATH := $(BIN_DIR)/$(APP_NAME)
+LAMBDA_PATH := $(BIN_DIR)/$(LAMBDA_NAME)
 ENV_FILE := .env
 ENV_EXAMPLE := .env.example
 GO ?= go
 
-.PHONY: help env bootstrap deps tidy fmt vet test test-race contract check run dev build start clean
+.PHONY: help env bootstrap deps tidy fmt vet test test-race contract check run dev build build-local build-lambda start clean
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -44,16 +46,26 @@ contract: ## Validate the canonical OpenAPI contract against admin and web consu
 
 check: fmt vet test contract ## Run formatting, vetting, tests, and contract validation
 
-run: ## Run the API with go run
-	$(GO) run $(CMD_DIR)
+run: build-local ## Run the local API binary directly
+	$(BIN_PATH)
 
 dev: run ## Alias for local development run
 
-build: ## Build the API binary into ./bin
+build-local: ## Build the standard API binary for local/container development
 	@mkdir -p $(BIN_DIR)
-	$(GO) build -o $(BIN_PATH) $(CMD_DIR)
+	@echo "Building local development binary..."
+	$(GO) build -o $(BIN_PATH) $(CMD_DIR)/main_local.go
+	@echo "Local binary built at $(BIN_PATH)"
 
-start: build ## Build and start the compiled API binary
+build-lambda: ## Cross-compile optimized bootstrap binary for AWS Lambda (Linux ARM64)
+	@mkdir -p $(BIN_DIR)
+	@echo "Cross-compiling for AWS Lambda (Linux/ARM64)..."
+	GOOS=linux GOARCH=arm64 $(GO) build -tags lambda -o $(LAMBDA_PATH) $(CMD_DIR)/main_lambda.go
+	@echo "Lambda bootstrap binary built at $(LAMBDA_PATH)"
+
+build: build-local build-lambda ## Build both local and Lambda targets simultaneously
+
+start: build-local ## Build and start the compiled local API binary
 	$(BIN_PATH)
 
 clean: ## Remove built artifacts
