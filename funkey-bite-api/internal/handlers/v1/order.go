@@ -155,7 +155,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		}
 	}
 
-	realtime.GlobalHub.Broadcast("new_order", createdOrder)
+	realtime.GlobalBroadcaster.Broadcast("new_order", createdOrder)
 
 	c.JSON(http.StatusCreated, createdOrder)
 }

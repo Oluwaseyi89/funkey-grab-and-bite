@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
@@ -33,11 +34,30 @@ func InitializeDatabase() *sql.DB {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * 60)
+	// -----------------------------------------------------------------
+	// SERVERLESS ADAPTIVE CONNECTION POOLING
+	// -----------------------------------------------------------------
+	// AWS Lambda automatically populates AWS_LAMBDA_FUNCTION_NAME.
+	// If detected, we aggressively lower defaults to safely scale on RDS Free Tier.
+	isLambda := os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != ""
 
-	log.Println("✅ Database connection established successfully")
+	defaultMaxOpen := "25"
+	defaultMaxIdle := "5"
+	if isLambda {
+		defaultMaxOpen = "3"
+		defaultMaxIdle = "1"
+	}
+
+	maxOpenConns, _ := strconv.Atoi(getEnv("DB_MAX_OPEN_CONNS", defaultMaxOpen))
+	maxIdleConns, _ := strconv.Atoi(getEnv("DB_MAX_IDLE_CONNS", defaultMaxIdle))
+
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxIdleConns)
+	db.SetConnMaxLifetime(5 * 60) // 5 minutes
+
+	log.Printf("✅ Database pooling configured: MaxOpen=%d, MaxIdle=%d (Lambda Detected: %t)",
+		maxOpenConns, maxIdleConns, isLambda)
+	// -----------------------------------------------------------------
 
 	if err := runMigrations(db); err != nil {
 		log.Fatalf("Database migration failed: %v", err)

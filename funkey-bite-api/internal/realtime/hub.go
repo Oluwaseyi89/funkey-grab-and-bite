@@ -9,6 +9,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// EventBroadcaster decouples the real-time notification engine,
+// allowing safe stubbing or architectural fallback variations in serverless environments.
+type EventBroadcaster interface {
+	Broadcast(event string, data interface{})
+}
+
 type eventMessage struct {
 	Event string      `json:"event"`
 	Data  interface{} `json:"data"`
@@ -33,8 +39,11 @@ func NewHub() *Hub {
 	}
 }
 
-var GlobalHub = NewHub()
+// GlobalBroadcaster acts as our globally accessible execution point.
+// By default, it initializes using the local stateful in-memory websocket hub.
+var GlobalBroadcaster EventBroadcaster = NewHub()
 
+// RegisterConnection updates the connection registers for an active admin socket context
 func (h *Hub) RegisterConnection(conn *websocket.Conn, adminID int) {
 	c := &client{
 		adminID: adminID,
@@ -56,6 +65,7 @@ func (h *Hub) RegisterConnection(conn *websocket.Conn, adminID int) {
 	h.readPump(c)
 }
 
+// Broadcast serializes and transmits messages to all connected clients (Implements EventBroadcaster)
 func (h *Hub) Broadcast(event string, data interface{}) {
 	payload, err := json.Marshal(eventMessage{Event: event, Data: data})
 	if err != nil {

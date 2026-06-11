@@ -168,7 +168,14 @@ func (h *AdminHandler) UpdateOrderStatus(c *gin.Context) {
 		return
 	}
 
-	realtime.GlobalHub.Broadcast("order_updated", gin.H{
+	// realtime.GlobalHub.Broadcast("order_updated", gin.H{
+	// 	"id":        orderID,
+	// 	"status":    req.Status,
+	// 	"updatedAt": time.Now(),
+	// })
+
+	// Change realtime.GlobalHub.Broadcast to realtime.GlobalBroadcaster.Broadcast
+	realtime.GlobalBroadcaster.Broadcast("order_updated", gin.H{
 		"id":        orderID,
 		"status":    req.Status,
 		"updatedAt": time.Now(),

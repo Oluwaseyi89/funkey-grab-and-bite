@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -74,5 +75,10 @@ func (h *RealtimeHandler) ConnectAdmin(c *gin.Context) {
 		return
 	}
 
-	realtime.GlobalHub.RegisterConnection(conn, claims.UserID)
+	if hub, ok := realtime.GlobalBroadcaster.(*realtime.Hub); ok {
+		hub.RegisterConnection(conn, claims.UserID)
+	} else {
+		log.Println("Realtime hub connection registration skipped: broadcasting is stubbed or modified in this environment")
+		_ = conn.Close()
+	}
 }
