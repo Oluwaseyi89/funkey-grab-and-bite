@@ -23,8 +23,6 @@ go.sum
 
 bin/
 
-api
-
 # IDE and Editor files
 .vscode/
 .idea/
