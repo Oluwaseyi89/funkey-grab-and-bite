@@ -5,6 +5,7 @@ package main
 import (
 	"funkey-grab-and-bite/funkey-bite-api/internal/app"
 	"log"
+	"os"
 )
 
 func main() {
@@ -14,8 +15,14 @@ func main() {
 	router, cleanup := app.SetupEngine()
 	defer cleanup()
 
+	// Host platforms like Railway assign the listen port dynamically via $PORT.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	// Launch engine on the standard server TCP port listener
-	if err := router.Run(":8080"); err != nil {
+	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Local server encountered unrecoverable runtime crash: %v", err)
 	}
 }
