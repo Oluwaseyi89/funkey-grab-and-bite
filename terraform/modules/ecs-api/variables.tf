@@ -81,7 +81,7 @@ variable "db_secret_arn" {
 }
 
 variable "app_secrets_arn" {
-  description = "Secrets Manager ARN for app-level secrets (JWT, SES, Twilio)"
+  description = "Secrets Manager ARN for app-level secrets (JWT, SES, Termii)"
   type        = string
 }
 
