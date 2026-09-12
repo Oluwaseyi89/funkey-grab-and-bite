@@ -51,7 +51,7 @@ variable "sqs_catering_queue_url" {
 }
 
 variable "app_secrets_arn" {
-  description = "Secrets Manager ARN containing SES and Twilio credentials"
+  description = "Secrets Manager ARN containing SES and Termii credentials"
   type        = string
 }
 
