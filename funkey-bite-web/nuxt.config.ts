@@ -180,7 +180,6 @@ export default defineNuxtConfig({
   },
   
   nitro: {
-    preset: 'vercel',
     compressPublicAssets: true,
     prerender: {
       crawlLinks: true,
