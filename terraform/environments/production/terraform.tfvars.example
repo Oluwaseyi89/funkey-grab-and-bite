@@ -8,19 +8,27 @@ ses_sender_email = "noreply@funkeygrabandbite.com"
 api_image_tag    = "latest"
 
 # Feature flags — set to false to skip deployment of a component
+#
+# Frontend-only phase: API/DB/queue/workers now run on Railway instead of
+# ECS/Aurora (see ../../../Plan.md), so this environment only stands up
+# S3 + CloudFront for web_app/admin_app. networking is off too — nothing
+# left enabled needs a VPC, and it's the line item that actually costs
+# real money (NAT gateway) to leave on for no reason. Flip api/database/
+# cache/queue/workers/lambda_catering/scheduler/networking back to true
+# only if the AWS compute tier is reinstated later.
 features = {
-  networking      = true
+  networking      = false
   waf             = true
   dns             = true
   web_app         = true
   admin_app       = true
-  api             = true
-  workers         = true
-  lambda_catering = true
-  database        = true
-  cache           = true
-  queue           = true
-  scheduler       = true
+  api             = false
+  workers         = false
+  lambda_catering = false
+  database        = false
+  cache           = false
+  queue           = false
+  scheduler       = false
   secrets         = true
   monitoring      = true
 }

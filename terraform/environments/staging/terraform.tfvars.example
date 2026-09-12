@@ -5,18 +5,23 @@ alert_email      = "dev@funkeygrabandbite.com"
 ses_sender_email = "noreply@funkeygrabandbite.com"
 api_image_tag    = "latest"
 
+# Frontend-only phase: API/DB/queue/workers now run on Railway instead of
+# ECS/Aurora (see ../../../Plan.md), so this environment only stands up
+# S3 + CloudFront for web_app/admin_app. networking is off too — nothing
+# left enabled needs a VPC, and it's the line item that actually costs
+# real money (NAT gateway) to leave on for no reason.
 features = {
-  networking      = true
+  networking      = false
   waf             = false
   dns             = true
   web_app         = true
   admin_app       = true
-  api             = true
+  api             = false
   workers         = false
   lambda_catering = false
-  database        = true
+  database        = false
   cache           = false
-  queue           = true
+  queue           = false
   scheduler       = false
   secrets         = true
   monitoring      = true
