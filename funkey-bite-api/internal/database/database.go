@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
 
@@ -53,7 +54,7 @@ func InitializeDatabase() *sql.DB {
 
 	db.SetMaxOpenConns(maxOpenConns)
 	db.SetMaxIdleConns(maxIdleConns)
-	db.SetConnMaxLifetime(5 * 60) // 5 minutes
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	log.Printf("✅ Database pooling configured: MaxOpen=%d, MaxIdle=%d (Lambda Detected: %t)",
 		maxOpenConns, maxIdleConns, isLambda)
