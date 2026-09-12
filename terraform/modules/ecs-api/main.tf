@@ -73,9 +73,8 @@ resource "aws_ecs_task_definition" "api" {
         { name = "DB_PASSWORD", valueFrom = "${var.db_secret_arn}:password::" },
         { name = "DB_NAME", valueFrom = "${var.db_secret_arn}:dbname::" },
         { name = "SES_SENDER_EMAIL", valueFrom = "${var.app_secrets_arn}:SES_SENDER_EMAIL::" },
-        { name = "TWILIO_ACCOUNT_SID", valueFrom = "${var.app_secrets_arn}:TWILIO_ACCOUNT_SID::" },
-        { name = "TWILIO_AUTH_TOKEN", valueFrom = "${var.app_secrets_arn}:TWILIO_AUTH_TOKEN::" },
-        { name = "TWILIO_PHONE_NUMBER", valueFrom = "${var.app_secrets_arn}:TWILIO_PHONE_NUMBER::" },
+        { name = "TERMII_API_KEY", valueFrom = "${var.app_secrets_arn}:TERMII_API_KEY::" },
+        { name = "TERMII_SENDER_ID", valueFrom = "${var.app_secrets_arn}:TERMII_SENDER_ID::" },
       ]
 
       environment = [
