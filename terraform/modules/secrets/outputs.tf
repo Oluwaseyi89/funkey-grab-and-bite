@@ -1,5 +1,5 @@
 output "app_secrets_arn" {
-  description = "Secrets Manager ARN for the app secrets bundle (JWT, SES, Twilio)"
+  description = "Secrets Manager ARN for the app secrets bundle (JWT, SES, Termii)"
   value       = aws_secretsmanager_secret.app_secrets.arn
   sensitive   = true
 }

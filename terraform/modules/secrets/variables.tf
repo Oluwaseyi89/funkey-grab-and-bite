@@ -8,7 +8,7 @@ variable "environment" {
   type        = string
 }
 
-# Application-level secrets (JWT, SES, Twilio)
+# Application-level secrets (JWT, SES, Termii)
 variable "jwt_secret_initial_value" {
   description = "Initial JWT secret value (rotate immediately after first deploy)"
   type        = string

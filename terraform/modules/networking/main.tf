@@ -265,7 +265,7 @@ resource "aws_security_group" "elasticache" {
 
 resource "aws_security_group" "lambda" {
   name_prefix = "${var.name_prefix}-lambda-"
-  description = "Lambda in VPC: egress only (via NAT to SES/Twilio)"
+  description = "Lambda in VPC: egress only (via NAT to SES/Termii)"
   vpc_id      = aws_vpc.main.id
 
   egress {

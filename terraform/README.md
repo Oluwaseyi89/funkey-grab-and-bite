@@ -93,7 +93,7 @@ Production-grade, modular AWS infrastructure for the **Funkey Grab & Bite** food
 
 ┌───────────────────────────────────────────────────────────────────────────────────┐
 │                              Security & Secrets                                   │
-│   Secrets Manager (JWT · SES · Twilio · Paystack)  ·  IAM Roles  ·  VPC SGs      │
+│   Secrets Manager (JWT · SES · Termii · Paystack)  ·  IAM Roles  ·  VPC SGs      │
 └───────────────────────────────────────────────────────────────────────────────────┘
 
 ┌───────────────────────────────────────────────────────────────────────────────────┐
@@ -460,15 +460,14 @@ docker push <LAMBDA_ECR_URL>:latest
 Terraform creates the secret shells with placeholder values. Update them via the AWS Console or CLI:
 
 ```bash
-# App secrets bundle (JWT, SES, Twilio)
+# App secrets bundle (JWT, SES, Termii)
 aws secretsmanager put-secret-value \
   --secret-id funkey-production-app-secrets \
   --secret-string '{
     "JWT_SECRET":          "your-jwt-secret",
     "SES_SENDER_EMAIL":    "noreply@funkeygrabandbite.com",
-    "TWILIO_ACCOUNT_SID":  "ACxxx",
-    "TWILIO_AUTH_TOKEN":   "xxx",
-    "TWILIO_FROM_NUMBER":  "+1xxx"
+    "TERMII_API_KEY":      "xxx",
+    "TERMII_SENDER_ID":    "xxx"
   }'
 
 # Paystack credentials

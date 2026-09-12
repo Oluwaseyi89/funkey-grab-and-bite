@@ -1,11 +1,11 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -18,27 +18,44 @@ type SMSService interface {
 	SendVerificationCode(phoneNumber, code string) error
 }
 
-type TwilioSMSService struct {
-	accountSID string
-	authToken  string
-	fromNumber string
-	client     *http.Client
+// TermiiSMSService sends SMS via Termii (https://developers.termii.com/messaging-api),
+// which routes to Nigerian carriers more cheaply and reliably than international
+// gateways like Twilio.
+type TermiiSMSService struct {
+	apiKey   string
+	senderID string
+	baseURL  string
+	channel  string
+	client   *http.Client
 }
 
 func NewSMSService() SMSService {
-	if os.Getenv("ENVIRONMENT") == "development" || os.Getenv("TWILIO_ACCOUNT_SID") == "" {
+	if os.Getenv("ENVIRONMENT") == "development" || os.Getenv("TERMII_API_KEY") == "" {
 		return &MockSMSService{}
 	}
 
-	return &TwilioSMSService{
-		accountSID: os.Getenv("TWILIO_ACCOUNT_SID"),
-		authToken:  os.Getenv("TWILIO_AUTH_TOKEN"),
-		fromNumber: os.Getenv("TWILIO_PHONE_NUMBER"),
-		client:     &http.Client{Timeout: 10 * time.Second},
+	return &TermiiSMSService{
+		apiKey:   os.Getenv("TERMII_API_KEY"),
+		senderID: os.Getenv("TERMII_SENDER_ID"),
+		baseURL:  envOrDefault("TERMII_BASE_URL", "https://api.ng.termii.com"),
+		// "dnd" is Termii's transactional route. Every message this service sends
+		// (order/catering confirmations, status updates, OTP codes) is transactional,
+		// never promotional — the "generic" route is for promotional campaigns and
+		// explicitly should not be used for OTP/transactional messages, since it gets
+		// filtered for numbers on Nigeria's Do-Not-Disturb list.
+		channel: envOrDefault("TERMII_CHANNEL", "dnd"),
+		client:  &http.Client{Timeout: 10 * time.Second},
 	}
 }
 
-func (s *TwilioSMSService) SendOrderConfirmation(phoneNumber, orderNumber string, totalAmount float64) error {
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func (s *TermiiSMSService) SendOrderConfirmation(phoneNumber, orderNumber string, totalAmount float64) error {
 	message := fmt.Sprintf(
 		"Thank you for your order at Funkey Grab & Bite! Order #%s for $%.2f. We'll notify you when it's ready.",
 		orderNumber, totalAmount,
@@ -46,7 +63,7 @@ func (s *TwilioSMSService) SendOrderConfirmation(phoneNumber, orderNumber string
 	return s.sendSMS(phoneNumber, message)
 }
 
-func (s *TwilioSMSService) SendOrderStatusUpdate(phoneNumber, orderNumber, status string) error {
+func (s *TermiiSMSService) SendOrderStatusUpdate(phoneNumber, orderNumber, status string) error {
 	statusMessages := map[string]string{
 		"confirmed": "Your order #%s has been confirmed and is being prepared.",
 		"preparing": "Your order #%s is now being prepared.",
@@ -64,7 +81,7 @@ func (s *TwilioSMSService) SendOrderStatusUpdate(phoneNumber, orderNumber, statu
 	return s.sendSMS(phoneNumber, message)
 }
 
-func (s *TwilioSMSService) SendCateringConfirmation(phoneNumber, requestID string) error {
+func (s *TermiiSMSService) SendCateringConfirmation(phoneNumber, requestID string) error {
 	message := fmt.Sprintf(
 		"Thank you for your catering request with Funkey Grab & Bite! Request #%s. We'll contact you within 24 hours.",
 		requestID,
@@ -72,7 +89,7 @@ func (s *TwilioSMSService) SendCateringConfirmation(phoneNumber, requestID strin
 	return s.sendSMS(phoneNumber, message)
 }
 
-func (s *TwilioSMSService) SendVerificationCode(phoneNumber, code string) error {
+func (s *TermiiSMSService) SendVerificationCode(phoneNumber, code string) error {
 	message := fmt.Sprintf(
 		"Your Funkey Grab & Bite verification code is: %s. Valid for 10 minutes.",
 		code,
@@ -80,36 +97,59 @@ func (s *TwilioSMSService) SendVerificationCode(phoneNumber, code string) error 
 	return s.sendSMS(phoneNumber, message)
 }
 
-func (s *TwilioSMSService) sendSMS(to, body string) error {
-	to = strings.ReplaceAll(to, " ", "")
-	if !strings.HasPrefix(to, "+") {
-		to = "+" + to
+type termiiSendRequest struct {
+	To      string `json:"to"`
+	From    string `json:"from"`
+	SMS     string `json:"sms"`
+	Type    string `json:"type"`
+	Channel string `json:"channel"`
+	APIKey  string `json:"api_key"`
+}
+
+type termiiSendResponse struct {
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	MessageID string `json:"message_id"`
+}
+
+func (s *TermiiSMSService) sendSMS(to, body string) error {
+	// Termii expects digits only (country code + number), unlike Twilio's "+"-prefixed E.164.
+	to = strings.TrimPrefix(strings.ReplaceAll(to, " ", ""), "+")
+
+	payload := termiiSendRequest{
+		To:      to,
+		From:    s.senderID,
+		SMS:     body,
+		Type:    "plain",
+		Channel: s.channel,
+		APIKey:  s.apiKey,
 	}
 
-	data := url.Values{}
-	data.Set("To", to)
-	data.Set("From", s.fromNumber)
-	data.Set("Body", body)
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to encode Termii request: %w", err)
+	}
 
-	urlStr := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Messages.json", s.accountSID)
-	req, err := http.NewRequest("POST", urlStr, strings.NewReader(data.Encode()))
+	urlStr := fmt.Sprintf("%s/api/sms/send", strings.TrimRight(s.baseURL, "/"))
+	req, err := http.NewRequest("POST", urlStr, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-
-	req.SetBasicAuth(s.accountSID, s.authToken)
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send SMS: %w", err)
+		return fmt.Errorf("failed to send SMS via Termii: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 300 {
-		var result map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&result)
-		return fmt.Errorf("SMS failed with status %d: %v", resp.StatusCode, result)
+	var result termiiSendResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("failed to decode Termii response (status %d): %w", resp.StatusCode, err)
+	}
+
+	if resp.StatusCode >= 300 || (result.Code != "" && result.Code != "ok") {
+		return fmt.Errorf("Termii SMS failed (status %d): %s", resp.StatusCode, result.Message)
 	}
 
 	return nil

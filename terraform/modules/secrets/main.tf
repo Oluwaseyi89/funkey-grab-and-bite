@@ -9,13 +9,13 @@ locals {
   recovery_window = var.environment == "production" ? 30 : 0
 }
 
-# ── App secrets bundle (JWT + SES + Twilio) ───────────────────────
+# ── App secrets bundle (JWT + SES + Termii) ───────────────────────
 # ECS task definition reads individual keys from this secret using
 # the JSON key syntax: <ARN>:<key>::
 
 resource "aws_secretsmanager_secret" "app_secrets" {
   name                    = "${var.name_prefix}/app/secrets"
-  description             = "JWT secret, SES config, and Twilio credentials for ${var.name_prefix}"
+  description             = "JWT secret, SES config, and Termii credentials for ${var.name_prefix}"
   recovery_window_in_days = local.recovery_window
   tags                    = var.tags
 }
@@ -27,9 +27,8 @@ resource "aws_secretsmanager_secret_version" "app_secrets" {
   secret_string = jsonencode({
     JWT_SECRET             = var.jwt_secret_initial_value
     SES_SENDER_EMAIL       = var.ses_sender_email
-    TWILIO_ACCOUNT_SID     = "REPLACE_ME"
-    TWILIO_AUTH_TOKEN      = "REPLACE_ME"
-    TWILIO_PHONE_NUMBER    = "REPLACE_ME"
+    TERMII_API_KEY         = "REPLACE_ME"
+    TERMII_SENDER_ID       = "REPLACE_ME"
     DEFAULT_ADMIN_EMAIL    = "admin@funkeygrabandbite.com"
     DEFAULT_ADMIN_USERNAME = "admin"
     DEFAULT_ADMIN_PASSWORD = "REPLACE_ME_STRONG_PASSWORD"
