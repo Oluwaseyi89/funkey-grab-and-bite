@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,20 +17,22 @@ import (
 )
 
 type OrderHandler struct {
-	orderService services.OrderService
-	authService  services.AuthService
-	settings     services.SettingsService
-	promotions   services.PromotionService
-	validate     *validator.Validate
+	orderService   services.OrderService
+	authService    services.AuthService
+	settings       services.SettingsService
+	promotions     services.PromotionService
+	paymentService services.PaymentService
+	validate       *validator.Validate
 }
 
-func NewOrderHandler(orderService services.OrderService, authService services.AuthService, settingsService services.SettingsService, promotionService services.PromotionService) *OrderHandler {
+func NewOrderHandler(orderService services.OrderService, authService services.AuthService, settingsService services.SettingsService, promotionService services.PromotionService, paymentService services.PaymentService) *OrderHandler {
 	return &OrderHandler{
-		orderService: orderService,
-		authService:  authService,
-		settings:     settingsService,
-		promotions:   promotionService,
-		validate:     validator.New(),
+		orderService:   orderService,
+		authService:    authService,
+		settings:       settingsService,
+		promotions:     promotionService,
+		paymentService: paymentService,
+		validate:       validator.New(),
 	}
 }
 
@@ -128,6 +131,11 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		}
 	}
 
+	paymentStatus := models.PaymentStatusNotRequired
+	if req.PaymentMethod == models.PaymentMethodTransfer {
+		paymentStatus = models.PaymentStatusPending
+	}
+
 	order := &models.Order{
 		OrderNumber:   utils.GenerateOrderNumber(),
 		UserID:        userID,
@@ -140,6 +148,8 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		Notes:         req.Notes,
 		PickupTime:    req.PickupTime,
 		CreatedAt:     time.Now(),
+		PaymentMethod: req.PaymentMethod,
+		PaymentStatus: paymentStatus,
 	}
 
 	createdOrder, err := h.orderService.CreateOrder(order, req.Items)
@@ -152,6 +162,17 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		if _, err := h.promotions.ApplyPromotionByCode(promotionCode, createdOrder.ID, userID, totalWithFees); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to apply promotion: " + err.Error()})
 			return
+		}
+	}
+
+	if createdOrder.PaymentMethod == models.PaymentMethodTransfer {
+		// The order already exists at this point (items + stock committed); a
+		// Paystack outage here shouldn't lose the order, just leave payment
+		// pending with no account details for the customer to retry against later.
+		if withPayment, err := h.paymentService.InitiateTransferPayment(createdOrder); err != nil {
+			log.Printf("Failed to initiate transfer payment for order #%s: %v", createdOrder.OrderNumber, err)
+		} else {
+			createdOrder = withPayment
 		}
 	}
 
