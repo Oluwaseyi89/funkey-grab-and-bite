@@ -181,6 +181,12 @@
         :order-number="orderNumber"
         :estimated-time="estimatedTime"
         :customer-phone="orderData.customerPhone || ''"
+        :payment-method="lastOrder?.paymentMethod"
+        :payment-status="lastOrder?.paymentStatus"
+        :payment-account-number="lastOrder?.paymentAccountNumber"
+        :payment-account-name="lastOrder?.paymentAccountName"
+        :payment-bank-name="lastOrder?.paymentBankName"
+        :payment-expires-at="lastOrder?.paymentExpiresAt"
         @close="showConfirmation = false"
       />
     </div>
@@ -197,8 +203,7 @@
     ArrowLeft,
     ArrowRight,
     Loader2,
-    CreditCard,
-    Smartphone,
+    Landmark,
     DollarSign
   } from 'lucide-vue-next'
   
@@ -219,7 +224,8 @@
   const showConfirmation = ref(false)
   const orderNumber = ref('')
   const estimatedTime = ref('')
-  const selectedPayment = ref('card')
+  const selectedPayment = ref<'transfer' | 'cash'>('transfer')
+  const lastOrder = ref<Order | null>(null)
   
   const orderData = ref<Partial<Order>>({
     orderType: 'pickup',
@@ -237,18 +243,11 @@
   
   const paymentMethods = [
     {
-      id: 'card',
-      name: 'Credit/Debit Card',
-      description: 'Pay with Visa, MasterCard, or Amex',
-      icon: CreditCard,
+      id: 'transfer',
+      name: 'Bank Transfer',
+      description: 'Pay instantly via a dedicated account number (Paystack)',
+      icon: Landmark,
       iconClass: 'text-blue-500'
-    },
-    {
-      id: 'mobile',
-      name: 'Mobile Payment',
-      description: 'Apple Pay, Google Pay',
-      icon: Smartphone,
-      iconClass: 'text-green-500'
     },
     {
       id: 'cash',
@@ -295,6 +294,7 @@
         customerPhone: orderData.value.customerPhone,
         customerEmail: orderData.value.customerEmail,
         orderType: orderData.value.orderType,
+        paymentMethod: selectedPayment.value,
         notes: orderData.value.notes,
         totalAmount: orderTotal.value,
         items: cart.items.map((item) => ({
@@ -309,6 +309,7 @@
       const createdOrder = await api.createOrder(orderPayload)
 
       orderNumber.value = createdOrder.orderNumber
+      lastOrder.value = createdOrder
 
       if (createdOrder.estimatedReadyTime) {
         estimatedTime.value = new Date(createdOrder.estimatedReadyTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
