@@ -25,6 +25,7 @@ For contributors, this repository offers a clear modular architecture (API, publ
 - [API Surface](#-api-surface)
 - [Real-Time Event Contract](#-real-time-event-contract)
 - [Data Model Snapshot](#-data-model-snapshot)
+- [Payments](#-payments)
 - [Security And Operational Controls](#-security-and-operational-controls)
 - [Quick Start](#-quick-start)
 - [Environment Variables](#-environment-variables)
@@ -291,6 +292,7 @@ Base path: `/api/v1`
 | Promotions | GET | `/promotions/validate` | Validate promotion code |
 | Settings | GET | `/settings` | Public business profile/settings |
 | Settings | GET | `/settings/hours` | Opening hours |
+| Payments | POST | `/payments/webhook` | Paystack payment webhook (signature-verified, not customer-facing) |
 
 ### Admin endpoints
 | Domain | Method | Endpoint | Purpose |
@@ -358,7 +360,12 @@ Key backend tables include:
 - `notifications`
 - `business_settings`
 
+`orders` carries payment fields directly (`payment_method`, `payment_status`, `payment_reference`, plus the Pay-with-Transfer account details and timestamps) rather than a separate payments table — see [Payments](#-payments) below for how a payment gets reconciled.
+
 The API also includes default admin bootstrapping logic to ensure first-run access exists.
+
+## 💳 Payments
+Two payment methods are supported at checkout: `cash` (pay on delivery/pickup) and `transfer` (Paystack Pay-with-Transfer). For a transfer order, the API opens a Paystack charge immediately after order creation and returns a dedicated, time-limited account number for the customer to pay into. Paystack notifies `POST /api/v1/payments/webhook` on completion; the webhook handler verifies the `x-paystack-signature` header (HMAC-SHA512 over the raw request body) before trusting the payload, cross-checks the paid amount against the order total, and — only then — marks the order paid and auto-confirms it. Webhook delivery is treated as idempotent, since Paystack may retry.
 
 ## 🔐 Security And Operational Controls
 Implemented controls:
@@ -368,6 +375,7 @@ Implemented controls:
 - Rate limiting for public API group and tracking routes.
 - CORS allowlist with localhost and production domain support.
 - Request validation using struct validation in handlers.
+- Paystack webhook signature verification (HMAC-SHA512) before any payment is trusted.
 
 Operational safeguards:
 - Default admin account auto-creation can be configured via environment variables.

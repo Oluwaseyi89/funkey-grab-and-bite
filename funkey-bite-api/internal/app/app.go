@@ -52,6 +52,7 @@ func SetupEngine() (*gin.Engine, func()) {
 
 	emailService := utils.NewEmailService()
 	smsService := utils.NewSMSService()
+	paymentGateway := utils.NewPaymentGateway()
 
 	notificationService := services.NewNotificationService(
 		emailService,
@@ -72,10 +73,12 @@ func SetupEngine() (*gin.Engine, func()) {
 	adminService := services.NewAdminService(adminRepo, *orderRepo, *userRepo, *cateringRepo, *menuRepo)
 	settingsService := services.NewSettingsService(*settingsRepo)
 	promotionService := services.NewPromotionService(promotionRepo)
+	paymentService := services.NewPaymentService(paymentGateway, orderRepo, notificationService)
 
 	// Initialize handlers
 	authHandler := v1.NewAuthHandler(authService, userService)
-	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService)
+	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService, paymentService)
+	paymentHandler := v1.NewPaymentHandler(paymentService)
 	menuHandler := v1.NewMenuHandler(menuService)
 	cateringHandler := v1.NewCateringHandler(cateringService)
 	adminHandler := v1.NewAdminHandler(adminService)
@@ -139,6 +142,10 @@ func SetupEngine() (*gin.Engine, func()) {
 		public.GET("/promotions/active", promotionHandler.GetActivePromotions)
 		public.POST("/admin/auth/login", adminHandler.AdminLogin)
 		public.GET("/admin/realtime/ws", realtimeHandler.ConnectAdmin)
+
+		// Paystack calls this directly; authenticity comes from the
+		// x-paystack-signature check, not from a bearer token.
+		public.POST("/payments/webhook", paymentHandler.Webhook)
 	}
 
 	menuRoutes := public.Group("/menu")

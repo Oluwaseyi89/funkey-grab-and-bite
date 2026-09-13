@@ -151,10 +151,14 @@ func TestCreateOrderDeductsInventoryOnSuccess(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "order_number", "user_id", "customer_name", "customer_phone",
 			"customer_email", "order_type", "status", "total_amount", "notes",
-			"pickup_time", "created_at",
+			"pickup_time", "created_at", "payment_method", "payment_status",
+			"payment_reference", "payment_account_number", "payment_account_name",
+			"payment_bank_name", "payment_expires_at", "payment_paid_at",
 		}).AddRow(
 			101, "FG-2026-04-1002", nil, "Test User", "+15550000002", nil,
 			string(models.OrderTypeDelivery), string(models.OrderStatusPending), 37.5, nil, nil, createdAt,
+			string(models.PaymentMethodCash), string(models.PaymentStatusNotRequired),
+			nil, nil, nil, nil, nil, nil,
 		))
 	mock.ExpectQuery("SELECT id, order_id, menu_item_id, name, quantity, unit_price, special_instructions").
 		WillReturnRows(sqlmock.NewRows([]string{

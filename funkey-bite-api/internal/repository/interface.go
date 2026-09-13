@@ -48,4 +48,8 @@ type IOrderRepository interface {
 	BeginTransaction() (*sql.Tx, error)
 	CreateOrderWithTransaction(tx *sql.Tx, order *models.Order) (*models.Order, error)
 	CreateOrderItemWithTransaction(tx *sql.Tx, item *models.OrderItem) (*models.OrderItem, error)
+
+	GetOrderByPaymentReference(reference string) (*models.Order, error)
+	SetOrderPaymentInitiated(orderID int, reference, accountNumber, accountName, bankName string, expiresAt *time.Time) error
+	MarkOrderPaymentPaid(orderID int, paidAt time.Time) error
 }
