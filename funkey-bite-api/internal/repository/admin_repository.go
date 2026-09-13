@@ -200,9 +200,11 @@ func (r *AdminRepository) DeleteMenuItem(id int) error {
 
 func (r *AdminRepository) GetAllOrders(limit, offset int, status string) ([]models.Order, error) {
 	query := `
-		SELECT id, order_number, user_id, customer_name, customer_phone, 
-		       customer_email, order_type, status, total_amount, notes, 
-		       pickup_time, created_at
+		SELECT id, order_number, user_id, customer_name, customer_phone,
+		       customer_email, order_type, status, total_amount, notes,
+		       pickup_time, created_at, payment_method, payment_status,
+		       payment_reference, payment_account_number, payment_account_name,
+		       payment_bank_name, payment_expires_at, payment_paid_at
 		FROM orders
 		WHERE ($1 = '' OR status = $1)
 		ORDER BY created_at DESC
@@ -220,8 +222,9 @@ func (r *AdminRepository) GetAllOrders(limit, offset int, status string) ([]mode
 		var order models.Order
 		var userID sql.NullInt64
 		var pickupTime sql.NullTime
+		var paymentFields paymentScanFields
 
-		err := rows.Scan(
+		dest := append([]any{
 			&order.ID,
 			&order.OrderNumber,
 			&userID,
@@ -234,7 +237,11 @@ func (r *AdminRepository) GetAllOrders(limit, offset int, status string) ([]mode
 			&order.Notes,
 			&pickupTime,
 			&order.CreatedAt,
-		)
+			&order.PaymentMethod,
+			&order.PaymentStatus,
+		}, paymentFields.args()...)
+
+		err := rows.Scan(dest...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan order: %w", err)
 		}
@@ -246,6 +253,7 @@ func (r *AdminRepository) GetAllOrders(limit, offset int, status string) ([]mode
 		if pickupTime.Valid {
 			order.PickupTime = &pickupTime.Time
 		}
+		paymentFields.applyTo(&order)
 
 		items, err := r.getOrderItems(order.ID)
 		if err != nil {
