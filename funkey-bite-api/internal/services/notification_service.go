@@ -58,20 +58,15 @@ func NewNotificationService(
 }
 
 func (s *notificationService) SendOrderConfirmation(order *models.Order) error {
-	var email, phone, name string
+	var email, name string
 	name = order.CustomerName
-	phone = order.CustomerPhone
 
 	if order.CustomerEmail != nil && *order.CustomerEmail != "" {
 		email = *order.CustomerEmail
 	}
 
-	if phone != "" {
-		if err := s.smsService.SendOrderConfirmation(phone, order.OrderNumber, order.TotalAmount); err != nil {
-			log.Printf("Failed to send order confirmation SMS: %v", err)
-		}
-	}
-
+	// Email-only: a confirmation/receipt isn't time-critical enough to justify SMS cost.
+	// SMS is reserved for SendOrderStatusUpdate, where real-time delivery actually matters.
 	if email != "" {
 		if err := s.emailService.SendOrderConfirmation(email, name, order.OrderNumber, order.TotalAmount); err != nil {
 			log.Printf("Failed to send order confirmation email: %v", err)
@@ -137,9 +132,8 @@ func (s *notificationService) SendOrderStatusUpdate(orderID int, newStatus strin
 }
 
 func (s *notificationService) SendCateringConfirmation(request *models.CateringRequest) error {
-	var email, phone, name, eventName string
+	var email, name, eventName string
 	name = request.ContactName
-	phone = request.ContactPhone
 	eventName = "Your Event"
 	if request.EventName != nil && *request.EventName != "" {
 		eventName = *request.EventName
@@ -151,12 +145,7 @@ func (s *notificationService) SendCateringConfirmation(request *models.CateringR
 
 	requestID := fmt.Sprintf("CATER-%d", request.ID)
 
-	if phone != "" {
-		if err := s.smsService.SendCateringConfirmation(phone, requestID); err != nil {
-			log.Printf("Failed to send catering confirmation SMS: %v", err)
-		}
-	}
-
+	// Email-only — see SendOrderConfirmation for why SMS is reserved for status updates.
 	if email != "" {
 		if err := s.emailService.SendCateringConfirmation(email, name, requestID, eventName); err != nil {
 			log.Printf("Failed to send catering confirmation email: %v", err)
