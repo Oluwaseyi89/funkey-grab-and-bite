@@ -74,6 +74,26 @@ const OrderList: React.FC = () => {
     }
   };
 
+  const paymentLabel = (order: Order) => {
+    if (order.paymentMethod === 'cash') return 'Cash';
+    switch (order.paymentStatus) {
+      case 'paid': return 'Transfer · Paid';
+      case 'pending': return 'Transfer · Pending';
+      case 'failed': return 'Transfer · Failed';
+      default: return 'Transfer';
+    }
+  };
+
+  const paymentColor = (order: Order) => {
+    if (order.paymentMethod === 'cash') return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+    switch (order.paymentStatus) {
+      case 'paid': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -173,6 +193,9 @@ const OrderList: React.FC = () => {
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Payment
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -212,6 +235,11 @@ const OrderList: React.FC = () => {
                         <span className={`px-3 py-1 rounded-full text-xs font-medium inline-flex items-center space-x-1 ${getStatusColor(order.status)}`}>
                           {getStatusIcon(order.status)}
                           <span>{order.status}</span>
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${paymentColor(order)}`}>
+                          {paymentLabel(order)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
