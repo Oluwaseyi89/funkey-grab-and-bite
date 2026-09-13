@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -31,4 +33,18 @@ func getNextOrderSequence() int64 {
 
 func GenerateCustomerID(userID int) string {
 	return fmt.Sprintf("CUST-%06d", userID)
+}
+
+// GeneratePaymentReference builds a Paystack transaction reference we control,
+// rather than letting Paystack assign one, so a webhook can be matched straight
+// back to the order it belongs to. The random suffix keeps it unguessable even
+// though the order number itself isn't secret.
+func GeneratePaymentReference(orderNumber string) string {
+	suffix := make([]byte, 6)
+	if _, err := rand.Read(suffix); err != nil {
+		// crypto/rand failing is effectively unrecoverable on any real platform;
+		// fall back to a timestamp so this never panics or blocks an order.
+		return fmt.Sprintf("PSK-%s-%d", orderNumber, time.Now().UnixNano())
+	}
+	return fmt.Sprintf("PSK-%s-%s", orderNumber, hex.EncodeToString(suffix))
 }
