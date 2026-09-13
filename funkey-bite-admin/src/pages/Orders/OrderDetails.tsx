@@ -19,7 +19,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { getOrder, updateOrderStatus } from '../../api/adminApi';
-import type { Order, OrderStatus } from '../../types';
+import type { Order, OrderStatus, PaymentStatus } from '../../types';
 
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -96,11 +96,26 @@ const OrderDetails: React.FC = () => {
           text: 'Cancelled - Order cancelled'
         };
       default:
-        return { 
+        return {
           color: 'text-gray-600 bg-gray-50 dark:bg-gray-900/20 border-gray-200',
           icon: <AlertCircle className="h-5 w-5" />,
           text: 'Unknown status'
         };
+    }
+  };
+
+  const getPaymentStatusInfo = (status: PaymentStatus) => {
+    switch (status) {
+      case 'not_required':
+        return { badge: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', text: 'Pay on delivery' };
+      case 'pending':
+        return { badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200', text: 'Awaiting transfer' };
+      case 'paid':
+        return { badge: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200', text: 'Paid' };
+      case 'failed':
+        return { badge: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', text: 'Failed' };
+      default:
+        return { badge: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', text: status };
     }
   };
 
@@ -386,8 +401,51 @@ const OrderDetails: React.FC = () => {
               )}
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Payment Method</span>
-                <span className="font-medium">Cash on Delivery</span>
+                <span className="font-medium">
+                  {order.paymentMethod === 'transfer' ? 'Bank Transfer (Paystack)' : 'Cash on Delivery'}
+                </span>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Payment Status</span>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusInfo(order.paymentStatus).badge}`}>
+                  {getPaymentStatusInfo(order.paymentStatus).text}
+                </span>
+              </div>
+              {order.paymentMethod === 'transfer' && order.paymentStatus === 'pending' && order.paymentAccountNumber && (
+                <div className="rounded-lg border border-yellow-200 dark:border-yellow-900/40 bg-yellow-50 dark:bg-yellow-900/10 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                    Awaiting customer transfer
+                  </p>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Account Number</span>
+                    <span className="font-mono font-medium">{order.paymentAccountNumber}</span>
+                  </div>
+                  {order.paymentAccountName && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Account Name</span>
+                      <span className="font-medium">{order.paymentAccountName}</span>
+                    </div>
+                  )}
+                  {order.paymentBankName && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Bank</span>
+                      <span className="font-medium">{order.paymentBankName}</span>
+                    </div>
+                  )}
+                  {order.paymentExpiresAt && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Expires</span>
+                      <span className="font-medium">{new Date(order.paymentExpiresAt).toLocaleTimeString()}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {order.paymentMethod === 'transfer' && order.paymentStatus === 'paid' && order.paymentPaidAt && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Paid At</span>
+                  <span className="font-medium">{new Date(order.paymentPaidAt).toLocaleString()}</span>
+                </div>
+              )}
             </div>
           </div>
 

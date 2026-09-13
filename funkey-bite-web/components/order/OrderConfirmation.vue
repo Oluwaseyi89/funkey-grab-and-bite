@@ -31,7 +31,52 @@
             </span>
           </div>
         </div>
-        
+
+        <div
+          v-if="paymentMethod === 'transfer' && paymentStatus === 'pending' && paymentAccountNumber"
+          class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-5 mb-6 text-left"
+        >
+          <p class="font-bold text-blue-900 dark:text-blue-300 mb-3">Complete your payment</p>
+          <p class="text-sm text-blue-800 dark:text-blue-400 mb-4">
+            Transfer the exact order total to this account. Your order will confirm automatically once the transfer is received.
+          </p>
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-blue-700 dark:text-blue-400">Account Number</span>
+              <div class="flex items-center gap-2">
+                <span class="font-mono font-bold text-blue-900 dark:text-blue-200">{{ paymentAccountNumber }}</span>
+                <button
+                  type="button"
+                  @click="copyAccountNumber"
+                  class="text-blue-600 dark:text-blue-400 hover:text-blue-800"
+                  title="Copy account number"
+                >
+                  <component :is="accountNumberCopied ? Check : Copy" class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div v-if="paymentAccountName" class="flex items-center justify-between">
+              <span class="text-blue-700 dark:text-blue-400">Account Name</span>
+              <span class="font-semibold text-blue-900 dark:text-blue-200">{{ paymentAccountName }}</span>
+            </div>
+            <div v-if="paymentBankName" class="flex items-center justify-between">
+              <span class="text-blue-700 dark:text-blue-400">Bank</span>
+              <span class="font-semibold text-blue-900 dark:text-blue-200">{{ paymentBankName }}</span>
+            </div>
+            <div v-if="paymentExpiresAt" class="flex items-center justify-between">
+              <span class="text-blue-700 dark:text-blue-400">Expires</span>
+              <span class="font-semibold text-blue-900 dark:text-blue-200">{{ formattedExpiry }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-else-if="paymentMethod === 'cash'"
+          class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6 text-sm text-amber-800 dark:text-amber-400"
+        >
+          Pay in cash when your order arrives or is picked up.
+        </div>
+
         <div class="space-y-3">
           <button
             @click="trackOrder"
@@ -55,13 +100,20 @@
   
   <script setup lang="ts">
   import { ref, computed } from 'vue'
-  import { CheckCircle, Clock, Loader2 } from 'lucide-vue-next'
+  import { CheckCircle, Clock, Loader2, Copy, Check } from 'lucide-vue-next'
   import { useApi } from '../../utils/api'
+  import type { PaymentMethod, PaymentStatus } from '../../types/order'
 
   const props = defineProps<{
     orderNumber: string
     estimatedTime: string
     customerPhone: string
+    paymentMethod?: PaymentMethod
+    paymentStatus?: PaymentStatus
+    paymentAccountNumber?: string
+    paymentAccountName?: string
+    paymentBankName?: string
+    paymentExpiresAt?: string
   }>()
 
   defineEmits<{
@@ -71,6 +123,23 @@
   const api = useApi()
   const isTracking = ref(false)
   const liveStatus = ref('')
+  const accountNumberCopied = ref(false)
+
+  const formattedExpiry = computed(() => {
+    if (!props.paymentExpiresAt) return ''
+    return new Date(props.paymentExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  })
+
+  const copyAccountNumber = async () => {
+    if (!props.paymentAccountNumber) return
+    try {
+      await navigator.clipboard.writeText(props.paymentAccountNumber)
+      accountNumberCopied.value = true
+      setTimeout(() => { accountNumberCopied.value = false }, 2000)
+    } catch {
+      // clipboard access can be denied by the browser — the number is still visible to copy manually
+    }
+  }
 
   const statusClass = computed(() => {
     switch (liveStatus.value) {

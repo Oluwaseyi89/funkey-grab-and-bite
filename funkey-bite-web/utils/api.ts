@@ -72,6 +72,22 @@ type BackendOrder = {
   estimatedReadyTime?: string
   estimated_ready_time?: string
   items?: BackendOrderItem[]
+  paymentMethod?: Order['paymentMethod']
+  payment_method?: Order['paymentMethod']
+  paymentStatus?: Order['paymentStatus']
+  payment_status?: Order['paymentStatus']
+  paymentReference?: string
+  payment_reference?: string
+  paymentAccountNumber?: string
+  payment_account_number?: string
+  paymentAccountName?: string
+  payment_account_name?: string
+  paymentBankName?: string
+  payment_bank_name?: string
+  paymentExpiresAt?: string
+  payment_expires_at?: string
+  paymentPaidAt?: string
+  payment_paid_at?: string
 }
 
 type BackendCateringRequest = {
@@ -197,6 +213,14 @@ export class ApiService {
       })),
       createdAt: order.createdAt ?? order.created_at ?? new Date().toISOString(),
       estimatedReadyTime: order.estimatedReadyTime ?? order.estimated_ready_time,
+      paymentMethod: order.paymentMethod ?? order.payment_method,
+      paymentStatus: order.paymentStatus ?? order.payment_status,
+      paymentReference: order.paymentReference ?? order.payment_reference,
+      paymentAccountNumber: order.paymentAccountNumber ?? order.payment_account_number,
+      paymentAccountName: order.paymentAccountName ?? order.payment_account_name,
+      paymentBankName: order.paymentBankName ?? order.payment_bank_name,
+      paymentExpiresAt: order.paymentExpiresAt ?? order.payment_expires_at,
+      paymentPaidAt: order.paymentPaidAt ?? order.payment_paid_at,
     }
   }
 
@@ -360,6 +384,7 @@ export class ApiService {
       if (this.isBackendUnavailableError(err)) {
         this.markBackendUnavailable()
         this.notifyFallback('/orders', 'backend-unavailable', false)
+        const paymentMethod = orderData.paymentMethod || 'cash'
         return {
           id: Math.random().toString(36).substr(2, 9),
           orderNumber: `FG-${Date.now()}`,
@@ -370,6 +395,10 @@ export class ApiService {
           totalAmount: orderData.totalAmount || 0,
           items: orderData.items || [],
           createdAt: new Date().toISOString(),
+          // No real Paystack call happened offline, so no account details to show —
+          // just echo back what was requested with an honest "not actually paid" status.
+          paymentMethod,
+          paymentStatus: paymentMethod === 'cash' ? 'not_required' : 'pending',
         }
       }
 

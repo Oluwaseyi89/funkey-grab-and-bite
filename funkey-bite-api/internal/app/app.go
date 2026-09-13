@@ -150,7 +150,7 @@ func SetupEngine() (*gin.Engine, func()) {
 
 	menuRoutes := public.Group("/menu")
 	{
-		menuRoutes.GET("/", menuHandler.GetMenu)
+		menuRoutes.GET("", menuHandler.GetMenu)
 		menuRoutes.GET("/categories", menuHandler.GetCategories)
 		menuRoutes.GET("/search", menuHandler.SearchMenu)
 		menuRoutes.GET("/featured", menuHandler.GetFeaturedItems)
@@ -162,7 +162,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	orderGroup := public.Group("/orders")
 	orderGroup.Use(middleware.OptionalAuthMiddleware())
 	{
-		orderGroup.POST("/", orderHandler.CreateOrder)
+		orderGroup.POST("", orderHandler.CreateOrder)
 		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrder)
 		orderGroup.PATCH("/:id/cancel", orderHandler.CancelOrder)
 	}
@@ -215,14 +215,14 @@ func SetupEngine() (*gin.Engine, func()) {
 
 	inventoryRoutes := admin.Group("/inventory")
 	{
-		inventoryRoutes.GET("/", inventoryHandler.GetInventory)
+		inventoryRoutes.GET("", inventoryHandler.GetInventory)
 		inventoryRoutes.GET("/dashboard", inventoryHandler.GetDashboard)
 		inventoryRoutes.GET("/low-stock", inventoryHandler.GetLowStock)
 		inventoryRoutes.GET("/alerts", inventoryHandler.GetAlerts)
 		inventoryRoutes.GET("/check", inventoryHandler.CheckAvailability)
 		inventoryRoutes.GET("/menu-item/:menuItemId", inventoryHandler.GetInventoryByMenuItem)
 		inventoryRoutes.GET("/:id", inventoryHandler.GetInventoryItem)
-		inventoryRoutes.POST("/", inventoryHandler.CreateInventoryItem)
+		inventoryRoutes.POST("", inventoryHandler.CreateInventoryItem)
 		inventoryRoutes.POST("/restock", inventoryHandler.RestockItem)
 		inventoryRoutes.PATCH("/stock", inventoryHandler.UpdateStock)
 		inventoryRoutes.PATCH("/alerts/:id/resolve", inventoryHandler.ResolveAlert)

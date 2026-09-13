@@ -1,5 +1,7 @@
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled'
 export type OrderType = 'pickup' | 'delivery' | 'catering'
+export type PaymentMethod = 'cash' | 'transfer'
+export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'failed'
 
 export interface Order {
   id: string
@@ -15,6 +17,14 @@ export interface Order {
   items: OrderItem[]
   createdAt: string
   estimatedReadyTime?: string
+  paymentMethod?: PaymentMethod
+  paymentStatus?: PaymentStatus
+  paymentReference?: string
+  paymentAccountNumber?: string
+  paymentAccountName?: string
+  paymentBankName?: string
+  paymentExpiresAt?: string
+  paymentPaidAt?: string
 }
 
 export interface OrderItem {
