@@ -127,7 +127,15 @@ func runMigrations(db *sql.DB) error {
 			notes TEXT,
 			pickup_time TIMESTAMP,
 			estimated_ready_time TIMESTAMP,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			payment_method VARCHAR(20) NOT NULL DEFAULT 'cash',
+			payment_status VARCHAR(20) NOT NULL DEFAULT 'not_required',
+			payment_reference VARCHAR(100),
+			payment_account_number VARCHAR(20),
+			payment_account_name VARCHAR(200),
+			payment_bank_name VARCHAR(100),
+			payment_expires_at TIMESTAMP,
+			payment_paid_at TIMESTAMP
 		)`,
 
 		`CREATE TABLE IF NOT EXISTS order_items (
@@ -275,8 +283,37 @@ func runMigrations(db *sql.DB) error {
 		`ALTER TABLE menu_items
 		ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
 
-		`CREATE INDEX IF NOT EXISTS idx_menu_items_search 
+		`CREATE INDEX IF NOT EXISTS idx_menu_items_search
 		ON menu_items USING GIN(search_vector)`,
+
+		`ALTER TABLE orders
+		ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) NOT NULL DEFAULT 'cash'`,
+
+		`ALTER TABLE orders
+		ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'not_required'`,
+
+		`ALTER TABLE orders
+		ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(100)`,
+
+		`ALTER TABLE orders
+		ADD COLUMN IF NOT EXISTS payment_account_number VARCHAR(20)`,
+
+		`ALTER TABLE orders
+		ADD COLUMN IF NOT EXISTS payment_account_name VARCHAR(200)`,
+
+		`ALTER TABLE orders
+		ADD COLUMN IF NOT EXISTS payment_bank_name VARCHAR(100)`,
+
+		`ALTER TABLE orders
+		ADD COLUMN IF NOT EXISTS payment_expires_at TIMESTAMP`,
+
+		`ALTER TABLE orders
+		ADD COLUMN IF NOT EXISTS payment_paid_at TIMESTAMP`,
+
+		// Paystack references must be unique so a webhook can never be misattributed
+		// to the wrong order; NULL is allowed (cash orders never get one).
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_payment_reference
+		ON orders(payment_reference) WHERE payment_reference IS NOT NULL`,
 	}
 
 	if err := runMigrationsWithStatements(db, migrations); err != nil {
