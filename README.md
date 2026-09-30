@@ -218,9 +218,9 @@ funkey-grab-and-bite/
 │   │   ├── services/                 # Business logic per domain
 │   │   ├── repository/               # Postgres data access layer
 │   │   ├── domain/models/            # Domain and transport models
-│   │   ├── database/                 # DB initialization + table bootstrap
+│   │   ├── database/                 # DB connection + runs embedded migrations on startup
 │   │   └── utils/                    # JWT, password, email, SMS, helpers
-│   ├── migrations/                   # SQL migration scripts
+│   ├── migrations/                   # Versioned SQL migrations (schema source of truth)
 │   └── go.mod                        # Backend dependency graph
 ├── funkey-bite-admin/                # Internal operations dashboard
 │   ├── src/pages/                    # Orders, inventory, reports, settings, etc.
@@ -421,6 +421,19 @@ $env:DB_NAME="funkey_grab_bite"
 $env:DB_SSLMODE="disable"
 go run cmd/api/main.go
 ```
+
+#### Database migrations
+The schema is defined only by the versioned SQL files in `funkey-bite-api/migrations/` ([golang-migrate](https://github.com/golang-migrate/migrate) format, one `NNNNNN_description.up.sql`/`.down.sql` pair per change). They are embedded into the API binary and applied automatically on startup; applied versions are tracked in the `schema_migrations` table. After the schema is up to date, the API creates the default admin from `DEFAULT_ADMIN_*` env vars if `admin_users` is empty.
+
+To change the schema, add a new migration — never edit one that has already shipped:
+```bash
+cd funkey-bite-api
+make migrate-create NAME=add_something_to_orders   # scaffolds the up/down pair
+make migrate-up                                    # apply pending migrations
+make migrate-down                                  # roll back the latest one (N=2 for more)
+make migrate-version                               # show the applied version
+```
+These targets use the `migrate` CLI (`go install -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@latest`) and read `DB_*` from `.env`.
 
 ### 3) Admin setup (`funkey-bite-admin`)
 ```bash

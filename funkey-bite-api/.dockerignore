@@ -4,7 +4,6 @@
 .env.example
 bin/
 tests/
-migrations/
 openapi/
 *.md
 Dockerfile

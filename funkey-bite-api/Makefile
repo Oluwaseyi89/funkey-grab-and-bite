@@ -7,11 +7,17 @@ LAMBDA_PATH := $(BIN_DIR)/$(LAMBDA_NAME)
 ENV_FILE := .env
 ENV_EXAMPLE := .env.example
 GO ?= go
+MIGRATE ?= migrate
+MIGRATIONS_DIR := ./migrations
 
-.PHONY: help env bootstrap deps tidy fmt vet test test-race contract check run dev build build-local build-lambda start clean
+# Load DB_* settings from .env (if present) so migrate targets hit the same database as the API.
+-include $(ENV_FILE)
+DATABASE_URL ?= postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
+
+.PHONY: help env bootstrap deps tidy fmt vet test test-race contract check run dev build build-local build-lambda start clean migrate-up migrate-down migrate-version migrate-force migrate-create
 
 help: ## Show available commands
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 env: ## Create .env from .env.example if it does not exist
 	@if [ -f $(ENV_FILE) ]; then \
@@ -70,3 +76,20 @@ start: build-local ## Build and start the compiled local API binary
 
 clean: ## Remove built artifacts
 	rm -rf $(BIN_DIR)
+
+migrate-up: ## Apply all pending migrations (the API also does this on startup)
+	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DATABASE_URL)" up
+
+migrate-down: ## Roll back the most recent migration (N=<count> to roll back more)
+	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DATABASE_URL)" down $(or $(N),1)
+
+migrate-version: ## Show the currently applied migration version
+	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DATABASE_URL)" version
+
+migrate-force: ## Mark version V as applied and clean after fixing a failed migration (V=<version>)
+	@test -n "$(V)" || (echo "usage: make migrate-force V=<version>" && exit 1)
+	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DATABASE_URL)" force $(V)
+
+migrate-create: ## Create a new up/down migration pair (NAME=<snake_case_description>)
+	@test -n "$(NAME)" || (echo "usage: make migrate-create NAME=<snake_case_description>" && exit 1)
+	$(MIGRATE) create -ext sql -dir $(MIGRATIONS_DIR) -seq -digits 6 $(NAME)

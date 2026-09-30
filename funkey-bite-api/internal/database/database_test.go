@@ -2,38 +2,49 @@ package database
 
 import (
 	"fmt"
+	"io/fs"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
+
+	"funkey-grab-and-bite/funkey-bite-api/migrations"
 
 	"github.com/DATA-DOG/go-sqlmock"
 )
 
-func TestRunMigrationsWithStatementsFailsOnConflict(t *testing.T) {
-	db, mock, err := sqlmock.New()
+func TestEmbeddedMigrationsArePairedAndContiguous(t *testing.T) {
+	entries, err := fs.ReadDir(migrations.FS, ".")
 	if err != nil {
-		t.Fatalf("sqlmock.New() error = %v", err)
-	}
-	defer db.Close()
-
-	migrations := []string{
-		"CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY)",
-		"ALTER TABLE users ADD COLUMN email TEXT NOT NULL",
+		t.Fatalf("reading embedded migrations: %v", err)
 	}
 
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS users").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE users ADD COLUMN email TEXT NOT NULL").WillReturnError(fmt.Errorf("column \"email\" of relation \"users\" already exists"))
-
-	err = runMigrationsWithStatements(db, migrations)
-	if err == nil {
-		t.Fatal("runMigrationsWithStatements() expected error, got nil")
+	filePattern := regexp.MustCompile(`^(\d{6})_[a-z0-9_]+\.(up|down)\.sql$`)
+	directions := map[int]map[string]bool{}
+	for _, entry := range entries {
+		match := filePattern.FindStringSubmatch(entry.Name())
+		if match == nil {
+			t.Fatalf("migration %q does not match NNNNNN_description.(up|down).sql", entry.Name())
+		}
+		version, _ := strconv.Atoi(match[1])
+		if directions[version] == nil {
+			directions[version] = map[string]bool{}
+		}
+		directions[version][match[2]] = true
 	}
 
-	if !strings.Contains(err.Error(), "migration 2 failed") {
-		t.Fatalf("expected migration index in error, got: %v", err)
+	if len(directions) == 0 {
+		t.Fatal("expected embedded migrations, found none")
 	}
 
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet sqlmock expectations: %v", err)
+	for version := 1; version <= len(directions); version++ {
+		dirs, ok := directions[version]
+		if !ok {
+			t.Fatalf("migration versions are not contiguous: missing %06d", version)
+		}
+		if !dirs["up"] || !dirs["down"] {
+			t.Fatalf("migration %06d must have both up and down files, got %v", version, dirs)
+		}
 	}
 }
 
