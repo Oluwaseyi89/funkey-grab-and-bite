@@ -1,0 +1,10 @@
+# Local build output must never be uploaded: Vercel builds from source, and
+# stale .nuxt/.output artifacts get mixed into the deployment (mismatched
+# buildId -> 404 on /_nuxt/builds/meta/<id>.json).
+.nuxt
+.output
+.data
+.nitro
+.cache
+dist
+node_modules
