@@ -123,3 +123,44 @@ func TestCORSMiddlewarePreflightForCredentialedRequest(t *testing.T) {
 		t.Fatal("expected Access-Control-Allow-Headers header to be present")
 	}
 }
+
+func TestCORSMiddlewareOriginsFromEnv(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("CORS_ALLOWED_ORIGINS", " https://shop-web.example.app/ , https://shop-admin-*.example.app")
+
+	router := gin.New()
+	router.Use(CORSMiddleware())
+	router.GET("/ping", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	cases := []struct {
+		origin  string
+		allowed bool
+	}{
+		{"https://shop-web.example.app", true},
+		{"https://shop-admin-abc123-team.example.app", true},
+		{"https://funkeygrabandbite.com", true},
+		{"http://127.0.0.1:4173", true},
+		{"https://shop-admin-.example.app", false},
+		{"https://shop-admin-x.evil.com/.example.app", false},
+		{"https://other-app.example.app", false},
+		{"https://localhost.evil.com", false},
+		{"http://evil-localhost.com", false},
+	}
+
+	for _, tc := range cases {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+		req.Header.Set("Origin", tc.origin)
+		router.ServeHTTP(recorder, req)
+
+		got := recorder.Header().Get("Access-Control-Allow-Origin")
+		if tc.allowed && got != tc.origin {
+			t.Errorf("origin %q: expected to be allowed, got Access-Control-Allow-Origin=%q", tc.origin, got)
+		}
+		if !tc.allowed && got != "" {
+			t.Errorf("origin %q: expected to be rejected, got Access-Control-Allow-Origin=%q", tc.origin, got)
+		}
+	}
+}
