@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type MenuCategory struct {
 	ID           int       `json:"id" db:"id"`
@@ -25,6 +28,25 @@ type MenuItem struct {
 	NutritionalInfo *NutritionalInfo `json:"nutritionalInfo,omitempty"`
 	CreatedAt       time.Time        `json:"createdAt" db:"created_at"`
 	UpdatedAt       time.Time        `json:"updatedAt,omitempty" db:"updated_at"`
+}
+
+// imageURLResolver turns a stored image value (an object key) into the URL
+// clients load. It is the identity until storage is configured at startup.
+var imageURLResolver = func(value string) string { return value }
+
+// SetImageURLResolver installs the key-to-URL mapping used when menu items are
+// encoded, so every endpoint returning a MenuItem serves full image URLs.
+func SetImageURLResolver(resolve func(string) string) {
+	if resolve != nil {
+		imageURLResolver = resolve
+	}
+}
+
+func (m MenuItem) MarshalJSON() ([]byte, error) {
+	type menuItemJSON MenuItem // drops this method, avoiding recursion
+	out := menuItemJSON(m)
+	out.ImageURL = imageURLResolver(m.ImageURL)
+	return json.Marshal(out)
 }
 
 type NutritionalInfo struct {
