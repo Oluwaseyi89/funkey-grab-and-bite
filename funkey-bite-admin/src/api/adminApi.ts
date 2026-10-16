@@ -1,4 +1,4 @@
-import { apiGet, apiGetResponse, apiPost, apiPut, apiPatch, apiDelete } from './apiHelpers';
+import { apiGet, apiGetResponse, apiPost, apiPut, apiPatch, apiDelete, apiUpload } from './apiHelpers';
 import type {
   AdminUser,
   AdminLoginResponse,
@@ -192,6 +192,13 @@ export const updateMenuItem = (id: number, data: Partial<MenuItem>) =>
 
 export const deleteMenuItem = (id: number) =>
   apiDelete<{ message: string; itemId: number }>(`/api/v1/admin/menu/items/${id}`);
+
+// Stores the image in object storage; save the returned key as the item's imageUrl.
+export const uploadMenuImage = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiUpload<{ key: string; url: string }>('/api/v1/admin/uploads/menu-image', formData);
+};
 
 export const getCategories = () =>
   apiGet<MenuCategory[]>('/api/v1/menu/categories');

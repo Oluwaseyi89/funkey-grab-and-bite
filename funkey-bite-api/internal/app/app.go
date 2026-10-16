@@ -1,16 +1,19 @@
 package app
 
 import (
+	"context"
 	"log"
 	"os"
 	"strings"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/database"
+	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 	v1 "funkey-grab-and-bite/funkey-bite-api/internal/handlers/v1"
 	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
+	"funkey-grab-and-bite/funkey-bite-api/internal/storage"
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -37,6 +40,20 @@ func SetupEngine() (*gin.Engine, func()) {
 	db := database.InitializeDatabase()
 	cleanup := func() {
 		database.CloseDatabase(db)
+	}
+
+	// Initialize static file storage (nil when STORAGE_PROVIDER is unset)
+	imageStorage, err := storage.NewFromEnv(context.Background())
+	if err != nil {
+		log.Fatalf("Invalid storage configuration: %v", err)
+	}
+	if imageStorage != nil {
+		models.SetImageURLResolver(func(value string) string {
+			return storage.ResolveURL(imageStorage, value)
+		})
+		log.Printf("✅ Image storage configured (provider=%s)", os.Getenv("STORAGE_PROVIDER"))
+	} else {
+		log.Println("Image storage not configured; menu image uploads are disabled")
 	}
 
 	// Initialize repositories
@@ -70,7 +87,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	userService := services.NewUserService(*userRepo, *orderRepo)
 	menuService := services.NewMenuService(*menuRepo)
 	cateringService := services.NewCateringService(*cateringRepo, notificationService)
-	adminService := services.NewAdminService(adminRepo, *orderRepo, *userRepo, *cateringRepo, *menuRepo)
+	adminService := services.NewAdminService(adminRepo, *orderRepo, *userRepo, *cateringRepo, *menuRepo, imageStorage)
 	settingsService := services.NewSettingsService(*settingsRepo)
 	promotionService := services.NewPromotionService(promotionRepo)
 	paymentService := services.NewPaymentService(paymentGateway, orderRepo, notificationService)
@@ -82,6 +99,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	menuHandler := v1.NewMenuHandler(menuService)
 	cateringHandler := v1.NewCateringHandler(cateringService)
 	adminHandler := v1.NewAdminHandler(adminService)
+	uploadHandler := v1.NewUploadHandler(imageStorage)
 	settingsHandler := v1.NewSettingsHandler(settingsService)
 	promotionHandler := v1.NewPromotionHandler(promotionService)
 	inventoryHandler := v1.NewInventoryHandler(inventoryService)
@@ -194,6 +212,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		admin.POST("/menu/items", adminHandler.CreateMenuItem)
 		admin.PUT("/menu/items/:id", adminHandler.UpdateMenuItem)
 		admin.DELETE("/menu/items/:id", adminHandler.DeleteMenuItem)
+		admin.POST("/uploads/menu-image", uploadHandler.UploadMenuImage)
 		admin.POST("/menu/categories", adminHandler.CreateMenuCategory)
 		admin.PUT("/menu/categories/:id", adminHandler.UpdateMenuCategory)
 		admin.GET("/catering/requests", cateringHandler.GetAllRequests)

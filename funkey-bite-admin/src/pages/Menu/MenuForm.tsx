@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getCategories, createMenuItem, updateMenuItem, getMenuItemByID } from '../../api/adminApi';
+import { getCategories, createMenuItem, updateMenuItem, getMenuItemByID, uploadMenuImage } from '../../api/adminApi';
 import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { MenuItem, MenuCategory, NutritionalInfo } from '../../types';
 
@@ -40,6 +40,9 @@ const menuItemSchema = z.object({
 });
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
+
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 type MenuItemFormInput = z.input<typeof menuItemSchema>;
 type MenuItemFormOutput = z.output<typeof menuItemSchema>;
 
@@ -48,6 +51,10 @@ const MenuForm: React.FC = () => {
   const navigate = useNavigate();
   const isEditing = !!id;
   const [imagePreview, setImagePreview] = useState<string>('');
+  // Value saved as imageUrl: a storage key from the upload endpoint, or the
+  // existing item's URL (the API maps its own URLs back to keys).
+  const [imageValue, setImageValue] = useState<string>('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [showNutrition, setShowNutrition] = useState(false);
 
@@ -122,6 +129,7 @@ const MenuForm: React.FC = () => {
       });
       if (existingItem.imageUrl) {
         setImagePreview(existingItem.imageUrl);
+        setImageValue(existingItem.imageUrl);
       }
       if (existingItem.nutritionalInfo) {
         setShowNutrition(true);
@@ -143,22 +151,47 @@ const MenuForm: React.FC = () => {
     setValue('tags', tags.filter(tag => tag !== tagToRemove));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    e.target.value = ''; // allow re-selecting the same file after an error
+    if (!file) return;
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      toast.error('Only JPG, PNG or WebP images are allowed');
+      return;
     }
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast.error('Image must be 2MB or smaller');
+      return;
+    }
+
+    const previousPreview = imagePreview;
+    const localPreview = URL.createObjectURL(file);
+    setImagePreview(localPreview);
+    setIsUploadingImage(true);
+    try {
+      const { key, url } = await uploadMenuImage(file);
+      setImageValue(key);
+      setImagePreview(url);
+    } catch (error) {
+      setImagePreview(previousPreview);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      URL.revokeObjectURL(localPreview);
+      setIsUploadingImage(false);
+    }
+  };
+
+  const removeImage = () => {
+    setImagePreview('');
+    setImageValue('');
   };
 
   const mutation = useMutation({
     mutationFn: async (data: MenuItemFormOutput) => {
       const menuItemData: any = {
         ...data,
-        imageUrl: imagePreview || 'https://via.placeholder.com/400x300?text=Menu+Item',
+        imageUrl: imageValue || 'https://via.placeholder.com/400x300?text=Menu+Item',
       };
 
       if (isEditing && id) {
@@ -211,11 +244,11 @@ const MenuForm: React.FC = () => {
           </button>
           <button
             onClick={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isUploadingImage}
             className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
-            <span>{isSubmitting ? 'Saving...' : 'Save Menu Item'}</span>
+            <span>{isSubmitting ? 'Saving...' : isUploadingImage ? 'Uploading image...' : 'Save Menu Item'}</span>
           </button>
         </div>
       </div>
@@ -523,10 +556,16 @@ const MenuForm: React.FC = () => {
                 )}
                 
                 
-                {imagePreview && (
+                {isUploadingImage && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white"></div>
+                  </div>
+                )}
+
+                {imagePreview && !isUploadingImage && (
                   <button
                     type="button"
-                    onClick={() => setImagePreview('')}
+                    onClick={removeImage}
                     className="absolute top-3 right-3 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -538,8 +577,9 @@ const MenuForm: React.FC = () => {
               <label className="block">
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageUpload}
+                  disabled={isUploadingImage}
                   className="hidden"
                 />
                 <div className="flex items-center justify-center space-x-2 px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 cursor-pointer transition-colors">
@@ -551,7 +591,7 @@ const MenuForm: React.FC = () => {
               </label>
               
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Recommended: 400x300px JPG or PNG. Max 2MB.
+                Recommended: 400x300px JPG, PNG or WebP. Max 2MB.
               </p>
             </div>
           </div>

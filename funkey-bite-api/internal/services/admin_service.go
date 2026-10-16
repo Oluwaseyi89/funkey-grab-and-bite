@@ -1,14 +1,20 @@
 package services
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
+	"funkey-grab-and-bite/funkey-bite-api/internal/storage"
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
 )
+
+// maxImageURLLength matches menu_items.image_url VARCHAR(500).
+const maxImageURLLength = 500
 
 type AdminService interface {
 	AdminLogin(email, password string) (*models.AdminUser, string, error)
@@ -49,6 +55,7 @@ type adminService struct {
 	userRepo     repository.UserRepository
 	cateringRepo repository.CateringRepository
 	menuRepo     repository.MenuRepository
+	images       storage.Storage // nil when storage is not configured
 }
 
 func NewAdminService(
@@ -57,6 +64,7 @@ func NewAdminService(
 	userRepo repository.UserRepository,
 	cateringRepo repository.CateringRepository,
 	menuRepo repository.MenuRepository,
+	images storage.Storage,
 ) AdminService {
 	return &adminService{
 		adminRepo:    adminRepo,
@@ -64,6 +72,7 @@ func NewAdminService(
 		userRepo:     userRepo,
 		cateringRepo: cateringRepo,
 		menuRepo:     menuRepo,
+		images:       images,
 	}
 }
 
@@ -303,6 +312,10 @@ func (s *adminService) CreateMenuItem(item *models.MenuItem) (*models.MenuItem, 
 		return nil, fmt.Errorf("category does not exist")
 	}
 
+	if err := s.normalizeMenuImage(item); err != nil {
+		return nil, err
+	}
+
 	return s.adminRepo.CreateMenuItem(item)
 }
 
@@ -332,7 +345,18 @@ func (s *adminService) UpdateMenuItem(item *models.MenuItem) error {
 		return fmt.Errorf("menu item not found")
 	}
 
-	return s.adminRepo.UpdateMenuItem(item)
+	if err := s.normalizeMenuImage(item); err != nil {
+		return err
+	}
+
+	if err := s.adminRepo.UpdateMenuItem(item); err != nil {
+		return err
+	}
+
+	if existing.ImageURL != item.ImageURL {
+		s.deleteMenuImage(existing.ImageURL)
+	}
+	return nil
 }
 
 func (s *adminService) DeleteMenuItem(id int) error {
@@ -344,7 +368,41 @@ func (s *adminService) DeleteMenuItem(id int) error {
 		return fmt.Errorf("menu item not found")
 	}
 
-	return s.adminRepo.DeleteMenuItem(id)
+	if err := s.adminRepo.DeleteMenuItem(id); err != nil {
+		return err
+	}
+
+	s.deleteMenuImage(existing.ImageURL)
+	return nil
+}
+
+// normalizeMenuImage makes item.ImageURL safe to store: inline image data is
+// rejected (images go through the upload endpoint), and a public URL of our
+// own bucket is converted back to its key so the database only holds keys.
+func (s *adminService) normalizeMenuImage(item *models.MenuItem) error {
+	value := strings.TrimSpace(item.ImageURL)
+	if strings.HasPrefix(strings.ToLower(value), "data:") {
+		return fmt.Errorf("imageUrl must reference an uploaded image, not inline image data; upload it via /api/v1/admin/uploads/menu-image")
+	}
+	value = storage.KeyFromPublicURL(s.images, value)
+	if len(value) > maxImageURLLength {
+		return fmt.Errorf("imageUrl must be at most %d characters", maxImageURLLength)
+	}
+	item.ImageURL = value
+	return nil
+}
+
+// deleteMenuImage removes a replaced or orphaned image from storage. Failure
+// only leaves an unused file behind, so it is logged rather than surfaced.
+func (s *adminService) deleteMenuImage(value string) {
+	if s.images == nil || !storage.IsManagedKey(value) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.images.Delete(ctx, value); err != nil {
+		log.Printf("failed to delete menu image %s: %v", value, err)
+	}
 }
 
 func (s *adminService) GetMenuItemByID(id int) (*models.MenuItem, error) {
