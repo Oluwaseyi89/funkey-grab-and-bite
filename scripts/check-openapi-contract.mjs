@@ -30,6 +30,7 @@ const routeSets = {
     ['post', '/api/v1/admin/menu/items'],
     ['put', '/api/v1/admin/menu/items/{id}'],
     ['delete', '/api/v1/admin/menu/items/{id}'],
+    ['post', '/api/v1/admin/uploads/menu-image'],
     ['get', '/api/v1/menu/categories'],
     ['post', '/api/v1/admin/menu/categories'],
     ['put', '/api/v1/admin/menu/categories/{id}'],
