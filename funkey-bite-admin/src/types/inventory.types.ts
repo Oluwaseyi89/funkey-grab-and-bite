@@ -7,7 +7,8 @@ export interface InventoryItem {
     reorderPoint: number;
     unit: string;
     isActive: boolean;
-    lastRestocked: string;
+    /** Missing until the item is first restocked. */
+    lastRestocked?: string;
     createdAt: string;
     updatedAt: string;
   }
