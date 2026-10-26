@@ -59,7 +59,7 @@ func (s *orderService) CreateOrder(order *models.Order, items []models.OrderItem
 		}
 
 		if menuItem.Price != item.UnitPrice {
-			return nil, fmt.Errorf("price mismatch for %s: expected $%.2f, got $%.2f",
+			return nil, fmt.Errorf("price mismatch for %s: expected ₦%.2f, got ₦%.2f",
 				menuItem.Name, menuItem.Price, item.UnitPrice)
 		}
 
