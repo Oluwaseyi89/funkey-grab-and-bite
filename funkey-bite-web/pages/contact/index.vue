@@ -145,7 +145,7 @@
   </template>
   
   <script setup lang="ts">
-  import { ref, onMounted } from 'vue'
+  import { ref, computed, onMounted } from 'vue'
   import { 
     Phone, 
     Users, 
@@ -168,7 +168,7 @@
   const showSuccessModal = ref(false)
   const openFaqIndex = ref<number | null>(0)
   
-  const faqs = [
+  const faqs = computed(() => [
     {
       question: 'What are your delivery hours?',
       answer: 'We deliver during our opening hours, shown on this page. Orders can only be placed while we are open.'
@@ -187,9 +187,11 @@
     },
     {
       question: 'How do I apply for a job?',
-      answer: 'Send your resume to careers@funkeygrabandbite.com or visit us in person to fill out an application.'
+      answer: settings.value?.email
+        ? `Send your resume to ${settings.value.email} or visit us in person to fill out an application.`
+        : 'Send us your resume through the contact form or visit us in person to fill out an application.'
     }
-  ]
+  ])
   
   const team = [
     {
