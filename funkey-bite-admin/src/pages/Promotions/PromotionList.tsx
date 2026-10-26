@@ -559,7 +559,7 @@ const PromotionList: React.FC = () => {
                             </div>
                             {promotion.minOrderAmount && (
                               <div className="text-xs text-gray-500 dark:text-gray-400">
-                                Min order: ${promotion.minOrderAmount}
+                                Min order: ₦{promotion.minOrderAmount}
                               </div>
                             )}
                           </div>
