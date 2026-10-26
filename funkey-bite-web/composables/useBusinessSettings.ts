@@ -3,10 +3,6 @@ import { useState } from 'nuxt/app'
 import type { BusinessSettings, OpeningHours } from '~/types/settings'
 import { useApi } from '~/utils/api'
 
-// The API judges open/closed in this zone (BUSINESS_TIMEZONE); "today" is
-// highlighted in it too, whatever the visitor's own timezone is.
-export const BUSINESS_TIMEZONE = 'Africa/Lagos'
-
 const WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 export interface HoursGroup {
@@ -89,9 +85,23 @@ export function useBusinessSettings() {
 
   const hoursGroups = computed(() => groupHours(openingHours.value))
 
-  const today = computed(() =>
-    new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: BUSINESS_TIMEZONE }).format(new Date()),
-  )
+  const businessName = computed(() => settings.value?.businessName ?? '')
+  const businessInitial = computed(() => businessName.value.charAt(0).toUpperCase())
+
+  // "Today" follows the business timezone from the API, not the visitor's.
+  const today = computed(() => {
+    const timeZone = settings.value?.timezone
+    if (!timeZone) return ''
+    return new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone }).format(new Date())
+  })
+
+  // "Africa/Lagos" -> "West Africa Standard Time"
+  const timezoneLabel = computed(() => {
+    const timeZone = settings.value?.timezone
+    if (!timeZone) return ''
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'long' }).formatToParts(new Date())
+    return parts.find((part) => part.type === 'timeZoneName')?.value ?? timeZone
+  })
 
   const addressLines = computed(() => {
     const s = settings.value
@@ -116,9 +126,12 @@ export function useBusinessSettings() {
     settings,
     status,
     load,
+    businessName,
+    businessInitial,
     openingHours,
     hoursGroups,
     today,
+    timezoneLabel,
     addressLines,
     fullAddress,
     mapsUrl,
