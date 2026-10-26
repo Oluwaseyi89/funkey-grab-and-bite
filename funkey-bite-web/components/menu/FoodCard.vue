@@ -15,6 +15,13 @@
         
         
         <div class="absolute top-3 left-3 z-20 flex flex-wrap gap-2">
+          <span
+            v-if="stock.label"
+            class="px-3 py-1 text-white text-xs font-bold rounded-full"
+            :class="stock.tone === 'low' ? 'bg-amber-500' : 'bg-red-500'"
+          >
+            {{ stock.label }}
+          </span>
           <span 
             v-if="item.isPreOrder"
             class="px-3 py-1 bg-purple-500 text-white text-xs font-bold rounded-full"
@@ -37,6 +44,7 @@
         
         
         <button
+          v-if="stock.orderable"
           @click="addToCart"
           class="absolute top-3 right-3 z-20 w-10 h-10 bg-white/90 dark:bg-slate-800/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-brand-500 hover:text-white"
           aria-label="Add to cart"
@@ -102,9 +110,10 @@
             </button>
             <button
               @click="addToCart"
-              class="btn-primary px-4 py-2 text-sm dark:text-white"
+              :disabled="!stock.orderable"
+              class="btn-primary px-4 py-2 text-sm dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add to Cart
+              {{ stock.orderable ? 'Add to Cart' : stock.label }}
             </button>
           </div>
         </div>
@@ -120,6 +129,7 @@
   import { useCartStore } from '../../stores/cart'
   import { useRuntimeConfig } from 'nuxt/app'
   import { gsap } from 'gsap'
+  import { menuStock } from '../../utils/menuStock'
   
   interface Props {
     item: MenuItem
@@ -128,6 +138,7 @@
   const props = defineProps<Props>()
   const cardRef = ref<HTMLElement>()
   const cart = useCartStore()
+  const stock = computed(() => menuStock(props.item))
   const { $toast } = useNuxtApp()
   
   const imageUrl = computed(() => {
