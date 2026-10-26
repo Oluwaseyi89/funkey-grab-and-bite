@@ -220,7 +220,7 @@ const CustomerList: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-semibold text-gray-900 dark:text-white">
-                          ${getTotalSpent(customer)}
+                          ₦{getTotalSpent(customer)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
