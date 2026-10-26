@@ -24,11 +24,12 @@
           Request Quote
         </button>
         <a 
-          href="tel:+1234567890" 
+          v-if="phoneHref"
+          :href="phoneHref" 
           class="bg-white/80 dark:bg-white/20 hover:bg-white dark:hover:bg-white/30 backdrop-blur-sm font-medium py-3 px-8 rounded-xl transition-colors hover:scale-105 flex items-center justify-center gap-2 border border-brand-200 dark:border-white/30 text-brand-700 dark:text-white"
         >
           <Phone class="w-5 h-5" />
-          (555) 123-4567
+          {{ settings?.phoneNumber }}
         </a>
       </div>
     </PageHeader>
@@ -175,8 +176,8 @@
             >
               Get Started
             </button>
-            <a href="tel:+1234567890" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm font-medium py-3 px-8 rounded-xl transition-colors">
-              Call Now: (555) 123-4567
+            <a v-if="phoneHref" :href="phoneHref" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm font-medium py-3 px-8 rounded-xl transition-colors">
+              Call Now: {{ settings?.phoneNumber }}
             </a>
           </div>
         </div>
@@ -211,7 +212,7 @@
   </template>
   
   <script setup lang="ts">
-  import { ref } from 'vue'
+  import { ref, onMounted } from 'vue'
   import type { CateringRequest } from '../../types/order'
   import { 
     CheckCircle, 
@@ -230,9 +231,13 @@
   import CateringFAQ from '../../components/catering/CateringFAQ.vue'
   import { Phone } from 'lucide-vue-next'
   import { useApi } from '../../utils/api'
+  import { useBusinessSettings } from '../../composables/useBusinessSettings'
 
   const { $toast } = useNuxtApp()
   const api = useApi()
+  const { settings, phoneHref, load: loadBusinessSettings } = useBusinessSettings()
+
+  onMounted(() => loadBusinessSettings())
   
   const formSection = ref<HTMLElement>()
   const selectedPackage = ref('premium')
