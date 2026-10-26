@@ -30,12 +30,12 @@
           <div v-else>
 
             <div
-              v-if="orderBlockedReason"
+              v-if="orderBlockedReason && settingsStatus !== 'loading'"
               role="alert"
               class="mt-4 p-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
             >
               {{ orderBlockedReason }}
-              <NuxtLink to="/contact" class="underline font-medium ml-1">See opening hours</NuxtLink>
+              <NuxtLink v-if="businessSettings" to="/contact" class="underline font-medium ml-1">See opening hours</NuxtLink>
             </div>
 
             <div class="my-5 md:my-8 py-3 md:py-8">
@@ -229,7 +229,7 @@
   const cart = useCartStore()
   const api = useApi()
   const { $toast } = useNuxtApp()
-  const { settings: businessSettings, load: loadBusinessSettings } = useBusinessSettings()
+  const { settings: businessSettings, status: settingsStatus, load: loadBusinessSettings } = useBusinessSettings()
   
   const currentStep = ref(0)
   const isSubmitting = ref(false)
@@ -270,25 +270,27 @@
     }
   ]
   
-  // Fees come from the admin settings the API charges with; the constants are
-  // only used if the settings could not be loaded.
-  const deliveryFee = computed(() => {
-    return orderData.value.orderType === 'delivery' ? (businessSettings.value?.deliveryFee ?? 3.99) : 0
+  // Fees come from the admin settings the API charges with; null (and checkout
+  // disabled) until they have loaded.
+  const deliveryFee = computed<number | null>(() => {
+    if (!businessSettings.value) return null
+    return orderData.value.orderType === 'delivery' ? businessSettings.value.deliveryFee : 0
   })
   
-  const taxRate = computed(() => businessSettings.value?.taxRate ?? 8)
+  const taxRate = computed<number | null>(() => businessSettings.value?.taxRate ?? null)
   
   const orderTotal = computed(() => {
     const subtotal = cart.items.reduce((sum, item) => sum + (item.menuItem.price * item.quantity), 0)
-    const tax = subtotal * (taxRate.value / 100)
-    return subtotal + tax + deliveryFee.value
+    const tax = subtotal * ((taxRate.value ?? 0) / 100)
+    return subtotal + tax + (deliveryFee.value ?? 0)
   })
   
   // Mirrors the API's checks so customers learn about a closure before they
-  // check out, not from a rejected order. Unknown settings defer to the API.
+  // check out, not from a rejected order.
   const orderBlockedReason = computed(() => {
     const s = businessSettings.value
-    if (!s) return ''
+    if (settingsStatus.value === 'loading') return 'Loading our prices and opening hours…'
+    if (!s) return "We couldn't load our prices and opening hours. Please refresh the page to try again."
     if (!s.isOpenNow) return "We're closed right now, so orders can't be placed until we open again."
     if (orderData.value.orderType === 'delivery' && !s.isDeliveryOpen) {
       return 'Delivery is unavailable right now. Please choose pickup instead.'
