@@ -103,18 +103,18 @@
                     @select="orderData.orderType = $event"
                   />
                   
+                  <!-- Submitting the form is the only way on to payment, so an
+                       order can't be placed without the customer's details. -->
                   <CustomerInfoForm
+                    :order-type="orderData.orderType"
+                    :initial-data="customerInfo"
                     @submit="handleCustomerInfo"
                     submit-text="Continue to Payment"
                   />
                   
-                  <div class="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 border-t">
+                  <div class="flex justify-start pt-6 border-t">
                     <button @click="currentStep = 0" class="btn-secondary w-full sm:w-auto">
                       Back to Cart
-                    </button>
-                    <button @click="currentStep = 2" class="btn-primary w-full sm:w-auto">
-                      Continue to Payment
-                      <ArrowRight class="w-4 h-4 ml-2" />
                     </button>
                   </div>
                 </div>
@@ -123,6 +123,14 @@
                 <div v-if="currentStep === 2" class="space-y-8">
                   <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700">
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Payment Method</h3>
+                    <div class="mb-4 p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-sm text-gray-700 dark:text-gray-300">
+                      <p class="font-medium">{{ customerInfo.customerName }} · {{ customerInfo.customerPhone }}</p>
+                      <p>{{ customerInfo.customerEmail }}</p>
+                      <p v-if="orderData.orderType === 'delivery'">Deliver to: {{ customerInfo.deliveryAddress }}</p>
+                      <button type="button" class="mt-1 text-brand-500 hover:text-brand-600 font-medium" @click="currentStep = 1">
+                        Edit details
+                      </button>
+                    </div>
                     <div class="space-y-4">
                       <label
                         v-for="method in paymentMethods"
@@ -190,7 +198,10 @@
         v-if="showConfirmation"
         :order-number="orderNumber"
         :estimated-time="estimatedTime"
-        :customer-phone="orderData.customerPhone || ''"
+        :customer-phone="lastOrder?.customerPhone || ''"
+        :invoice-number="lastOrder?.invoiceNumber"
+        :order-type="lastOrder?.orderType"
+        :total-amount="lastOrder?.totalAmount"
         :payment-method="lastOrder?.paymentMethod"
         :payment-status="lastOrder?.paymentStatus"
         :payment-account-number="lastOrder?.paymentAccountNumber"
@@ -203,9 +214,10 @@
   </template>
   
   <script setup lang="ts">
-  import { ref, computed, onMounted } from 'vue'
+  import { ref, computed, onMounted, watch } from 'vue'
   import { useCartStore } from '../../stores/cart'
-  import type { Order, OrderType } from '../../types/order'
+  import { useState } from 'nuxt/app'
+  import type { CustomerInfo, InvoiceLookup, Order, OrderCreatePayload, PaymentMethod } from '../../types/order'
   import type { CartItem as CartItemType } from '../../types/menu'
   import {
     ShoppingCart,
@@ -236,16 +248,25 @@
   const showConfirmation = ref(false)
   const orderNumber = ref('')
   const estimatedTime = ref('')
-  const selectedPayment = ref<'transfer' | 'cash'>('transfer')
+  const selectedPayment = ref<PaymentMethod>('transfer')
   const lastOrder = ref<Order | null>(null)
   
-  const orderData = ref<Partial<Order>>({
+  const orderData = ref<Pick<Order, 'orderType'>>({
     orderType: 'pickup',
+  })
+  
+  const emptyCustomerInfo = (): CustomerInfo => ({
     customerName: '',
     customerPhone: '',
     customerEmail: '',
+    deliveryAddress: '',
     notes: ''
   })
+  const customerInfo = ref<CustomerInfo>(emptyCustomerInfo())
+  const hasCustomerInfo = computed(() =>
+    Boolean(customerInfo.value.customerName && customerInfo.value.customerPhone && customerInfo.value.customerEmail) &&
+    (orderData.value.orderType !== 'delivery' || Boolean(customerInfo.value.deliveryAddress))
+  )
   
   const steps = [
     { id: 'cart', name: 'Cart' },
@@ -253,22 +274,37 @@
     { id: 'payment', name: 'Payment' }
   ]
   
-  const paymentMethods = [
-    {
+  const payOnDeliveryEnabled = computed(() => Boolean(businessSettings.value?.payOnDeliveryEnabled))
+  
+  // Pay on delivery is only offered while the admin allows it; online payment
+  // is always available.
+  const paymentMethods = computed(() => {
+    const methods: { id: PaymentMethod; name: string; description: string; icon: typeof Landmark; iconClass: string }[] = []
+    if (payOnDeliveryEnabled.value) {
+      const isDelivery = orderData.value.orderType === 'delivery'
+      methods.push({
+        id: 'cash',
+        name: isDelivery ? 'Pay on Delivery' : 'Pay at Pickup',
+        description: `Pay with cash, POS or transfer when you ${isDelivery ? 'receive' : 'collect'} your order. We'll email you an invoice.`,
+        icon: Banknote,
+        iconClass: 'text-amber-500'
+      })
+    }
+    methods.push({
       id: 'transfer',
-      name: 'Bank Transfer',
-      description: 'Pay instantly via a dedicated account number (Paystack)',
+      name: 'Pay Online Now',
+      description: 'Pay by bank transfer to a dedicated account number (Paystack)',
       icon: Landmark,
       iconClass: 'text-blue-500'
-    },
-    {
-      id: 'cash',
-      name: 'Cash on Delivery',
-      description: 'Pay when you receive your order',
-      icon: Banknote,
-      iconClass: 'text-amber-500'
-    }
-  ]
+    })
+    return methods
+  })
+  
+  // Default to pay on delivery when it's offered, and never leave it selected
+  // after the admin turns it off.
+  watch(payOnDeliveryEnabled, (enabled) => {
+    selectedPayment.value = enabled ? 'cash' : 'transfer'
+  }, { immediate: true })
   
   // Fees come from the admin settings the API charges with; null (and checkout
   // disabled) until they have loaded.
@@ -314,8 +350,9 @@
     cart.removeItem(item.menuItem.id)
   }
   
-  const handleCustomerInfo = (data: any) => {
-    Object.assign(orderData.value, data)
+  const handleCustomerInfo = (data: CustomerInfo) => {
+    customerInfo.value = { ...data }
+    currentStep.value = 2
   }
   
   const submitOrder = async () => {
@@ -330,17 +367,25 @@
         }
         return
       }
+      if (!hasCustomerInfo.value) {
+        currentStep.value = 1
+        if ($toast && typeof $toast.error === 'function') {
+          $toast.error('Please enter your contact details first.')
+        }
+        return
+      }
 
-      const orderPayload: Partial<Order> = {
-        customerName: orderData.value.customerName,
-        customerPhone: orderData.value.customerPhone,
-        customerEmail: orderData.value.customerEmail,
+      const details = customerInfo.value
+      const orderPayload: OrderCreatePayload = {
+        customerName: details.customerName,
+        customerPhone: details.customerPhone,
+        customerEmail: details.customerEmail,
         orderType: orderData.value.orderType,
         paymentMethod: selectedPayment.value,
-        notes: orderData.value.notes,
-        totalAmount: orderTotal.value,
+        deliveryAddress: orderData.value.orderType === 'delivery' ? details.deliveryAddress : undefined,
+        notes: details.notes || undefined,
         items: cart.items.map((item) => ({
-          menuItemId: item.menuItem.id,
+          menuItemId: Number(item.menuItem.id),
           name: item.menuItem.name,
           quantity: item.quantity,
           unitPrice: item.menuItem.price,
@@ -370,13 +415,16 @@
         $toast.success('Order submitted successfully.')
       }
   
-      orderData.value = {
-        orderType: 'pickup',
-        customerName: '',
-        customerPhone: '',
-        customerEmail: '',
-        notes: ''
+      // Lets the invoice page open this order without asking again.
+      if (createdOrder.invoiceNumber) {
+        useState<InvoiceLookup | null>('invoice-lookup', () => null).value = {
+          orderNumber: createdOrder.orderNumber,
+          phone: details.customerPhone,
+        }
       }
+
+      orderData.value = { orderType: 'pickup' }
+      customerInfo.value = emptyCustomerInfo()
   
     } catch (error) {
       console.error('Order submission failed:', error)
