@@ -183,7 +183,7 @@ func (s *promotionService) ValidatePromotion(code string, orderAmount float64, c
 	if promotion.MinOrderAmount != nil && orderAmount < *promotion.MinOrderAmount {
 		return &models.PromotionValidation{
 			IsValid: false,
-			Message: fmt.Sprintf("Minimum order amount of $%.2f required", *promotion.MinOrderAmount),
+			Message: fmt.Sprintf("Minimum order amount of ₦%.2f required", *promotion.MinOrderAmount),
 		}, nil
 	}
 
