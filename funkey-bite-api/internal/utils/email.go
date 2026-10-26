@@ -17,6 +17,8 @@ type EmailService interface {
 	SendOrderStatusUpdate(toEmail, toName, orderNumber, status string) error
 	SendCateringConfirmation(toEmail, toName, requestID, eventName string) error
 	SendPasswordReset(toEmail, resetToken string) error
+	// SendInvoice sends an already-rendered invoice.
+	SendInvoice(toEmail, subject, htmlBody, textBody string) error
 }
 
 type AWSEmailService struct {
@@ -150,6 +152,10 @@ func (s *AWSEmailService) SendPasswordReset(toEmail, resetToken string) error {
 	return s.sendEmail(toEmail, subject, htmlBody, textBody)
 }
 
+func (s *AWSEmailService) SendInvoice(toEmail, subject, htmlBody, textBody string) error {
+	return s.sendEmail(toEmail, subject, htmlBody, textBody)
+}
+
 func (s *AWSEmailService) sendEmail(toEmail, subject, htmlBody, textBody string) error {
 	input := &ses.SendEmailInput{
 		Destination: &types.Destination{
@@ -190,6 +196,11 @@ func (m *MockEmailService) SendOrderStatusUpdate(toEmail, toName, orderNumber, s
 
 func (m *MockEmailService) SendCateringConfirmation(toEmail, toName, requestID, eventName string) error {
 	log.Printf("[MOCK EMAIL] Catering confirmation sent to %s: Request %s - Event: %s", toEmail, requestID, eventName)
+	return nil
+}
+
+func (m *MockEmailService) SendInvoice(toEmail, subject, htmlBody, textBody string) error {
+	log.Printf("[MOCK EMAIL] Invoice sent to %s: %s", toEmail, subject)
 	return nil
 }
 
