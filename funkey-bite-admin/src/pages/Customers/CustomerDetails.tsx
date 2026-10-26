@@ -9,7 +9,7 @@ import {
   Calendar,
   MapPin,
   Package,
-  DollarSign,
+  Banknote,
   TrendingUp,
   Clock,
   CheckCircle,
@@ -316,10 +316,10 @@ const CustomerDetails: React.FC = () => {
               
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div className="flex items-center space-x-3">
-                  <DollarSign className="h-5 w-5 text-green-500" />
+                  <Banknote className="h-5 w-5 text-green-500" />
                   <div>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      ${stats.totalSpent.toFixed(2)}
+                      ₦{stats.totalSpent.toFixed(2)}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Total Spent</p>
                   </div>
@@ -331,7 +331,7 @@ const CustomerDetails: React.FC = () => {
                   <BarChart3 className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      ${stats.avgOrderValue.toFixed(2)}
+                      ₦{stats.avgOrderValue.toFixed(2)}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Order Value</p>
                   </div>
@@ -504,7 +504,7 @@ const CustomerDetails: React.FC = () => {
                     
                     <div className="text-right">
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        ${order.totalAmount.toFixed(2)}
+                        ₦{order.totalAmount.toFixed(2)}
                       </p>
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         order.status === 'completed'
@@ -645,7 +645,7 @@ const CustomerDetails: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                          ${order.totalAmount.toFixed(2)}
+                          ₦{order.totalAmount.toFixed(2)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
