@@ -14,6 +14,8 @@ export interface MenuCategory {
     price: number
     imageUrl: string
     isAvailable: boolean
+    // Current stock; missing when the item's stock isn't tracked.
+    stockQuantity?: number
     isPreOrder: boolean
     preparationTime: number
     tags: string[]
