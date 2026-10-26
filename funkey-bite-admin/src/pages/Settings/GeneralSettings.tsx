@@ -45,6 +45,7 @@ const settingsSchema = z.object({
   taxRate: z.number().min(0).max(100, 'Tax rate must be between 0-100'),
   isDeliveryOpen: z.boolean(),
   isPickupOpen: z.boolean(),
+  payOnDeliveryEnabled: z.boolean(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -114,6 +115,7 @@ const toFormValues = (settings: BusinessSettings): SettingsFormData => ({
   taxRate: settings.taxRate,
   isDeliveryOpen: settings.isDeliveryOpen,
   isPickupOpen: settings.isPickupOpen,
+  payOnDeliveryEnabled: settings.payOnDeliveryEnabled,
 });
 
 const GeneralSettings: React.FC = () => {
@@ -147,6 +149,7 @@ const GeneralSettings: React.FC = () => {
       taxRate: 0,
       isDeliveryOpen: true,
       isPickupOpen: true,
+      payOnDeliveryEnabled: true,
     },
   });
 
@@ -161,6 +164,7 @@ const GeneralSettings: React.FC = () => {
 
   const isDeliveryOpen = watch('isDeliveryOpen');
   const isPickupOpen = watch('isPickupOpen');
+  const payOnDeliveryEnabled = watch('payOnDeliveryEnabled');
   const deliveryFee = watch('deliveryFee');
   const minOrderAmount = watch('minOrderAmount');
   const taxRate = watch('taxRate');
@@ -668,6 +672,48 @@ const GeneralSettings: React.FC = () => {
                 </div>
               )}
             </div>
+
+            
+            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <Banknote className="h-5 w-5 text-amber-500" />
+                  <div>
+                    <h3 className="font-medium text-gray-900 dark:text-white">Pay on Delivery</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Let customers pay on delivery or at pickup
+                    </p>
+                  </div>
+                </div>
+                <Controller
+                  name="payOnDeliveryEnabled"
+                  control={control}
+                  render={({ field }) => (
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="sr-only"
+                        />
+                        <div className={`w-10 h-6 rounded-full transition-colors ${field.value ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${field.value ? 'left-5' : 'left-1'}`}></div>
+                        </div>
+                      </div>
+                      <span className={`text-sm ${field.value ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400'}`}>
+                        {field.value ? 'Allowed' : 'Off'}
+                      </span>
+                    </label>
+                  )}
+                />
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                {payOnDeliveryEnabled
+                  ? 'Customers can choose to pay on delivery or at pickup, or pay online. Each order gets an invoice.'
+                  : 'Customers must pay online to place an order.'}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -730,6 +776,15 @@ const GeneralSettings: React.FC = () => {
                     <XCircle className="h-4 w-4 text-red-500" />
                   )}
                   <span className="text-sm">Pickup: {isPickupOpen ? 'Available' : 'Unavailable'}</span>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  {payOnDeliveryEnabled ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-red-500" />
+                  )}
+                  <span className="text-sm">Pay on delivery: {payOnDeliveryEnabled ? 'Allowed' : 'Off (online payment only)'}</span>
                 </div>
                 
                 <div className="text-sm text-gray-600 dark:text-gray-400">
