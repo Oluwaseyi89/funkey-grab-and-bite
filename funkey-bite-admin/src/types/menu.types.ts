@@ -28,5 +28,7 @@ export interface MenuCategory {
     nutritionalInfo?: NutritionalInfo;
     createdAt: string;
     updatedAt?: string;
+    /** Current stock from inventory; missing when the item has no stock record. */
+    stockQuantity?: number;
   }
 

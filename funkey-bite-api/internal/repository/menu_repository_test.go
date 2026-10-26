@@ -21,7 +21,7 @@ func TestMenuRepositorySearch_NoFilters_CountQueryDoesNotUsePaginationArgs(t *te
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
 	createdAt := time.Now()
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, category_id, name, description, price, image_url, is_available, is_pre_order, preparation_time, tags, nutritional_info, created_at FROM menu_items WHERE is_available = true ORDER BY category_id, name LIMIT $1")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, category_id, name, description, price, image_url, is_available, is_pre_order, preparation_time, tags, nutritional_info, created_at, " + stockQuantityColumn("menu_items") + " FROM menu_items WHERE is_available = true ORDER BY category_id, name LIMIT $1")).
 		WithArgs(20).
 		WillReturnRows(
 			sqlmock.NewRows([]string{
@@ -37,6 +37,7 @@ func TestMenuRepositorySearch_NoFilters_CountQueryDoesNotUsePaginationArgs(t *te
 				"tags",
 				"nutritional_info",
 				"created_at",
+				"stock_quantity",
 			}).AddRow(
 				1,
 				1,
@@ -50,6 +51,7 @@ func TestMenuRepositorySearch_NoFilters_CountQueryDoesNotUsePaginationArgs(t *te
 				[]byte("[]"),
 				nil,
 				createdAt,
+				4,
 			),
 		)
 
@@ -62,6 +64,9 @@ func TestMenuRepositorySearch_NoFilters_CountQueryDoesNotUsePaginationArgs(t *te
 	}
 	if len(items) != 1 {
 		t.Fatalf("Search() len(items) = %d, want 1", len(items))
+	}
+	if items[0].StockQuantity == nil || *items[0].StockQuantity != 4 {
+		t.Fatalf("Search() stock = %v, want 4", items[0].StockQuantity)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

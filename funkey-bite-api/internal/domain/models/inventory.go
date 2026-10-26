@@ -5,17 +5,19 @@ import (
 )
 
 type InventoryItem struct {
-	ID            int       `json:"id" db:"id"`
-	MenuItemID    int       `json:"menuItemId" db:"menu_item_id"`
-	Name          string    `json:"name" db:"name"`
-	CurrentStock  int       `json:"currentStock" db:"current_stock"`
-	MinimumStock  int       `json:"minimumStock" db:"minimum_stock"`
-	ReorderPoint  int       `json:"reorderPoint" db:"reorder_point"`
-	Unit          string    `json:"unit" db:"unit"` 
-	IsActive      bool      `json:"isActive" db:"is_active"`
-	LastRestocked time.Time `json:"lastRestocked" db:"last_restocked"`
-	CreatedAt     time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at"`
+	ID           int    `json:"id" db:"id"`
+	MenuItemID   int    `json:"menuItemId" db:"menu_item_id"`
+	Name         string `json:"name" db:"name"`
+	CurrentStock int    `json:"currentStock" db:"current_stock"`
+	MinimumStock int    `json:"minimumStock" db:"minimum_stock"`
+	ReorderPoint int    `json:"reorderPoint" db:"reorder_point"`
+	Unit         string `json:"unit" db:"unit"`
+	IsActive     bool   `json:"isActive" db:"is_active"`
+	// LastRestocked is nil for stock records that have never been restocked,
+	// such as those created at zero stock alongside a new menu item.
+	LastRestocked *time.Time `json:"lastRestocked,omitempty" db:"last_restocked"`
+	CreatedAt     time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updatedAt" db:"updated_at"`
 }
 
 type InventoryUpdate struct {

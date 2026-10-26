@@ -30,6 +30,8 @@ type BackendMenuItem = {
   image_url?: string
   isAvailable?: boolean
   is_available?: boolean
+  stockQuantity?: number
+  stock_quantity?: number
   isPreOrder?: boolean
   is_pre_order?: boolean
   preparationTime?: number
@@ -193,6 +195,7 @@ export class ApiService {
       price: item.price,
       imageUrl: item.imageUrl ?? item.image_url ?? '',
       isAvailable: item.isAvailable ?? item.is_available ?? true,
+      stockQuantity: item.stockQuantity ?? item.stock_quantity,
       isPreOrder: item.isPreOrder ?? item.is_pre_order ?? false,
       preparationTime: item.preparationTime ?? item.preparation_time ?? 0,
       tags: Array.isArray(item.tags) ? item.tags : [],

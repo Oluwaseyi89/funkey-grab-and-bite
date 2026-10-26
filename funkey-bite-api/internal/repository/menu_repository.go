@@ -17,11 +17,20 @@ func NewMenuRepository(db *sql.DB) *MenuRepository {
 	return &MenuRepository{db: db}
 }
 
+// stockQuantityColumn selects a menu item's stock as stock_quantity: NULL when
+// the item has no stock record, and 0 when its record is deactivated, matching
+// what checkout accepts.
+func stockQuantityColumn(table string) string {
+	return "(SELECT CASE WHEN inv.is_active THEN inv.current_stock ELSE 0 END " +
+		"FROM inventory_items inv WHERE inv.menu_item_id = " + table + ".id) AS stock_quantity"
+}
+
 func (r *MenuRepository) GetByID(id int) (*models.MenuItem, error) {
 	query := `
 		SELECT id, category_id, name, description, price, image_url, 
 		       is_available, is_pre_order, preparation_time, tags, 
-		       nutritional_info, created_at
+		       nutritional_info, created_at,
+		       ` + stockQuantityColumn("menu_items") + `
 		FROM menu_items
 		WHERE id = $1
 	`
@@ -49,6 +58,7 @@ func (r *MenuRepository) GetByID(id int) (*models.MenuItem, error) {
 		&tagsJSON,
 		&nutritionalInfoJSON,
 		&item.CreatedAt,
+		&item.StockQuantity,
 	)
 
 	if err == sql.ErrNoRows {
@@ -95,7 +105,8 @@ func (r *MenuRepository) GetAll() ([]models.MenuItem, error) {
 	query := `
 		SELECT id, category_id, name, description, price, image_url, 
 		       is_available, is_pre_order, preparation_time, tags, 
-		       nutritional_info, created_at
+		       nutritional_info, created_at,
+		       ` + stockQuantityColumn("menu_items") + `
 		FROM menu_items
 		WHERE is_available = true
 		ORDER BY category_id, name
@@ -131,6 +142,7 @@ func (r *MenuRepository) GetAll() ([]models.MenuItem, error) {
 			&tagsJSON,
 			&nutritionalInfoJSON,
 			&item.CreatedAt,
+			&item.StockQuantity,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan menu item: %w", err)
@@ -176,7 +188,8 @@ func (r *MenuRepository) GetByCategory(categoryID int) ([]models.MenuItem, error
 	query := `
 		SELECT id, category_id, name, description, price, image_url, 
 		       is_available, is_pre_order, preparation_time, tags, 
-		       nutritional_info, created_at
+		       nutritional_info, created_at,
+		       ` + stockQuantityColumn("menu_items") + `
 		FROM menu_items
 		WHERE category_id = $1 AND is_available = true
 		ORDER BY name
@@ -212,6 +225,7 @@ func (r *MenuRepository) GetByCategory(categoryID int) ([]models.MenuItem, error
 			&tagsJSON,
 			&nutritionalInfoJSON,
 			&item.CreatedAt,
+			&item.StockQuantity,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan menu item: %w", err)
@@ -373,7 +387,8 @@ func (r *MenuRepository) Search(query string, categoryID *int, limit, offset int
 	baseQuery := `
         SELECT id, category_id, name, description, price, image_url, 
                is_available, is_pre_order, preparation_time, tags, 
-               nutritional_info, created_at
+               nutritional_info, created_at,
+               ` + stockQuantityColumn("menu_items") + `
         FROM menu_items
         WHERE is_available = true
     `
@@ -453,7 +468,8 @@ func (r *MenuRepository) GetFeaturedItems(limit int) ([]models.MenuItem, error) 
 	query := `
         SELECT mi.id, mi.category_id, mi.name, mi.description, mi.price, 
                mi.image_url, mi.is_available, mi.is_pre_order, 
-               mi.preparation_time, mi.tags, mi.nutritional_info, mi.created_at
+               mi.preparation_time, mi.tags, mi.nutritional_info, mi.created_at,
+               ` + stockQuantityColumn("mi") + `
         FROM menu_items mi
         LEFT JOIN (
             SELECT menu_item_id, SUM(quantity) as total_ordered
@@ -480,7 +496,8 @@ func (r *MenuRepository) GetByTags(tags []string) ([]models.MenuItem, error) {
 	query := `
         SELECT id, category_id, name, description, price, image_url, 
                is_available, is_pre_order, preparation_time, tags, 
-               nutritional_info, created_at
+               nutritional_info, created_at,
+               ` + stockQuantityColumn("menu_items") + `
         FROM menu_items
         WHERE is_available = true AND tags @> $1
         ORDER BY name
@@ -521,6 +538,7 @@ func (r *MenuRepository) scanMenuItems(rows *sql.Rows) ([]models.MenuItem, error
 			&tagsJSON,
 			&nutritionalInfoJSON,
 			&item.CreatedAt,
+			&item.StockQuantity,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan menu item: %w", err)

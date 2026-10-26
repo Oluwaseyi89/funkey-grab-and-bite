@@ -1,7 +1,7 @@
 <template>
     <div
       class="group relative bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 dark:border-slate-700 hover:scale-[1.02]"
-      :class="{ 'opacity-70': !item.isAvailable }"
+      :class="{ 'opacity-70': !menuStock(item).orderable }"
     >
       
       <PreOrderBadge v-if="item.isPreOrder" />
@@ -15,9 +15,15 @@
           loading="lazy"
         />
         
-        <div v-if="!item.isAvailable" class="absolute inset-0 bg-black/50 flex items-center justify-center">
-          <span class="text-white font-bold text-lg bg-red-500/80 px-4 py-2 rounded-full">Currently Unavailable</span>
+        <div v-if="!menuStock(item).orderable" class="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <span class="text-white font-bold text-lg bg-red-500/80 px-4 py-2 rounded-full">{{ menuStock(item).label }}</span>
         </div>
+        <span
+          v-else-if="menuStock(item).tone === 'low'"
+          class="absolute bottom-3 left-3 px-3 py-1 text-xs font-bold rounded-full bg-amber-500 text-white"
+        >
+          {{ menuStock(item).label }}
+        </span>
       </div>
   
       
@@ -71,12 +77,12 @@
         <div class="flex space-x-3">
           <button
             @click="$emit('addToCart', item)"
-            :disabled="!item.isAvailable"
+            :disabled="!menuStock(item).orderable"
             class="flex-1 btn-primary text-center justify-center dark:text-white"
-            :class="{ 'opacity-50 cursor-not-allowed': !item.isAvailable }"
+            :class="{ 'opacity-50 cursor-not-allowed': !menuStock(item).orderable }"
           >
             <ShoppingCart class="w-4 h-4 inline mr-2 dark:text-white" />
-            Add to Cart
+            {{ menuStock(item).orderable ? 'Add to Cart' : menuStock(item).label }}
           </button>
           <button
             @click="$emit('viewDetails', item)"
@@ -91,6 +97,7 @@
   
   <script setup lang="ts">
   import type { MenuItem } from '../../types/menu'
+  import { menuStock } from '../../utils/menuStock'
   import { ShoppingCart, Eye, ChevronDown } from 'lucide-vue-next'
   import PreOrderBadge from './PreOrderBadge.vue'
   import { ref } from 'vue'

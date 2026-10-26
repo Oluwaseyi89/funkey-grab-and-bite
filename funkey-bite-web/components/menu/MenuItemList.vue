@@ -39,8 +39,14 @@
         <!-- Actions -->
         <div class="flex items-center justify-between">
           <div class="text-sm text-gray-500">
-            <span v-if="item.isPreOrder" class="text-amber-600 dark:text-amber-400">
+            <span v-if="!menuStock(item).orderable" class="text-red-600 dark:text-red-400 font-medium">
+              {{ menuStock(item).label }}
+            </span>
+            <span v-else-if="item.isPreOrder" class="text-amber-600 dark:text-amber-400">
               ⏰ Pre-order required
+            </span>
+            <span v-else-if="menuStock(item).tone === 'low'" class="text-amber-600 dark:text-amber-400 font-medium">
+              {{ menuStock(item).label }}
             </span>
             <span v-else class="text-green-600 dark:text-green-400">
               ✅ Available now
@@ -55,7 +61,7 @@
             </button>
             <button
               @click="$emit('addToCart', item)"
-              :disabled="!item.isAvailable"
+              :disabled="!menuStock(item).orderable"
               class="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Add to Cart
@@ -68,6 +74,7 @@
   
   <script setup lang="ts">
   import type { MenuItem } from '../../types/menu'
+  import { menuStock } from '../../utils/menuStock'
   import { Clock } from 'lucide-vue-next'
   
   defineProps<{

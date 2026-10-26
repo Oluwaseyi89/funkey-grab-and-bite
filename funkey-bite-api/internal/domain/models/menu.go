@@ -28,6 +28,9 @@ type MenuItem struct {
 	NutritionalInfo *NutritionalInfo `json:"nutritionalInfo,omitempty"`
 	CreatedAt       time.Time        `json:"createdAt" db:"created_at"`
 	UpdatedAt       time.Time        `json:"updatedAt,omitempty" db:"updated_at"`
+	// StockQuantity is the item's current stock from inventory; nil when the
+	// item has no stock record. Ordering requires stock, so 0 is out of stock.
+	StockQuantity *int `json:"stockQuantity,omitempty" db:"stock_quantity"`
 }
 
 // imageURLResolver turns a stored image value (an object key) into the URL
