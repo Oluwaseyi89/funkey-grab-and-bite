@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, Users, Package, AlertCircle, Clock, DollarSign } from 'lucide-react';
+import { TrendingUp, Users, Package, AlertCircle, Clock, Banknote } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useSocket } from '../contexts/SocketContext';
 import toast from 'react-hot-toast';
@@ -68,8 +68,8 @@ const Dashboard: React.FC = () => {
   const statCards = [
     {
       title: "Today's Revenue",
-      value: `$${stats?.totalRevenue?.toFixed(2) || '0.00'}`,
-      icon: DollarSign,
+      value: `₦${stats?.totalRevenue?.toFixed(2) || '0.00'}`,
+      icon: Banknote,
       change: 12.5,
       color: 'primary' as const,
     },
@@ -181,7 +181,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-gray-900 dark:text-white">
-                    ${item.revenue.toFixed(2)}
+                    ₦{item.revenue.toFixed(2)}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Revenue
