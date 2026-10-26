@@ -13,7 +13,7 @@ type AuthService interface {
 	Register(userData models.UserRegistration) (*models.AuthResponse, error)
 	Login(phone, password string) (*models.AuthResponse, error)
 	CheckUserExists(phone, email string) (*models.User, bool, error)
-	AuthenticateOrder(orderData models.OrderWithAuth) (*models.User, error)
+	ResolveOrderCustomer(name, phone string, email *string) (*models.User, error)
 }
 
 type authService struct {
@@ -26,13 +26,18 @@ func NewAuthService(userRepo repository.UserRepository) AuthService {
 
 func (s *authService) Register(userData models.UserRegistration) (*models.AuthResponse, error) {
 	existingUser, err := s.userRepo.FindByPhoneOrEmail(userData.Phone, userData.Email)
-	if err == nil && existingUser != nil {
+	isGuest := err == nil && existingUser != nil && existingUser.PasswordHash == "" && existingUser.Phone == userData.Phone
+	if err == nil && existingUser != nil && !isGuest {
 		return nil, errors.New("user already exists")
 	}
 
 	hashedPassword, err := utils.HashPassword(userData.Password)
 	if err != nil {
 		return nil, err
+	}
+
+	if isGuest {
+		return s.claimGuestAccount(existingUser, userData, hashedPassword)
 	}
 
 	user := &models.User{
@@ -65,7 +70,7 @@ func (s *authService) Register(userData models.UserRegistration) (*models.AuthRe
 
 func (s *authService) Login(phone, password string) (*models.AuthResponse, error) {
 	user, err := s.userRepo.FindByPhone(phone)
-	if err != nil {
+	if err != nil || user == nil {
 		return nil, errors.New("invalid credentials")
 	}
 
@@ -101,23 +106,62 @@ func (s *authService) CheckUserExists(phone, email string) (*models.User, bool, 
 	return user, true, nil
 }
 
-func (s *authService) AuthenticateOrder(orderData models.OrderWithAuth) (*models.User, error) {
-	user, exists, err := s.CheckUserExists(orderData.CustomerPhone, "")
+// ResolveOrderCustomer returns the customer record for a guest checkout,
+// matched by phone number. A first-time customer gets a record without a
+// password, so the admin sees every customer and their order history; they can
+// register later with the same phone to set one.
+func (s *authService) ResolveOrderCustomer(name, phone string, email *string) (*models.User, error) {
+	existing, err := s.userRepo.FindByPhone(phone)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return existing, nil
+	}
+
+	now := time.Now()
+	user := &models.User{
+		Phone:     phone,
+		Email:     email,
+		FullName:  name,
+		IsActive:  true,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	created, err := s.userRepo.Create(user)
+	if err != nil && email != nil {
+		// The email may already belong to another customer; link by phone alone.
+		user.Email = nil
+		created, err = s.userRepo.Create(user)
+	}
+	return created, err
+}
+
+// claimGuestAccount turns a guest customer record into a full account.
+func (s *authService) claimGuestAccount(user *models.User, userData models.UserRegistration, hashedPassword string) (*models.AuthResponse, error) {
+	if err := s.userRepo.SetPassword(user.ID, hashedPassword); err != nil {
+		return nil, err
+	}
+	if err := s.userRepo.UpdateProfile(user.ID, map[string]interface{}{
+		"full_name": userData.FullName,
+		"email":     userData.Email,
+	}); err != nil {
+		return nil, err
+	}
+
+	user.FullName = userData.FullName
+	user.Email = &userData.Email
+	user.PasswordHash = hashedPassword
+
+	token, err := utils.GenerateToken(user.ID, user.Phone)
 	if err != nil {
 		return nil, err
 	}
 
-	if !exists {
-		return nil, errors.New("user_not_found")
-	}
-
-	if orderData.Password == nil || *orderData.Password == "" {
-		return nil, errors.New("password_required")
-	}
-
-	if !utils.CheckPasswordHash(*orderData.Password, user.PasswordHash) {
-		return nil, errors.New("invalid_password")
-	}
-
-	return user, nil
+	return &models.AuthResponse{
+		User:        user,
+		AccessToken: token,
+		IsNewUser:   true,
+	}, nil
 }
