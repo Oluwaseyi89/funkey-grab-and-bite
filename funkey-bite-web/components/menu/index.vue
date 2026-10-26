@@ -92,7 +92,6 @@
   import { useCartStore } from '../../stores/cart'
   import { X } from 'lucide-vue-next'
   import type { MenuItem } from '../../types/menu'
-  import { useNuxtApp } from 'nuxt/app'
   
   import PageHeader from '../layout/PageHeader.vue'
   import SearchBar from './SearchBar.vue'
@@ -176,23 +175,9 @@
   }
   
 
+// The cart store shows the confirmation, or a stock warning when it can't add.
 const handleAddToCart = (item: MenuItem) => {
   cart.addItem(item)
-  
-  if (import.meta.client) {
-    const { $toast } = useNuxtApp()
-    
-    const toast = $toast as {
-      success?: (msg: string) => void
-      error?: (msg: string) => void
-      warning?: (msg: string) => void
-      info?: (msg: string) => void
-    }
-    
-    if (toast.success) {
-      toast.success(`Added ${item.name} to cart`)
-    }
-  }
 }
   
   const handleViewDetails = (item: MenuItem) => {
