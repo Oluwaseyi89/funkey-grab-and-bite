@@ -294,7 +294,6 @@ import {
   Search 
 } from 'lucide-vue-next'
 import type { MenuItem } from '../../types/menu'
-import { useNuxtApp } from 'nuxt/app'
 import { useRoute } from 'vue-router'
 
 import PageHeader from '../../components/layout/PageHeader.vue'
@@ -417,14 +416,9 @@ const handlePriceFilter = (price: number) => {
   currentPage.value = 1
 }
 
+// The cart store shows the confirmation, or a stock warning when it can't add.
 const handleAddToCart = (item: MenuItem, specialInstructions?: string) => {
   cart.addItem(item, 1, specialInstructions)
-  if (import.meta.client) {
-    const { $toast } = useNuxtApp()
-    if ($toast && typeof ($toast as any).success === 'function') {
-      ($toast as any).success(`Added ${item.name} to cart`)
-    }
-  }
 }
 
 const handleViewDetails = (item: MenuItem) => {
