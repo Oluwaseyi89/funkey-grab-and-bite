@@ -182,6 +182,11 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	}
 
 	createdOrder, err := h.orderService.CreateOrder(order, req.Items)
+	var unavailable *services.ItemUnavailableError
+	if errors.As(err, &unavailable) {
+		c.JSON(http.StatusConflict, gin.H{"error": unavailable.Message})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order: " + err.Error()})
 		return
