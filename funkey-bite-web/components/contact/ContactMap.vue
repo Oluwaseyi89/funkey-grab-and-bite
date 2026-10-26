@@ -7,14 +7,15 @@
           <div class="text-center">
             <MapPin class="w-12 h-12 text-brand-500 mx-auto mb-4" />
             <h3 class="font-bold text-gray-900 dark:text-white mb-2">Our Location</h3>
-            <p class="text-gray-600 dark:text-gray-400">
-              123 Food Street, City Center
+            <p class="text-gray-600 dark:text-gray-400 px-4">
+              {{ status === 'ready' ? fullAddress : status === 'unavailable' ? 'Address unavailable right now' : 'Loading address…' }}
             </p>
             <a 
-              href="https://maps.google.com/?q=123+Food+Street+City+Center"
+              v-if="mapsUrl"
+              :href="mapsUrl"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-block mt-4 btn-primary text-sm"
+              class="relative z-10 inline-block mt-4 btn-primary text-sm"
             >
               Open in Google Maps
             </a>
@@ -22,7 +23,7 @@
         </div>
         
         <!-- Map overlay for interactivity -->
-        <button class="absolute inset-0 w-full cursor-pointer bg-transparent border-0" @click="openGoogleMaps" aria-label="Open location in Google Maps"></button>
+        <button v-if="mapsUrl" class="absolute inset-0 w-full cursor-pointer bg-transparent border-0" @click="openGoogleMaps" aria-label="Open location in Google Maps"></button>
       </div>
       
       <!-- Location Details -->
@@ -63,8 +64,14 @@
   
   <script setup lang="ts">
   import { MapPin, Train, Car, Accessibility } from 'lucide-vue-next'
+  import { onMounted } from 'vue'
+  import { useBusinessSettings } from '../../composables/useBusinessSettings'
+  
+  const { status, fullAddress, mapsUrl, load } = useBusinessSettings()
+  
+  onMounted(() => load())
   
   const openGoogleMaps = () => {
-    window.open('https://maps.google.com/?q=123+Food+Street+City+Center', '_blank', 'noopener,noreferrer')
+    window.open(mapsUrl.value, '_blank', 'noopener,noreferrer')
   }
   </script>
