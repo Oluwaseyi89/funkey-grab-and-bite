@@ -31,7 +31,12 @@ export interface PaginatedResponse<T> {
     businessName: string;
     phoneNumber: string;
     email: string;
+    /** Street line; the rest of the postal address has its own fields. */
     address: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
     openingHours: BusinessHours[];
     deliveryFee: number;
     minOrderAmount: number;
