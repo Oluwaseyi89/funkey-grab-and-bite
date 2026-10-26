@@ -120,6 +120,9 @@
 
             
             <div class="flex flex-col gap-4 mt-8 md:mt-0">
+              <p v-if="menuStock(item).tone === 'low'" class="text-sm font-medium text-amber-600 dark:text-amber-400">
+                {{ menuStock(item).label }}
+              </p>
               <textarea
                 v-model="specialInstructions"
                 placeholder="Add special instructions (e.g. no onions, extra spicy)"
@@ -130,12 +133,12 @@
               <div class="flex space-x-4">
                 <button
                   @click="handleAddToCart"
-                  :disabled="!item.isAvailable"
+                  :disabled="!menuStock(item).orderable"
                   class="flex-1 btn-primary text-lg py-4 dark:text-white"
-                  :class="{ 'opacity-50 cursor-not-allowed': !item.isAvailable }"
+                  :class="{ 'opacity-50 cursor-not-allowed': !menuStock(item).orderable }"
                 >
                   <ShoppingCart class="w-5 h-5 inline mr-2" />
-                  Add to Cart
+                  {{ menuStock(item).orderable ? 'Add to Cart' : menuStock(item).label }}
                 </button>
                 <button 
                   v-if="!isMobile"
@@ -156,6 +159,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { MenuItem } from '../../types/menu'
+import { menuStock } from '../../utils/menuStock'
 import { X, Clock, ShoppingCart, AlertTriangle } from 'lucide-vue-next'
 
 const { item } = defineProps<{
