@@ -16,16 +16,24 @@ func NewOrderRepository(db *sql.DB) *OrderRepository {
 	return &OrderRepository{db: db}
 }
 
-// paymentScanFields holds scan destinations for the nullable payment columns
-// shared by every query that reads a full order row, so each one doesn't have
-// to repeat six sql.Null* unwrap blocks by hand.
+// paymentScanFields holds scan destinations for the nullable payment, delivery
+// and invoice columns shared by every query that reads a full order row, so
+// each one doesn't have to repeat the sql.Null* unwrap blocks by hand. Queries
+// select these columns last, in the order args() returns them.
 type paymentScanFields struct {
-	reference     sql.NullString
-	accountNumber sql.NullString
-	accountName   sql.NullString
-	bankName      sql.NullString
-	expiresAt     sql.NullTime
-	paidAt        sql.NullTime
+	reference       sql.NullString
+	accountNumber   sql.NullString
+	accountName     sql.NullString
+	bankName        sql.NullString
+	expiresAt       sql.NullTime
+	paidAt          sql.NullTime
+	deliveryAddress sql.NullString
+	invoiceNumber   sql.NullString
+	subtotal        sql.NullFloat64
+	deliveryFee     sql.NullFloat64
+	tax             sql.NullFloat64
+	discount        sql.NullFloat64
+	collectedVia    sql.NullString
 }
 
 func (p *paymentScanFields) args() []any {
@@ -36,7 +44,28 @@ func (p *paymentScanFields) args() []any {
 		&p.bankName,
 		&p.expiresAt,
 		&p.paidAt,
+		&p.deliveryAddress,
+		&p.invoiceNumber,
+		&p.subtotal,
+		&p.deliveryFee,
+		&p.tax,
+		&p.discount,
+		&p.collectedVia,
 	}
+}
+
+func nullStringPtr(v sql.NullString) *string {
+	if !v.Valid {
+		return nil
+	}
+	return &v.String
+}
+
+func nullFloatPtr(v sql.NullFloat64) *float64 {
+	if !v.Valid {
+		return nil
+	}
+	return &v.Float64
 }
 
 func (p *paymentScanFields) applyTo(order *models.Order) {
@@ -58,6 +87,13 @@ func (p *paymentScanFields) applyTo(order *models.Order) {
 	if p.paidAt.Valid {
 		order.PaymentPaidAt = &p.paidAt.Time
 	}
+	order.DeliveryAddress = nullStringPtr(p.deliveryAddress)
+	order.InvoiceNumber = nullStringPtr(p.invoiceNumber)
+	order.SubtotalAmount = nullFloatPtr(p.subtotal)
+	order.DeliveryFee = nullFloatPtr(p.deliveryFee)
+	order.TaxAmount = nullFloatPtr(p.tax)
+	order.DiscountAmount = nullFloatPtr(p.discount)
+	order.PaymentCollectedVia = nullStringPtr(p.collectedVia)
 }
 
 func (r *OrderRepository) Create(order *models.Order) (*models.Order, error) {
@@ -65,9 +101,12 @@ func (r *OrderRepository) Create(order *models.Order) (*models.Order, error) {
 		INSERT INTO orders (
 			order_number, user_id, customer_name, customer_phone,
 			customer_email, order_type, status, total_amount,
-			notes, pickup_time, created_at, payment_method, payment_status
+			notes, pickup_time, created_at, payment_method, payment_status,
+			delivery_address, invoice_number, subtotal_amount, delivery_fee,
+			tax_amount, discount_amount
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+		        $14, $15, $16, $17, $18, $19)
 		RETURNING id, created_at
 	`
 
@@ -86,6 +125,12 @@ func (r *OrderRepository) Create(order *models.Order) (*models.Order, error) {
 		order.CreatedAt,
 		order.PaymentMethod,
 		order.PaymentStatus,
+		order.DeliveryAddress,
+		order.InvoiceNumber,
+		order.SubtotalAmount,
+		order.DeliveryFee,
+		order.TaxAmount,
+		order.DiscountAmount,
 	).Scan(&order.ID, &order.CreatedAt)
 
 	if err != nil {
@@ -127,7 +172,9 @@ func (r *OrderRepository) GetOrderWithItems(id int) (*models.Order, error) {
 		       customer_email, order_type, status, total_amount, notes,
 		       pickup_time, created_at, payment_method, payment_status,
 		       payment_reference, payment_account_number, payment_account_name,
-		       payment_bank_name, payment_expires_at, payment_paid_at
+		       payment_bank_name, payment_expires_at, payment_paid_at,
+		       delivery_address, invoice_number, subtotal_amount, delivery_fee,
+		       tax_amount, discount_amount, payment_collected_via
 		FROM orders
 		WHERE id = $1
 	`
@@ -220,7 +267,9 @@ func (r *OrderRepository) GetOrdersByUserID(userID int) ([]models.Order, error) 
 		       customer_email, order_type, status, total_amount, notes,
 		       pickup_time, created_at, payment_method, payment_status,
 		       payment_reference, payment_account_number, payment_account_name,
-		       payment_bank_name, payment_expires_at, payment_paid_at
+		       payment_bank_name, payment_expires_at, payment_paid_at,
+		       delivery_address, invoice_number, subtotal_amount, delivery_fee,
+		       tax_amount, discount_amount, payment_collected_via
 		FROM orders
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -353,7 +402,9 @@ func (r *OrderRepository) GetOrderByOrderNumber(orderNumber string) (*models.Ord
                customer_email, order_type, status, total_amount, notes,
                pickup_time, created_at, payment_method, payment_status,
                payment_reference, payment_account_number, payment_account_name,
-               payment_bank_name, payment_expires_at, payment_paid_at
+               payment_bank_name, payment_expires_at, payment_paid_at,
+               delivery_address, invoice_number, subtotal_amount, delivery_fee,
+               tax_amount, discount_amount, payment_collected_via
         FROM orders
         WHERE order_number = $1
     `
@@ -415,7 +466,9 @@ func (r *OrderRepository) GetOrderByPhoneAndOrderNumber(phone, orderNumber strin
                pickup_time, estimated_ready_time, created_at, payment_method,
                payment_status, payment_reference, payment_account_number,
                payment_account_name, payment_bank_name, payment_expires_at,
-               payment_paid_at
+               payment_paid_at,
+               delivery_address, invoice_number, subtotal_amount, delivery_fee,
+               tax_amount, discount_amount, payment_collected_via
         FROM orders
         WHERE order_number = $1 AND customer_phone = $2
     `
@@ -503,9 +556,12 @@ func (r *OrderRepository) CreateOrderWithTransaction(tx *sql.Tx, order *models.O
         INSERT INTO orders (
             order_number, user_id, customer_name, customer_phone,
             customer_email, order_type, status, total_amount,
-            notes, pickup_time, created_at, payment_method, payment_status
+            notes, pickup_time, created_at, payment_method, payment_status,
+            delivery_address, invoice_number, subtotal_amount, delivery_fee,
+            tax_amount, discount_amount
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+                $14, $15, $16, $17, $18, $19)
         RETURNING id, created_at
     `
 
@@ -524,6 +580,12 @@ func (r *OrderRepository) CreateOrderWithTransaction(tx *sql.Tx, order *models.O
 		order.CreatedAt,
 		order.PaymentMethod,
 		order.PaymentStatus,
+		order.DeliveryAddress,
+		order.InvoiceNumber,
+		order.SubtotalAmount,
+		order.DeliveryFee,
+		order.TaxAmount,
+		order.DiscountAmount,
 	).Scan(&order.ID, &order.CreatedAt)
 
 	if err != nil {
@@ -565,7 +627,9 @@ func (r *OrderRepository) GetOrderByPaymentReference(reference string) (*models.
                customer_email, order_type, status, total_amount, notes,
                pickup_time, created_at, payment_method, payment_status,
                payment_reference, payment_account_number, payment_account_name,
-               payment_bank_name, payment_expires_at, payment_paid_at
+               payment_bank_name, payment_expires_at, payment_paid_at,
+               delivery_address, invoice_number, subtotal_amount, delivery_fee,
+               tax_amount, discount_amount, payment_collected_via
         FROM orders
         WHERE payment_reference = $1
     `
@@ -638,6 +702,28 @@ func (r *OrderRepository) SetOrderPaymentInitiated(orderID int, reference, accou
 	}
 
 	return nil
+}
+
+// MarkPaymentCollected records that a pay-on-delivery order was paid. It only
+// changes a pending cash order and reports whether one was updated, so a second
+// click or an online-payment order is left untouched.
+func (r *OrderRepository) MarkPaymentCollected(orderID int, via string, paidAt time.Time) (bool, error) {
+	query := `
+        UPDATE orders
+        SET payment_status = 'paid', payment_paid_at = $1,
+            payment_collected_via = $2, updated_at = $1
+        WHERE id = $3 AND payment_method = 'cash' AND payment_status = 'pending'
+    `
+
+	result, err := r.db.Exec(query, paidAt, via, orderID)
+	if err != nil {
+		return false, fmt.Errorf("failed to record payment collection: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("failed to read payment collection rows: %w", err)
+	}
+	return rows > 0, nil
 }
 
 func (r *OrderRepository) MarkOrderPaymentPaid(orderID int, paidAt time.Time) error {
