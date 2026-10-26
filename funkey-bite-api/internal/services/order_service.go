@@ -1,8 +1,10 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
@@ -17,7 +19,15 @@ type OrderService interface {
 	GetOrderByOrderNumber(orderNumber string) (*models.Order, error)
 	GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error)
 	CancelOrder(id int, userID int) error
+	MarkPaymentCollected(id int, via string) (*models.Order, error)
 }
+
+var (
+	ErrOrderNotFound = errors.New("order not found")
+	// ErrPaymentNotCollectable is returned for orders that are not pay on
+	// delivery, or whose payment was already recorded.
+	ErrPaymentNotCollectable = errors.New("only pay-on-delivery orders awaiting payment can be marked as paid")
+)
 
 type orderService struct {
 	orderRepo           repository.IOrderRepository
@@ -148,6 +158,25 @@ func (s *orderService) CreateOrder(order *models.Order, items []models.OrderItem
 	}()
 
 	return s.orderRepo.GetOrderWithItems(createdOrder.ID)
+}
+
+// MarkPaymentCollected records that the customer paid a pay-on-delivery order.
+func (s *orderService) MarkPaymentCollected(id int, via string) (*models.Order, error) {
+	updated, err := s.orderRepo.MarkPaymentCollected(id, via, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	if !updated {
+		order, err := s.orderRepo.GetOrderWithItems(id)
+		if err != nil {
+			return nil, err
+		}
+		if order == nil {
+			return nil, ErrOrderNotFound
+		}
+		return nil, ErrPaymentNotCollectable
+	}
+	return s.orderRepo.GetOrderWithItems(id)
 }
 
 func (s *orderService) GetOrderByID(id int) (*models.Order, error) {
