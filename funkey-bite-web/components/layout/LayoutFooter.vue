@@ -8,10 +8,11 @@
         <div class="space-y-6">
           <NuxtLink to="/" class="flex items-center space-x-4 group">
             <div class="w-14 h-14 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-lg">
-              <span class="text-white font-bold text-2xl">F</span>
+              <span class="text-white font-bold text-2xl">{{ businessInitial }}</span>
             </div>
             <div>
-              <h2 class="text-2xl font-bold text-gray-900 dark:text-white leading-tight">Funkey Grab & Bite</h2>
+              <h2 v-if="businessName" class="text-2xl font-bold text-gray-900 dark:text-white leading-tight">{{ businessName }}</h2>
+              <span v-else class="block h-7 w-44 rounded bg-gray-200 dark:bg-slate-700 animate-pulse" aria-label="Loading business name"></span>
               <p class="text-brand-500 dark:text-brand-300 text-sm mt-1">Fast Food & Catering</p>
             </div>
           </NuxtLink>
@@ -74,36 +75,34 @@
           <div class="space-y-5">
             <div class="flex items-start space-x-4">
               <MapPin class="w-5 h-5 text-brand-500 dark:text-brand-400 mt-1 flex-shrink-0" />
-              <p class="text-gray-700 dark:text-gray-300 text-sm">123 Food Street, City Center, Your City</p>
+              <p class="text-gray-700 dark:text-gray-300 text-sm">
+                {{ status === 'ready' ? fullAddress : status === 'unavailable' ? 'Address unavailable right now' : 'Loading…' }}
+              </p>
             </div>
-            <div class="flex items-center space-x-4">
+            <div v-if="phoneHref" class="flex items-center space-x-4">
               <Phone class="w-5 h-5 text-brand-500 dark:text-brand-400 flex-shrink-0" />
-              <a href="tel:+1234567890" class="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-sm">
-                (555) 123-4567
+              <a :href="phoneHref" class="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-sm">
+                {{ settings?.phoneNumber }}
               </a>
             </div>
-            <div class="flex items-center space-x-4">
+            <div v-if="settings?.email" class="flex items-center space-x-4">
               <Mail class="w-5 h-5 text-brand-500 dark:text-brand-400 flex-shrink-0" />
-              <a href="mailto:orders@funkeygrabandbite.com" class="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-sm">
-                orders@funkeygrabandbite.com
+              <a :href="`mailto:${settings.email}`" class="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-sm">
+                {{ settings.email }}
               </a>
             </div>
             
             <!-- Business Hours -->
-            <div class="pt-6">
+            <div v-if="status === 'ready'" class="pt-6">
               <h4 class="font-bold mb-4 text-gray-800 dark:text-gray-200 text-lg">Opening Hours</h4>
               <div class="space-y-3 text-sm">
-                <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-slate-800/30">
-                  <span class="text-gray-600 dark:text-gray-400">Mon - Fri:</span>
-                  <span class="text-gray-800 dark:text-gray-300 font-medium">8:00 AM - 10:00 PM</span>
-                </div>
-                <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-slate-800/30">
-                  <span class="text-gray-600 dark:text-gray-400">Saturday:</span>
-                  <span class="text-gray-800 dark:text-gray-300 font-medium">9:00 AM - 11:00 PM</span>
-                </div>
-                <div class="flex justify-between items-center py-2">
-                  <span class="text-gray-600 dark:text-gray-400">Sunday:</span>
-                  <span class="text-gray-800 dark:text-gray-300 font-medium">10:00 AM - 9:00 PM</span>
+                <div
+                  v-for="group in hoursGroups"
+                  :key="group.label"
+                  class="flex justify-between items-center gap-4 py-2 border-b border-gray-200 dark:border-slate-800/30 last:border-0"
+                >
+                  <span class="text-gray-600 dark:text-gray-400">{{ group.label }}:</span>
+                  <span class="text-gray-800 dark:text-gray-300 font-medium text-right">{{ group.hours }}</span>
                 </div>
               </div>
             </div>
@@ -117,7 +116,7 @@
       <!-- Bottom Bar -->
       <div class="flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
         <div class="text-gray-600 dark:text-gray-500 text-sm text-center md:text-left">
-          © {{ new Date().getFullYear() }} Funkey Grab & Bite. All rights reserved.
+          © {{ new Date().getFullYear() }}{{ businessName ? ` ${businessName}` : '' }}. All rights reserved.
         </div>
         <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
           <NuxtLink to="/legal/privacy" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors hover:underline">
@@ -161,7 +160,13 @@ import {
   MessageCircle 
 } from 'lucide-vue-next'
 
+import { onMounted } from 'vue'
 import { mockCategories } from '../../utils/mockData';
+import { useBusinessSettings } from '../../composables/useBusinessSettings'
+
+const { settings, status, businessName, businessInitial, fullAddress, hoursGroups, phoneHref, load } = useBusinessSettings()
+
+onMounted(() => load())
 
 const quickLinks = [
   { name: 'Home', href: '/' },

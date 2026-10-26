@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
-import { adminLogin } from '../api/adminApi';
+import { adminLogin, getPublicSettings } from '../api/adminApi';
+import { businessInitials } from '../hooks/useBusinessSettings';
 import type { AdminLoginCredentials } from '../types';
 
 const loginSchema = z.object({
@@ -18,6 +20,11 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const { data: publicSettings } = useQuery({
+    queryKey: ['public-settings'],
+    queryFn: getPublicSettings,
+  });
+  const businessName = publicSettings?.businessName ?? '';
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuthStore();
@@ -54,10 +61,16 @@ const Login: React.FC = () => {
         <div className="bg-primary-500 p-8 text-center">
           <div className="flex justify-center mb-4">
             <div className="bg-white p-3 rounded-full">
-              <span className="text-2xl font-bold text-primary-500">FG&B</span>
+              {businessName ? (
+                <span className="text-2xl font-bold text-primary-500">{businessInitials(businessName)}</span>
+              ) : (
+                <span className="block h-8 w-12 rounded bg-primary-100 animate-pulse" aria-label="Loading business name" />
+              )}
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold text-white">
+            {businessName ? `${businessName} Admin` : 'Admin Dashboard'}
+          </h1>
           <p className="text-primary-100 mt-2">Sign in to manage your business</p>
         </div>
 
@@ -75,7 +88,7 @@ const Login: React.FC = () => {
                   {...register('email')}
                   type="email"
                   className="pl-10 w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="admin@funkeygrabandbite.com"
+                  placeholder="you@example.com"
                 />
               </div>
               {errors.email && (
@@ -130,14 +143,6 @@ const Login: React.FC = () => {
             </button>
           </form>
 
-          
-          <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              <strong>Default Admin:</strong><br />
-              Email: admin@funkey.com<br />
-              Password: admin123
-            </p>
-          </div>
         </div>
       </div>
     </div>

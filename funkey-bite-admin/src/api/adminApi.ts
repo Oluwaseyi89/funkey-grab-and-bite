@@ -322,6 +322,10 @@ export const deletePromotion = (id: number) =>
 export const getSettings = () =>
   apiGet<BusinessSettings>('/api/v1/admin/settings');
 
+// Public subset of the settings; needs no login, so the sign-in page can use it.
+export const getPublicSettings = () =>
+  apiGet<Pick<BusinessSettings, 'businessName'>>('/api/v1/settings');
+
 export const updateSettings = (data: Partial<BusinessSettings>) =>
   apiPut<BusinessSettings>('/api/v1/admin/settings', data);
 

@@ -19,10 +19,13 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useBusinessSettings, businessInitials } from '../../hooks/useBusinessSettings';
 
 const Sidebar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
+  const { settings, isLoading: isSettingsLoading } = useBusinessSettings();
+  const businessName = settings?.businessName ?? '';
   const { theme } = useTheme();
   const location = useLocation();
 
@@ -66,12 +69,16 @@ const Sidebar: React.FC = () => {
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
             <div className="h-10 w-10 rounded-lg bg-primary-500 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">FG&B</span>
+              <span className="text-white font-bold text-lg">{businessInitials(businessName)}</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                Funkey Grab & Bite
-              </h1>
+            <div className="min-w-0">
+              {isSettingsLoading ? (
+                <div className="h-6 w-36 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" aria-label="Loading business name" />
+              ) : (
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">
+                  {businessName || 'Business name not set'}
+                </h1>
+              )}
               <p className="text-sm text-gray-500 dark:text-gray-400">Admin Panel</p>
             </div>
           </div>
@@ -112,15 +119,15 @@ const Sidebar: React.FC = () => {
           <div className="flex items-center space-x-3 mb-4">
             <div className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
               <span className="text-primary-600 dark:text-primary-300 font-semibold">
-                A
+                {(user?.username?.[0] ?? '?').toUpperCase()}
               </span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                Admin User
+                {user?.username ?? 'Admin'}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                admin@funkey.com
+                {user?.email ?? ''}
               </p>
             </div>
           </div>

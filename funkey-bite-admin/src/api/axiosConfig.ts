@@ -97,6 +97,7 @@ api.interceptors.response.use(
       const formattedError = new Error(errorMessage);
       (formattedError as any).status = error.response?.status;
       (formattedError as any).code = apiError?.error?.code;
+      (formattedError as any).details = apiError?.error?.details;
       return Promise.reject(formattedError);
     }
     

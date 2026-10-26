@@ -41,17 +41,27 @@ type BusinessSettings struct {
 	BusinessName   string         `json:"businessName" db:"business_name"`
 	PhoneNumber    string         `json:"phoneNumber" db:"phone_number"`
 	Email          string         `json:"email" db:"email"`
-	Address        string         `json:"address" db:"address"`
+	Address        string         `json:"address" db:"address"` // street line
+	City           string         `json:"city" db:"city"`
+	State          string         `json:"state" db:"state"`
+	PostalCode     string         `json:"postalCode" db:"postal_code"`
+	Country        string         `json:"country" db:"country"`
 	OpeningHours   []OpeningHours `json:"openingHours" db:"opening_hours"`
 	DeliveryFee    float64        `json:"deliveryFee" db:"delivery_fee"`
 	MinOrderAmount float64        `json:"minOrderAmount" db:"min_order_amount"`
 	TaxRate        float64        `json:"taxRate" db:"tax_rate"`
 	IsDeliveryOpen bool           `json:"isDeliveryOpen" db:"is_delivery_open"`
 	IsPickupOpen   bool           `json:"isPickupOpen" db:"is_pickup_open"`
-	CreatedAt      time.Time      `json:"createdAt" db:"created_at"`
-	UpdatedAt      time.Time      `json:"updatedAt" db:"updated_at"`
+	// Timezone is the IANA zone the opening hours are in (BUSINESS_TIMEZONE);
+	// it is configuration, not a column.
+	Timezone  string    `json:"timezone" db:"-"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
 }
 
+// OpeningHours is one weekday's trading window. Times are 24-hour "HH:MM" in
+// the business timezone; a CloseTime at or before OpenTime means the business
+// closes after midnight (e.g. 18:00-02:00, or 08:00-00:00 for midnight).
 type OpeningHours struct {
 	Day       string `json:"day"`
 	OpenTime  string `json:"openTime"`

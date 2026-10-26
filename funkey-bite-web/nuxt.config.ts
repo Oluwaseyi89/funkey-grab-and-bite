@@ -98,46 +98,14 @@ export default defineNuxtConfig({
           innerHTML: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'Restaurant',
+            // telephone, address and opening hours come from the API at
+            // runtime (layouts/default.vue) so they follow the admin settings.
             name: 'Funkey Grab & Bite',
             image: 'https://funkey-static-assets.s3.amazonaws.com/branding/logo.png',
             '@id': 'https://funkeygrabandbite.com',
             url: 'https://funkeygrabandbite.com',
-            telephone: '+1-234-567-8900',
             priceRange: '$$',
             servesCuisine: ['Fast Food', 'American', 'Middle Eastern', 'Asian'],
-            address: {
-              '@type': 'PostalAddress',
-              streetAddress: '123 Food Street',
-              addressLocality: 'City',
-              addressRegion: 'State',
-              postalCode: '12345',
-              addressCountry: 'US'
-            },
-            geo: {
-              '@type': 'GeoCoordinates',
-              latitude: 40.7128,
-              longitude: -74.0060
-            },
-            openingHoursSpecification: [
-              {
-                '@type': 'OpeningHoursSpecification',
-                dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
-                opens: '10:00',
-                closes: '22:00'
-              },
-              {
-                '@type': 'OpeningHoursSpecification',
-                dayOfWeek: ['Friday', 'Saturday'],
-                opens: '10:00',
-                closes: '23:00'
-              },
-              {
-                '@type': 'OpeningHoursSpecification',
-                dayOfWeek: ['Sunday'],
-                opens: '11:00',
-                closes: '21:00'
-              }
-            ],
             aggregateRating: {
               '@type': 'AggregateRating',
               ratingValue: '4.8',

@@ -31,13 +31,20 @@ export interface PaginatedResponse<T> {
     businessName: string;
     phoneNumber: string;
     email: string;
+    /** Street line; the rest of the postal address has its own fields. */
     address: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
     openingHours: BusinessHours[];
     deliveryFee: number;
     minOrderAmount: number;
     taxRate: number;
     isDeliveryOpen: boolean;
     isPickupOpen: boolean;
+    /** IANA timezone the opening hours are in, e.g. "Africa/Lagos". */
+    timezone: string;
     createdAt: string;
     updatedAt: string;
   }

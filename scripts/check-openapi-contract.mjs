@@ -59,7 +59,8 @@ const routeSets = {
     ['post', '/api/v1/orders'],
     ['get', '/api/v1/orders/track/{orderNumber}'],
     ['post', '/api/v1/catering/requests'],
-    ['get', '/api/v1/promotions/active']
+    ['get', '/api/v1/promotions/active'],
+    ['get', '/api/v1/settings']
   ]
 }
 

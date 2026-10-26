@@ -16,17 +16,23 @@
           <span>Subtotal</span>
           <span>₦{{ subtotal.toFixed(2) }}</span>
         </div>
-        <div class="flex justify-between text-gray-600 dark:text-gray-400">
-          <span>Tax (8%)</span>
-          <span>₦{{ tax.toFixed(2) }}</span>
-        </div>
-        <div v-if="deliveryFee > 0" class="flex justify-between text-gray-600 dark:text-gray-400">
-          <span>Delivery Fee</span>
-          <span>₦{{ deliveryFee.toFixed(2) }}</span>
-        </div>
-        <div class="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t">
-          <span>Total</span>
-          <span class="text-brand-500">₦{{ total.toFixed(2) }}</span>
+        <template v-if="pricingReady">
+          <div class="flex justify-between text-gray-600 dark:text-gray-400">
+            <span>Tax ({{ taxRate }}%)</span>
+            <span>₦{{ tax.toFixed(2) }}</span>
+          </div>
+          <div v-if="(deliveryFee ?? 0) > 0" class="flex justify-between text-gray-600 dark:text-gray-400">
+            <span>Delivery Fee</span>
+            <span>₦{{ (deliveryFee ?? 0).toFixed(2) }}</span>
+          </div>
+          <div class="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t">
+            <span>Total</span>
+            <span class="text-brand-500">₦{{ total.toFixed(2) }}</span>
+          </div>
+        </template>
+        <div v-else class="flex justify-between text-gray-500 dark:text-gray-400 pt-2 border-t">
+          <span>Tax &amp; fees</span>
+          <span>Loading…</span>
         </div>
       </div>
   
@@ -55,7 +61,7 @@
       
       <button
         @click="$emit('checkout')"
-        :disabled="items.length === 0 || isLoading"
+        :disabled="items.length === 0 || isLoading || !pricingReady"
         class="w-full btn-primary mt-6 py-4 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <template v-if="isLoading">
@@ -63,7 +69,7 @@
           Processing...
         </template>
         <template v-else>
-          {{ items.length === 0 ? 'Cart is Empty' : `Checkout · ₦ ${total.toFixed(2)}` }}
+          {{ items.length === 0 ? 'Cart is Empty' : pricingReady ? `Checkout · ₦ ${total.toFixed(2)}` : 'Loading prices…' }}
         </template>
       </button>
   
@@ -83,10 +89,10 @@
   const props = withDefaults(defineProps<{
   items: CartItem[]
   isLoading?: boolean
-  deliveryFee?: number
-}>(), {
-  deliveryFee: 0 // ✅ Default value
-})
+  // Both come from the business settings; null until they have loaded.
+  deliveryFee: number | null
+  taxRate: number | null
+}>(), {})
 
   
   const emit = defineEmits<{
@@ -100,10 +106,12 @@
     return props.items.reduce((sum, item) => sum + (item.menuItem.price * item.quantity), 0)
   })
   
-  const tax = computed(() => subtotal.value * 0.08)
+  const pricingReady = computed(() => props.taxRate !== null && props.deliveryFee !== null)
+  
+  const tax = computed(() => subtotal.value * ((props.taxRate ?? 0) / 100))
   
   const total = computed(() => {
-    return subtotal.value + tax.value + (props.deliveryFee || 0) - discount.value
+    return subtotal.value + tax.value + (props.deliveryFee ?? 0) - discount.value
   })
   
   const applyPromo = () => {

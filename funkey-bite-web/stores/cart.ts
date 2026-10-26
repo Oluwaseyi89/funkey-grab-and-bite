@@ -9,13 +9,8 @@ export const useCartStore = defineStore('cart', () => {
 
   const totalItems = computed(() => items.value.reduce((sum: number, item: CartItem) => sum + item.quantity, 0))
   const subtotal = computed(() => items.value.reduce((sum: number, item: CartItem) => sum + item.menuItem.price * item.quantity, 0))
-  const tax = computed(() => subtotal.value * 0.08)
-  const total = computed(() => subtotal.value + tax.value)
-  const totalPrice = computed(() => {
-    const sub = items.value.reduce((sum: number, item: CartItem) => sum + (item.menuItem.price * item.quantity), 0)
-    const t = sub * 0.08
-    return sub + t
-  })
+  // Items only: tax and delivery come from the business settings at checkout.
+  const totalPrice = computed(() => subtotal.value)
   const itemCount = (menuItemId: string) => items.value.find((item: CartItem) => item.menuItem.id === menuItemId)?.quantity ?? 0
 
   function addItem(menuItem: MenuItem, quantity = 1, specialInstructions?: string) {
@@ -62,8 +57,6 @@ export const useCartStore = defineStore('cart', () => {
     isOpen,
     totalItems,
     subtotal,
-    tax,
-    total,
     totalPrice,
     itemCount,
     addItem,

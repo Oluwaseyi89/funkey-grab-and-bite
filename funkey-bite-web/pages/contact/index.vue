@@ -19,7 +19,7 @@
 
             <div class="flex flex-wrap justify-center gap-4">
             <a href="#contact-form" class="btn-primary">Send Message</a>
-            <a href="tel:+15551234567" class="btn-secondary">
+            <a v-if="phoneHref" :href="phoneHref" class="btn-secondary">
                 <Phone class="w-4 h-4 inline mr-2" />
                 Call Now
             </a>
@@ -110,11 +110,12 @@
               Call us now for orders, catering inquiries, or urgent matters.
             </p>
             <a 
-              href="tel:+15551234567" 
+              v-if="phoneHref"
+              :href="phoneHref" 
               class="inline-flex items-center bg-white text-brand-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-xl transition-colors text-lg"
             >
               <Phone class="w-5 h-5 mr-2" />
-              Call Now: (555) 123-4567
+              Call Now: {{ settings?.phoneNumber }}
             </a>
           </div>
         </div>
@@ -144,7 +145,7 @@
   </template>
   
   <script setup lang="ts">
-  import { ref } from 'vue'
+  import { ref, computed, onMounted } from 'vue'
   import { 
     Phone, 
     Users, 
@@ -157,15 +158,20 @@
   import ContactInfo from '../../components/contact/ContactInfo.vue'
   import BusinessHours from '../../components/contact/BusinessHours.vue'
   import ContactMap from '../../components/contact/ContactMap.vue'
+  import { useBusinessSettings } from '../../composables/useBusinessSettings'
+  
+  const { settings, phoneHref, load } = useBusinessSettings()
+  
+  onMounted(() => load())
   
   const isSubmitting = ref(false)
   const showSuccessModal = ref(false)
   const openFaqIndex = ref<number | null>(0)
   
-  const faqs = [
+  const faqs = computed(() => [
     {
       question: 'What are your delivery hours?',
-      answer: 'We deliver from 11:00 AM to 9:00 PM daily. Last orders for delivery must be placed by 8:30 PM.'
+      answer: 'We deliver during our opening hours, shown on this page. Orders can only be placed while we are open.'
     },
     {
       question: 'Do you offer catering for small events?',
@@ -181,9 +187,11 @@
     },
     {
       question: 'How do I apply for a job?',
-      answer: 'Send your resume to careers@funkeygrabandbite.com or visit us in person to fill out an application.'
+      answer: settings.value?.email
+        ? `Send your resume to ${settings.value.email} or visit us in person to fill out an application.`
+        : 'Send us your resume through the contact form or visit us in person to fill out an application.'
     }
-  ]
+  ])
   
   const team = [
     {

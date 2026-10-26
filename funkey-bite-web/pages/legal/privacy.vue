@@ -3,7 +3,7 @@
     <PageHeader
       title-before="Privacy"
       highlight-text="Policy"
-      subtitle="How Funkey Grab & Bite collects, uses, and protects your information."
+      :subtitle="subtitle"
       variant="simple"
       header-class="pb-12"
     />
@@ -45,5 +45,17 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
 import PageHeader from '../../components/layout/PageHeader.vue'
+import { useBusinessSettings } from '../../composables/useBusinessSettings'
+
+const { businessName, load } = useBusinessSettings()
+
+onMounted(() => load())
+
+const subtitle = computed(() =>
+  businessName.value
+    ? `How ${businessName.value} collects, uses, and protects your information.`
+    : 'How we collect, use, and protect your information.',
+)
 </script>

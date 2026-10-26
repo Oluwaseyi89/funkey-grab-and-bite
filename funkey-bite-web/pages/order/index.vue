@@ -29,6 +29,15 @@
 
           <div v-else>
 
+            <div
+              v-if="orderBlockedReason && settingsStatus !== 'loading'"
+              role="alert"
+              class="mt-4 p-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
+            >
+              {{ orderBlockedReason }}
+              <NuxtLink v-if="businessSettings" to="/contact" class="underline font-medium ml-1">See opening hours</NuxtLink>
+            </div>
+
             <div class="my-5 md:my-8 py-3 md:py-8">
               <div class="flex items-center justify-center gap-3 sm:gap-6 md:gap-12 flex-wrap">
                 <div v-for="(step, index) in steps" :key="step.id" class="flex items-center">
@@ -146,7 +155,7 @@
                     </button>
                     <button
                       @click="submitOrder"
-                      :disabled="isSubmitting"
+                      :disabled="isSubmitting || !!orderBlockedReason"
                       class="btn-primary w-full sm:w-auto"
                     >
                       <template v-if="isSubmitting">
@@ -166,6 +175,7 @@
                 <CartSummary
                   :items="cart.items"
                   :delivery-fee="deliveryFee"
+                  :tax-rate="taxRate"
                   :is-loading="isSubmitting"
                   @checkout="currentStep = 1"
                 />
@@ -214,10 +224,12 @@
   import CustomerInfoForm from '../../components/order/CustomerInfoForm.vue'
   import OrderConfirmation from '../../components/order/OrderConfirmation.vue'
   import { useApi } from '../../utils/api'
+  import { useBusinessSettings } from '../../composables/useBusinessSettings'
   
   const cart = useCartStore()
   const api = useApi()
   const { $toast } = useNuxtApp()
+  const { settings: businessSettings, status: settingsStatus, load: loadBusinessSettings } = useBusinessSettings()
   
   const currentStep = ref(0)
   const isSubmitting = ref(false)
@@ -258,14 +270,35 @@
     }
   ]
   
-  const deliveryFee = computed(() => {
-    return orderData.value.orderType === 'delivery' ? 3.99 : 0
+  // Fees come from the admin settings the API charges with; null (and checkout
+  // disabled) until they have loaded.
+  const deliveryFee = computed<number | null>(() => {
+    if (!businessSettings.value) return null
+    return orderData.value.orderType === 'delivery' ? businessSettings.value.deliveryFee : 0
   })
+  
+  const taxRate = computed<number | null>(() => businessSettings.value?.taxRate ?? null)
   
   const orderTotal = computed(() => {
     const subtotal = cart.items.reduce((sum, item) => sum + (item.menuItem.price * item.quantity), 0)
-    const tax = subtotal * 0.08
-    return subtotal + tax + deliveryFee.value
+    const tax = subtotal * ((taxRate.value ?? 0) / 100)
+    return subtotal + tax + (deliveryFee.value ?? 0)
+  })
+  
+  // Mirrors the API's checks so customers learn about a closure before they
+  // check out, not from a rejected order.
+  const orderBlockedReason = computed(() => {
+    const s = businessSettings.value
+    if (settingsStatus.value === 'loading') return 'Loading our prices and opening hours…'
+    if (!s) return "We couldn't load our prices and opening hours. Please refresh the page to try again."
+    if (!s.isOpenNow) return "We're closed right now, so orders can't be placed until we open again."
+    if (orderData.value.orderType === 'delivery' && !s.isDeliveryOpen) {
+      return 'Delivery is unavailable right now. Please choose pickup instead.'
+    }
+    if (orderData.value.orderType === 'pickup' && !s.isPickupOpen) {
+      return 'Pickup is unavailable right now. Please choose delivery instead.'
+    }
+    return ''
   })
   
   const updateQuantity = (item: CartItemType, change: number) => {
@@ -289,6 +322,15 @@
     isSubmitting.value = true
   
     try {
+      // The page may have been open for a while; re-check before ordering.
+      await loadBusinessSettings(true)
+      if (orderBlockedReason.value) {
+        if ($toast && typeof $toast.error === 'function') {
+          $toast.error(orderBlockedReason.value)
+        }
+        return
+      }
+
       const orderPayload: Partial<Order> = {
         customerName: orderData.value.customerName,
         customerPhone: orderData.value.customerPhone,
@@ -349,5 +391,6 @@
   
   onMounted(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    loadBusinessSettings()
   })
   </script>

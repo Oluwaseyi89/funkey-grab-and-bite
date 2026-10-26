@@ -21,9 +21,10 @@ func TestGetSettingsBootstrapsDefaultsWhenNoSettingsExist(t *testing.T) {
 	updatedAt := createdAt.Add(5 * time.Second)
 
 	selectQuery := regexp.QuoteMeta(`
-        SELECT id, business_name, phone_number, email, address, opening_hours,
-               delivery_fee, min_order_amount, tax_rate, is_delivery_open,
-               is_pickup_open, created_at, updated_at
+        SELECT id, business_name, phone_number, email, address, city, state,
+               postal_code, country, opening_hours, delivery_fee,
+               min_order_amount, tax_rate, is_delivery_open, is_pickup_open,
+               created_at, updated_at
         FROM business_settings
         ORDER BY id DESC
         LIMIT 1
@@ -33,11 +34,11 @@ func TestGetSettingsBootstrapsDefaultsWhenNoSettingsExist(t *testing.T) {
 
 	insertQuery := regexp.QuoteMeta(`
         INSERT INTO business_settings (
-            business_name, phone_number, email, address, opening_hours,
+            business_name, phone_number, email, address, country, opening_hours,
             delivery_fee, min_order_amount, tax_rate, is_delivery_open,
             is_pickup_open, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING id, created_at, updated_at
     `)
 	mock.ExpectQuery(insertQuery).
@@ -46,6 +47,7 @@ func TestGetSettingsBootstrapsDefaultsWhenNoSettingsExist(t *testing.T) {
 			"+1234567890",
 			"contact@funkeygrabandbite.com",
 			"123 Fast Food Street, Food City",
+			"Nigeria",
 			sqlmock.AnyArg(),
 			2.99,
 			10.00,
