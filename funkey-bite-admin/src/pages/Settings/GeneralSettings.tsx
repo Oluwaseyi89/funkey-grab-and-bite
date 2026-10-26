@@ -21,10 +21,11 @@ import {
   AlertCircle,
   RefreshCw
 } from 'lucide-react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getSettings, updateSettings } from '../../api/adminApi';
+import { updateSettings } from '../../api/adminApi';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useBusinessSettings, BUSINESS_SETTINGS_QUERY_KEY } from '../../hooks/useBusinessSettings';
 import type { BusinessSettings, OpeningHours } from '../../types';
 
 const settingsSchema = z.object({
@@ -99,25 +100,29 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   };
 });
 
+const toFormValues = (settings: BusinessSettings): SettingsFormData => ({
+  businessName: settings.businessName,
+  phoneNumber: settings.phoneNumber,
+  email: settings.email,
+  address: settings.address,
+  city: settings.city ?? '',
+  state: settings.state ?? '',
+  postalCode: settings.postalCode ?? '',
+  country: settings.country ?? '',
+  deliveryFee: settings.deliveryFee,
+  minOrderAmount: settings.minOrderAmount,
+  taxRate: settings.taxRate,
+  isDeliveryOpen: settings.isDeliveryOpen,
+  isPickupOpen: settings.isPickupOpen,
+});
+
 const GeneralSettings: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [openingHours, setOpeningHours] = useState<OpeningHours[]>([]);
-  const { setSettings, updateSettings: updateStoreSettings } = useSettingsStore();
+  const setSettings = useSettingsStore((state) => state.setSettings);
+  const queryClient = useQueryClient();
 
-  const { data: settings, isLoading, refetch } = useQuery({
-    queryKey: ['settings'],
-    queryFn: async () => {
-      try {
-        const data = await getSettings();
-        setSettings(data);
-        setOpeningHours(completeWeek(data.openingHours));
-        return data;
-      } catch (error) {
-        toast.error('Failed to load settings');
-        return null;
-      }
-    },
-  });
+  const { settings, isLoading, isError, refetch } = useBusinessSettings();
 
   const {
     control,
@@ -136,7 +141,7 @@ const GeneralSettings: React.FC = () => {
       city: '',
       state: '',
       postalCode: '',
-      country: 'Nigeria',
+      country: '',
       deliveryFee: 0,
       minOrderAmount: 0,
       taxRate: 0,
@@ -147,21 +152,7 @@ const GeneralSettings: React.FC = () => {
 
   useEffect(() => {
     if (settings) {
-      reset({
-        businessName: settings.businessName,
-        phoneNumber: settings.phoneNumber,
-        email: settings.email,
-        address: settings.address,
-        city: settings.city ?? '',
-        state: settings.state ?? '',
-        postalCode: settings.postalCode ?? '',
-        country: settings.country || 'Nigeria',
-        deliveryFee: settings.deliveryFee,
-        minOrderAmount: settings.minOrderAmount,
-        taxRate: settings.taxRate,
-        isDeliveryOpen: settings.isDeliveryOpen,
-        isPickupOpen: settings.isPickupOpen,
-      });
+      reset(toFormValues(settings));
       setOpeningHours(completeWeek(settings.openingHours));
     }
   }, [settings, reset]);
@@ -186,14 +177,14 @@ const GeneralSettings: React.FC = () => {
     ));
   };
 
-  const resetToDefaultHours = () => {
-    const defaultHours: OpeningHours[] = DAYS_OF_WEEK.map((day, index) => ({
-      day: day.id,
-      openTime: index < 5 ? '08:00' : index === 5 ? '09:00' : '10:00',
-      closeTime: index < 5 ? '22:00' : '23:00',
-      isOpen: true,
-    }));
-    setOpeningHours(defaultHours);
+  const resetHoursToSaved = () => {
+    setOpeningHours(completeWeek(settings?.openingHours));
+  };
+
+  const resetAllToSaved = () => {
+    if (!settings) return;
+    reset(toFormValues(settings));
+    resetHoursToSaved();
   };
 
   const mutation = useMutation({
@@ -206,8 +197,9 @@ const GeneralSettings: React.FC = () => {
       return await updateSettings(settingsData);
     },
     onSuccess: (data) => {
+      // Shares the cache with the sidebar and layout, so they update too.
+      queryClient.setQueryData(BUSINESS_SETTINGS_QUERY_KEY, data);
       setSettings(data);
-      updateStoreSettings(data);
       toast.success('Settings updated successfully!');
     },
     onError: (error: any) => {
@@ -237,6 +229,23 @@ const GeneralSettings: React.FC = () => {
       <div className="text-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mx-auto"></div>
         <p className="mt-4 text-gray-500 dark:text-gray-400">Loading settings...</p>
+      </div>
+    );
+  }
+
+  if (isError || !settings) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
+        <p className="mt-4 text-gray-700 dark:text-gray-300">Business settings could not be loaded.</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-4 inline-flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
+        >
+          <RefreshCw className="h-4 w-4" />
+          <span>Try again</span>
+        </button>
       </div>
     );
   }
@@ -293,7 +302,7 @@ const GeneralSettings: React.FC = () => {
                   type="text"
                   {...register('businessName')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="Funkey Grab & Bite"
+                  placeholder="Your business name"
                 />
               </div>
               {errors.businessName && (
@@ -331,7 +340,7 @@ const GeneralSettings: React.FC = () => {
                   type="email"
                   {...register('email')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="contact@funkeygrabandbite.com"
+                  placeholder="contact@example.com"
                 />
               </div>
               {errors.email && (
@@ -350,7 +359,7 @@ const GeneralSettings: React.FC = () => {
                   type="text"
                   {...register('address')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="12 Admiralty Way"
+                  placeholder="Street and number"
                 />
               </div>
               {errors.address && (
@@ -359,10 +368,10 @@ const GeneralSettings: React.FC = () => {
             </div>
 
             {([
-              { name: 'city', label: 'City *', placeholder: 'Lekki' },
-              { name: 'state', label: 'State *', placeholder: 'Lagos' },
-              { name: 'postalCode', label: 'Postal Code', placeholder: '106104' },
-              { name: 'country', label: 'Country *', placeholder: 'Nigeria' },
+              { name: 'city', label: 'City *', placeholder: 'City' },
+              { name: 'state', label: 'State *', placeholder: 'State' },
+              { name: 'postalCode', label: 'Postal Code', placeholder: 'Optional' },
+              { name: 'country', label: 'Country *', placeholder: 'Country' },
             ] as const).map((field) => (
               <div key={field.name}>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -393,16 +402,16 @@ const GeneralSettings: React.FC = () => {
             </div>
             <button
               type="button"
-              onClick={resetToDefaultHours}
+              onClick={resetHoursToSaved}
               className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
             >
-              Reset to Default
+              Reset to Saved
             </button>
           </div>
           
           <div className="space-y-4">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Times are in the business's local time (WAT). Pick a closing time earlier than the
+              Times are in the business's local time ({settings.timezone}). Pick a closing time earlier than the
               opening time for hours that run past midnight.
             </p>
             {DAYS_OF_WEEK.map((day) => {
@@ -418,27 +427,22 @@ const GeneralSettings: React.FC = () => {
                 <div key={day.id}>
                   <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border rounded-lg ${dayError ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-gray-700'}`}>
                     <div className="flex items-center space-x-4">
-                      <Controller
-                        name=""
-                        render={() => (
-                          <label className="flex items-center space-x-2 cursor-pointer">
-                            <div className="relative">
-                              <input
-                                type="checkbox"
-                                checked={dayHours.isOpen}
-                                onChange={() => toggleDayOpen(day.id)}
-                                className="sr-only"
-                              />
-                              <div className={`w-10 h-6 rounded-full transition-colors ${dayHours.isOpen ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${dayHours.isOpen ? 'left-5' : 'left-1'}`}></div>
-                              </div>
-                            </div>
-                            <span className={`font-medium ${dayHours.isOpen ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
-                              {day.label}
-                            </span>
-                          </label>
-                        )}
-                      />
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={dayHours.isOpen}
+                            onChange={() => toggleDayOpen(day.id)}
+                            className="sr-only"
+                          />
+                          <div className={`w-10 h-6 rounded-full transition-colors ${dayHours.isOpen ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${dayHours.isOpen ? 'left-5' : 'left-1'}`}></div>
+                          </div>
+                        </div>
+                        <span className={`font-medium ${dayHours.isOpen ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
+                          {day.label}
+                        </span>
+                      </label>
                     </div>
                   
                     <div className="flex items-center space-x-3">
@@ -518,7 +522,7 @@ const GeneralSettings: React.FC = () => {
                   min="0"
                   {...register('deliveryFee', { valueAsNumber: true })}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="2.99"
+                  placeholder="0.00"
                 />
               </div>
               {errors.deliveryFee && (
@@ -539,7 +543,7 @@ const GeneralSettings: React.FC = () => {
                   min="0"
                   {...register('minOrderAmount', { valueAsNumber: true })}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="10.00"
+                  placeholder="0.00"
                 />
               </div>
               {errors.minOrderAmount && (
@@ -561,7 +565,7 @@ const GeneralSettings: React.FC = () => {
                   max="100"
                   {...register('taxRate', { valueAsNumber: true })}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="8.5"
+                  placeholder="0"
                 />
               </div>
               {errors.taxRate && (
@@ -618,7 +622,7 @@ const GeneralSettings: React.FC = () => {
               </div>
               {isDeliveryOpen && (
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Delivery fee: ${deliveryFee.toFixed(2)}
+                  Delivery fee: ₦{deliveryFee.toFixed(2)}
                 </div>
               )}
             </div>
@@ -740,7 +744,7 @@ const GeneralSettings: React.FC = () => {
         <div className="flex items-center justify-end space-x-3">
           <button
             type="button"
-            onClick={() => reset()}
+            onClick={resetAllToSaved}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Reset Changes
