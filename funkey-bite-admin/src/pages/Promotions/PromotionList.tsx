@@ -5,7 +5,7 @@ import {
   Filter,
   Tag,
   Percent,
-  DollarSign,
+  Banknote,
   Gift,
   Calendar,
   TrendingUp,
@@ -166,9 +166,9 @@ const PromotionList: React.FC = () => {
       case 'fixed':
         return {
           color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-          icon: <DollarSign className="h-4 w-4" />,
+          icon: <Banknote className="h-4 w-4" />,
           text: 'Fixed Amount',
-          prefix: '$'
+          prefix: '₦'
         };
       case 'bogo':
         return {
@@ -293,14 +293,14 @@ const PromotionList: React.FC = () => {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Discount Value</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                ${totalDiscountValue.toLocaleString()}
+                ₦{totalDiscountValue.toLocaleString()}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Combined discount amount
               </p>
             </div>
             <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <Banknote className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
