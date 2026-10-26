@@ -17,7 +17,52 @@
 </template>
 
 <script setup lang="ts">
-import { useSeoMeta } from 'nuxt/app'; 
+import { onMounted } from 'vue'
+import { useHead, useSeoMeta } from 'nuxt/app'; 
+import { useBusinessSettings } from '../composables/useBusinessSettings'
+
+const { settings, load } = useBusinessSettings()
+
+onMounted(() => load())
+
+// Live contact details and hours for the Restaurant structured data; the
+// shared @id merges this with the static entry in nuxt.config.ts.
+useHead(() => {
+  const s = settings.value
+  if (!s) return {}
+  return {
+    script: [
+      {
+        key: 'business-ld',
+        type: 'application/ld+json',
+        innerHTML: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Restaurant',
+          '@id': 'https://funkeygrabandbite.com',
+          name: s.businessName,
+          telephone: s.phoneNumber,
+          email: s.email,
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: s.address,
+            addressLocality: s.city || undefined,
+            addressRegion: s.state || undefined,
+            postalCode: s.postalCode || undefined,
+            addressCountry: s.country || undefined,
+          },
+          openingHoursSpecification: s.openingHours
+            .filter((h) => h.isOpen)
+            .map((h) => ({
+              '@type': 'OpeningHoursSpecification',
+              dayOfWeek: h.day,
+              opens: h.openTime,
+              closes: h.closeTime,
+            })),
+        }),
+      },
+    ],
+  }
+})
 
 useSeoMeta({
   title: 'Funkey Grab & Bite - Fast Food & Catering',
