@@ -159,7 +159,7 @@ func (s *settingsService) ValidateMinimumOrder(subtotal float64, orderType strin
 
 	minAmount := settings.MinOrderAmount
 	if subtotal < minAmount {
-		return false, fmt.Sprintf("Minimum order amount is $%.2f", minAmount)
+		return false, fmt.Sprintf("Minimum order amount is ₦%.2f", minAmount)
 	}
 
 	return true, ""
