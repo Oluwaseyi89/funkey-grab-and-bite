@@ -13,16 +13,20 @@ const Layout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       
-      <Topbar />
+      <div className="print:hidden">
+        <Topbar />
+      </div>
 
-      <div className="flex pt-16">
+      <div className="flex pt-16 print:pt-0">
         
-        <Sidebar />
+        <div className="print:hidden">
+          <Sidebar />
+        </div>
 
         
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden">
           
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
             
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
@@ -59,7 +63,7 @@ const Layout: React.FC = () => {
           </div>
 
           
-          <footer className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
+          <footer className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400 print:hidden">
             <p>{settings?.businessName ? `${settings.businessName} ` : ''}Admin Dashboard © {new Date().getFullYear()}</p>
             <p className="mt-1">Version 1.0.0</p>
           </footer>
