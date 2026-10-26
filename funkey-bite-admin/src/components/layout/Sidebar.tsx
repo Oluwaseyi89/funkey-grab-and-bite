@@ -69,7 +69,7 @@ const Sidebar: React.FC = () => {
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
             <div className="h-10 w-10 rounded-lg bg-primary-500 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">{businessInitials(businessName)}</span>
+              <span className="text-white font-bold text-sm">{businessInitials(businessName)}</span>
             </div>
             <div className="min-w-0">
               {isSettingsLoading ? (
