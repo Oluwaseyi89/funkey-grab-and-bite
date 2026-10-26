@@ -5,7 +5,7 @@ import {
   Calendar,
   TrendingUp,
   TrendingDown,
-  DollarSign,
+  Banknote,
   ShoppingBag,
   Users,
   BarChart3,
@@ -169,7 +169,7 @@ const SalesReport: React.FC = () => {
       return;
     }
 
-    const headers = ['Date', 'Total Orders', 'Total Revenue ($)', 'Average Order ($)'];
+    const headers = ['Date', 'Total Orders', 'Total Revenue (₦)', 'Average Order (₦)'];
     const csvContent = [
       headers.join(','),
       ...filteredSalesReports.map(report => [
@@ -192,9 +192,9 @@ const SalesReport: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-NG', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'NGN',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -389,7 +389,7 @@ const SalesReport: React.FC = () => {
               </div>
             </div>
             <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <Banknote className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -528,11 +528,11 @@ const SalesReport: React.FC = () => {
                     <YAxis 
                       stroke="#9CA3AF"
                       fontSize={12}
-                      tickFormatter={(value) => `$${value.toLocaleString()}`}
+                      tickFormatter={(value) => `₦${value.toLocaleString()}`}
                     />
                     <Tooltip 
                       formatter={(value, name) => [
-                        name === 'revenue' ? `$${Number(value).toLocaleString()}` : value,
+                        name === 'revenue' ? `₦${Number(value).toLocaleString()}` : value,
                         name === 'revenue' ? 'Revenue' : 'Orders'
                       ]}
                       labelFormatter={(label) => `Date: ${label}`}
@@ -576,11 +576,11 @@ const SalesReport: React.FC = () => {
                     <YAxis 
                       stroke="#9CA3AF"
                       fontSize={12}
-                      tickFormatter={(value) => `$${value.toLocaleString()}`}
+                      tickFormatter={(value) => `₦${value.toLocaleString()}`}
                     />
                     <Tooltip 
                       formatter={(value, name) => [
-                        name === 'revenue' ? `$${Number(value).toLocaleString()}` : value,
+                        name === 'revenue' ? `₦${Number(value).toLocaleString()}` : value,
                         name === 'revenue' ? 'Revenue' : 'Orders'
                       ]}
                       labelFormatter={(label) => `Date: ${label}`}
@@ -632,10 +632,10 @@ const SalesReport: React.FC = () => {
                     <YAxis 
                       stroke="#9CA3AF"
                       fontSize={10}
-                      tickFormatter={(value) => `$${value}`}
+                      tickFormatter={(value) => `₦${value}`}
                     />
                     <Tooltip 
-                      formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Average Order']}
+                      formatter={(value) => [`₦${Number(value).toFixed(2)}`, 'Average Order']}
                       labelFormatter={(label) => `Date: ${label}`}
                     />
                     <Line
@@ -658,13 +658,13 @@ const SalesReport: React.FC = () => {
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Highest AOV</p>
                     <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      ${Math.max(...chartData.map(d => d.average)).toFixed(2)}
+                      ₦{Math.max(...chartData.map(d => d.average)).toFixed(2)}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Lowest AOV</p>
                     <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      ${Math.min(...chartData.map(d => d.average)).toFixed(2)}
+                      ₦{Math.min(...chartData.map(d => d.average)).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -740,7 +740,7 @@ const SalesReport: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            ${report.totalRevenue.toFixed(2)}
+                            ₦{report.totalRevenue.toFixed(2)}
                           </span>
                           {prevDayReport && (
                             <span className={`text-xs ${revenueChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -751,12 +751,12 @@ const SalesReport: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 dark:text-white">
-                          ${report.averageOrder.toFixed(2)}
+                          ₦{report.averageOrder.toFixed(2)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 dark:text-white">
-                          ${(report.totalRevenue / report.totalOrders).toFixed(2)}
+                          ₦{(report.totalRevenue / report.totalOrders).toFixed(2)}
                         </div>
                       </td>
                     </tr>
@@ -782,7 +782,7 @@ const SalesReport: React.FC = () => {
                       [...filteredSalesReports].sort((a, b) => b.totalRevenue - a.totalRevenue)[0].date
                     ).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                   </strong></li>
-                  <li>• Average daily revenue: <strong>${revenueSummary.averageDailyRevenue.toFixed(2)}</strong></li>
+                  <li>• Average daily revenue: <strong>₦{revenueSummary.averageDailyRevenue.toFixed(2)}</strong></li>
                   <li>• Best performing time: <strong>Weekend days show 25% higher revenue</strong></li>
                   <li>• Recommendation: <strong>Focus promotions on low-revenue days</strong></li>
                 </>
