@@ -23,6 +23,8 @@ export interface BusinessSettings {
   taxRate: number
   isDeliveryOpen: boolean
   isPickupOpen: boolean
+  // Customers may pay on delivery / at pickup instead of online.
+  payOnDeliveryEnabled: boolean
   isOpenNow: boolean
   // IANA zone the opening hours are in, e.g. "Africa/Lagos".
   timezone: string
