@@ -22,6 +22,14 @@ type OrderService interface {
 	MarkPaymentCollected(id int, via string) (*models.Order, error)
 }
 
+// ItemUnavailableError reports a menu item that can't be ordered in the
+// requested quantity; its message is safe to show to customers.
+type ItemUnavailableError struct {
+	Message string
+}
+
+func (e *ItemUnavailableError) Error() string { return e.Message }
+
 var (
 	ErrOrderNotFound = errors.New("order not found")
 	// ErrPaymentNotCollectable is returned for orders that are not pay on
@@ -65,7 +73,7 @@ func (s *orderService) CreateOrder(order *models.Order, items []models.OrderItem
 			return nil, fmt.Errorf("menu item not found: %d", item.MenuItemID)
 		}
 		if !menuItem.IsAvailable {
-			return nil, fmt.Errorf("menu item not available: %s", menuItem.Name)
+			return nil, &ItemUnavailableError{Message: menuItem.Name + " is not available right now"}
 		}
 
 		if menuItem.Price != item.UnitPrice {
@@ -79,7 +87,7 @@ func (s *orderService) CreateOrder(order *models.Order, items []models.OrderItem
 		}
 
 		if ok, message := s.stockService.CheckAvailability(item.MenuItemID, item.Quantity); !ok {
-			return nil, fmt.Errorf("stock unavailable for %s: %s", item.Name, message)
+			return nil, &ItemUnavailableError{Message: item.Name + " " + message}
 		}
 	}
 
