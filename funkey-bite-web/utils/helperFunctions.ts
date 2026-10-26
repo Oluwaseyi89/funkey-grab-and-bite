@@ -12,7 +12,7 @@ import type { Promotion } from '../types/menu'
       case 'percentage':
         return `${value}% OFF`
       case 'fixed':
-        return `$${value.toFixed(2)} OFF`
+        return `₦${value.toFixed(2)} OFF`
       case 'bogo':
         return 'Buy 1 Get 1'
       default:
@@ -55,13 +55,13 @@ import type { Promotion } from '../types/menu'
     switch(promo.discountType) {
       case 'percentage':
         const discount = originalPrice * (promo.discountValue / 100)
-        return `$${(originalPrice - discount).toFixed(2)}`
+        return `₦${(originalPrice - discount).toFixed(2)}`
       case 'fixed':
         const newPrice = Math.max(0, originalPrice - promo.discountValue)
-        return `$${newPrice.toFixed(2)}`
+        return `₦${newPrice.toFixed(2)}`
       case 'bogo':
-        return `$${originalPrice.toFixed(2)} (BOGO)`
+        return `₦${originalPrice.toFixed(2)} (BOGO)`
       default:
-        return `$${originalPrice.toFixed(2)}`
+        return `₦${originalPrice.toFixed(2)}`
     }
   }

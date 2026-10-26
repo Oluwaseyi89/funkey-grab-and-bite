@@ -286,7 +286,7 @@ import { navigateTo } from 'nuxt/app'
 import { 
   X, 
   Filter, 
-  DollarSign, 
+  Banknote, 
   TrendingUp, 
   Clock,
   Grid,

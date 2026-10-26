@@ -228,7 +228,7 @@ const OrderList: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                          ${order.totalAmount.toFixed(2)}
+                          ₦{order.totalAmount.toFixed(2)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

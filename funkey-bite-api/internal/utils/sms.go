@@ -57,7 +57,7 @@ func envOrDefault(key, fallback string) string {
 
 func (s *TermiiSMSService) SendOrderConfirmation(phoneNumber, orderNumber string, totalAmount float64) error {
 	message := fmt.Sprintf(
-		"Thank you for your order at Funkey Grab & Bite! Order #%s for $%.2f. We'll notify you when it's ready.",
+		"Thank you for your order at Funkey Grab & Bite! Order #%s for NGN %.2f. We'll notify you when it's ready.",
 		orderNumber, totalAmount,
 	)
 	return s.sendSMS(phoneNumber, message)
@@ -158,7 +158,7 @@ func (s *TermiiSMSService) sendSMS(to, body string) error {
 type MockSMSService struct{}
 
 func (m *MockSMSService) SendOrderConfirmation(phoneNumber, orderNumber string, totalAmount float64) error {
-	log.Printf("[MOCK SMS] Order confirmation sent to %s: Order %s - $%.2f", phoneNumber, orderNumber, totalAmount)
+	log.Printf("[MOCK SMS] Order confirmation sent to %s: Order %s - NGN %.2f", phoneNumber, orderNumber, totalAmount)
 	return nil
 }
 

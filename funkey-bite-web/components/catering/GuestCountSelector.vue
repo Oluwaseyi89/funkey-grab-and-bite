@@ -46,7 +46,7 @@
             <div>
               <div class="text-gray-600 dark:text-gray-400">Estimated Cost</div>
               <div class="text-2xl font-bold text-brand-500">
-                ${{ estimatedCost.toFixed(0) }}<span class="text-lg text-gray-500">+</span>
+                ₦{{ estimatedCost.toFixed(0) }}<span class="text-lg text-gray-500">+</span>
               </div>
             </div>
             <div class="text-sm text-gray-500 dark:text-gray-400 text-right">

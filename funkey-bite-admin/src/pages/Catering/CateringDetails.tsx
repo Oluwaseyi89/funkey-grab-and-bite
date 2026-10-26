@@ -7,7 +7,7 @@ import {
   Users,
   Phone,
   Mail,
-  DollarSign,
+  Banknote,
   MapPin,
   Clock,
   CheckCircle,
@@ -393,10 +393,10 @@ const CateringDetails: React.FC = () => {
                     Budget
                   </label>
                   <div className="flex items-center space-x-2">
-                    <DollarSign className="h-4 w-4 text-gray-400" />
+                    <Banknote className="h-4 w-4 text-gray-400" />
                     <p className="font-medium text-gray-900 dark:text-white">
                       {cateringRequest.budget ? 
-                        `$${cateringRequest.budget.toLocaleString()}` : 
+                        `₦${cateringRequest.budget.toLocaleString()}` : 
                         'Not specified'}
                     </p>
                   </div>
@@ -528,7 +528,7 @@ const CateringDetails: React.FC = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">Package Rate</span>
-                <span className="font-medium">${packageDetails.pricePerPerson}/person</span>
+                <span className="font-medium">₦{packageDetails.pricePerPerson}/person</span>
               </div>
               
               <div className="flex justify-between items-center">
@@ -539,14 +539,14 @@ const CateringDetails: React.FC = () => {
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">Package Subtotal</span>
                 <span className="font-medium">
-                  ${(packageDetails.pricePerPerson * cateringRequest.guestCount).toLocaleString()}
+                  ₦{(packageDetails.pricePerPerson * cateringRequest.guestCount).toLocaleString()}
                 </span>
               </div>
               
               {cateringRequest.budget && (
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Client Budget</span>
-                  <span className="font-medium">${cateringRequest.budget.toLocaleString()}</span>
+                  <span className="font-medium">₦{cateringRequest.budget.toLocaleString()}</span>
                 </div>
               )}
               
@@ -554,7 +554,7 @@ const CateringDetails: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold">Estimated Total</span>
                   <span className="text-2xl font-bold text-primary-600">
-                    ${estimatedTotal.toLocaleString()}
+                    ₦{estimatedTotal.toLocaleString()}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">

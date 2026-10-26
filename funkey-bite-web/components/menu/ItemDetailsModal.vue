@@ -63,7 +63,7 @@
                   <span class="text-gray-600 dark:text-gray-400">{{ item.preparationTime }} mins</span>
                 </div>
               </div>
-              <span class="text-3xl font-bold text-brand-500">${{ item.price.toFixed(2) }}</span>
+              <span class="text-3xl font-bold text-brand-500">₦{{ item.price.toFixed(2) }}</span>
             </div>
 
             <div v-if="isMobile" class="flex justify-between items-center mb-4">
@@ -71,7 +71,7 @@
                 <Clock class="w-4 h-4 text-gray-500" />
                 <span class="text-gray-600 dark:text-gray-400">{{ item.preparationTime }} mins</span>
               </div>
-              <span class="text-2xl font-bold text-brand-500">${{ item.price.toFixed(2) }}</span>
+              <span class="text-2xl font-bold text-brand-500">₦{{ item.price.toFixed(2) }}</span>
             </div>
 
             <p class="text-gray-600 dark:text-gray-300 mb-6">{{ item.description }}</p>

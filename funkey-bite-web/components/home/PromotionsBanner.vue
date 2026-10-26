@@ -116,7 +116,7 @@
                       </div>
                       <div class="min-w-0">
                         <h5 class="font-semibold truncate">{{ item.name }}</h5>
-                        <p class="text-sm opacity-90">${{ item.price.toFixed(2) }}</p>
+                        <p class="text-sm opacity-90">₦{{ item.price.toFixed(2) }}</p>
                         <p class="text-xs opacity-75 mt-1">
                           {{ getDiscountAmount(currentPromotion, item.price) }}
                         </p>
@@ -273,9 +273,9 @@ const getDiscountAmount = (promotion: Promotion, originalPrice: number): string 
   switch(promotion.discountType) {
     case 'percentage':
       const discount = originalPrice * (promotion.discountValue / 100)
-      return `Save $${discount.toFixed(2)}`
+      return `Save ₦${discount.toFixed(2)}`
     case 'fixed':
-      return `Save $${promotion.discountValue.toFixed(2)}`
+      return `Save ₦${promotion.discountValue.toFixed(2)}`
     case 'bogo':
       return 'Buy 1 Get 1 Free'
     default:
@@ -292,7 +292,7 @@ const formatDiscountValue = (value: number, type: string) => {
     case 'percentage':
       return `${value}% OFF`
     case 'fixed':
-      return `$${value.toFixed(2)} OFF`
+      return `₦${value.toFixed(2)} OFF`
     case 'bogo':
       return 'Buy 1 Get 1'
     default:

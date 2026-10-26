@@ -52,7 +52,7 @@
             {{ item.name }}
           </h3>
           <div class="text-2xl font-bold text-brand-500">
-            ${{ item.price.toFixed(2) }}
+            ₦{{ item.price.toFixed(2) }}
           </div>
         </div>
         

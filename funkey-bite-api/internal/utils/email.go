@@ -51,7 +51,7 @@ func (s *AWSEmailService) SendOrderConfirmation(toEmail, toName, orderNumber str
 			<p>Hello %s,</p>
 			<p>Thank you for your order at Funkey Grab & Bite!</p>
 			<p><strong>Order Number:</strong> %s</p>
-			<p><strong>Total Amount:</strong> $%.2f</p>
+			<p><strong>Total Amount:</strong> ₦%.2f</p>
 			<p>We'll notify you when your order is ready for pickup/delivery.</p>
 			<p>Thank you for choosing Funkey Grab & Bite!</p>
 		</body>
@@ -59,7 +59,7 @@ func (s *AWSEmailService) SendOrderConfirmation(toEmail, toName, orderNumber str
 	`, toName, orderNumber, totalAmount)
 
 	textBody := fmt.Sprintf(
-		"Hello %s,\n\nThank you for your order at Funkey Grab & Bite!\n\nOrder Number: %s\nTotal Amount: $%.2f\n\nWe'll notify you when your order is ready.\n\nThank you!",
+		"Hello %s,\n\nThank you for your order at Funkey Grab & Bite!\n\nOrder Number: %s\nTotal Amount: ₦%.2f\n\nWe'll notify you when your order is ready.\n\nThank you!",
 		toName, orderNumber, totalAmount,
 	)
 
@@ -179,7 +179,7 @@ func (s *AWSEmailService) sendEmail(toEmail, subject, htmlBody, textBody string)
 type MockEmailService struct{}
 
 func (m *MockEmailService) SendOrderConfirmation(toEmail, toName, orderNumber string, totalAmount float64) error {
-	log.Printf("[MOCK EMAIL] Order confirmation sent to %s: Order %s - $%.2f", toEmail, orderNumber, totalAmount)
+	log.Printf("[MOCK EMAIL] Order confirmation sent to %s: Order %s - ₦%.2f", toEmail, orderNumber, totalAmount)
 	return nil
 }
 

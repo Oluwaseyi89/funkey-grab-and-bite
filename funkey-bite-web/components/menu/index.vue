@@ -64,7 +64,7 @@
                 <div class="flex justify-between items-center">
                   <div>
                     <div class="font-bold">{{ cart.totalItems }} items</div>
-                    <div class="text-brand-500 font-bold">${{ cart.totalPrice.toFixed(2) }}</div>
+                    <div class="text-brand-500 font-bold">₦{{ cart.totalPrice.toFixed(2) }}</div>
                   </div>
                   <button @click="cart.toggleCart()" class="btn-primary">
                     View Cart
@@ -156,7 +156,7 @@
       if (category) filters.push(category.name)
     }
     if (searchQuery.value) filters.push(`Search: "${searchQuery.value}"`)
-    if (maxPrice.value < 100) filters.push(`Under $${maxPrice.value}`)
+    if (maxPrice.value < 100) filters.push(`Under ₦${maxPrice.value}`)
     return filters
   })
   

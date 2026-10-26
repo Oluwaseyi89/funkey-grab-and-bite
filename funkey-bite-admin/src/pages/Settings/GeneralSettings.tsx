@@ -11,7 +11,7 @@ import {
   Truck,
   Package,
   Clock,
-  DollarSign,
+  Banknote,
   Percent,
   CheckCircle,
   XCircle,
@@ -424,10 +424,10 @@ const GeneralSettings: React.FC = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Delivery Fee ($)
+                Delivery Fee (₦)
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="number"
                   step="0.01"
@@ -445,10 +445,10 @@ const GeneralSettings: React.FC = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Minimum Order Amount ($)
+                Minimum Order Amount (₦)
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="number"
                   step="0.01"
@@ -601,20 +601,20 @@ const GeneralSettings: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal (Sample):</span>
-                  <span>$50.00</span>
+                  <span>₦50.00</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Delivery Fee:</span>
-                  <span>${deliveryFee.toFixed(2)}</span>
+                  <span>₦{deliveryFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Tax ({taxRate}%):</span>
-                  <span>${(50 * (taxRate / 100)).toFixed(2)}</span>
+                  <span>₦{(50 * (taxRate / 100)).toFixed(2)}</span>
                 </div>
                 <div className="border-t border-gray-300 dark:border-gray-600 pt-2">
                   <div className="flex justify-between font-medium">
                     <span>Total:</span>
-                    <span>${(50 + deliveryFee + (50 * (taxRate / 100))).toFixed(2)}</span>
+                    <span>₦{(50 + deliveryFee + (50 * (taxRate / 100))).toFixed(2)}</span>
                   </div>
                 </div>
               </div>

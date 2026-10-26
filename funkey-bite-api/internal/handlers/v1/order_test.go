@@ -254,7 +254,7 @@ func TestCreateOrderRejectsBelowMinimumOrder(t *testing.T) {
 	orderSvc := &fakeOrderService{subtotal: 8}
 	settingsSvc := &fakeSettingsService{
 		minOrderOK:  false,
-		minOrderMsg: "Minimum order amount is $10.00",
+		minOrderMsg: "Minimum order amount is ₦10.00",
 		orderTimeOK: true,
 		acceptOK:    true,
 		total:       8,

@@ -8,7 +8,7 @@ import {
   X,
   ArrowLeft,
   Percent,
-  DollarSign,
+  Banknote,
   Gift,
   Calendar,
   Hash,
@@ -447,7 +447,7 @@ const PromotionForm: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {([
                     { type: 'percentage', icon: Percent, label: 'Percentage Off', desc: 'Discount by percentage' },
-                    { type: 'fixed', icon: DollarSign, label: 'Fixed Amount', desc: 'Flat amount discount' },
+                    { type: 'fixed', icon: Banknote, label: 'Fixed Amount', desc: 'Flat amount discount' },
                     { type: 'bogo', icon: Gift, label: 'Buy One Get One', desc: 'Buy one, get one free' },
                   ] as const).map(({ type, icon: Icon, label, desc }) => (
                     <Controller
@@ -493,14 +493,14 @@ const PromotionForm: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {promotionType === 'percentage' ? 'Discount Percentage *' :
-                     promotionType === 'fixed' ? 'Discount Amount ($) *' :
-                     'Free Item Value ($) *'}
+                     promotionType === 'fixed' ? 'Discount Amount (₦) *' :
+                     'Free Item Value (₦) *'}
                   </label>
                   <div className="relative">
                     {promotionType === 'percentage' ? (
                       <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     ) : (
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     )}
                     <input
                       type="number"
@@ -523,10 +523,10 @@ const PromotionForm: React.FC = () => {
                 {promotionType === 'percentage' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Maximum Discount ($)
+                      Maximum Discount (₦)
                     </label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                       <input
                         type="number"
                         step="0.01"
@@ -546,10 +546,10 @@ const PromotionForm: React.FC = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Minimum Order Amount ($)
+                  Minimum Order Amount (₦)
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                   <input
                     type="number"
                     step="0.01"
@@ -773,7 +773,7 @@ const PromotionForm: React.FC = () => {
                     <p className="text-primary-100 text-sm">Discount Value</p>
                     <p className="text-2xl font-bold">
                       {promotionType === 'percentage' ? `${discountValue}%` :
-                       promotionType === 'fixed' ? `$${discountValue.toFixed(2)}` :
+                       promotionType === 'fixed' ? `₦${discountValue.toFixed(2)}` :
                        'BOGO'}
                     </p>
                   </div>
@@ -798,7 +798,7 @@ const PromotionForm: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600 dark:text-gray-400">Sample Order:</span>
-                    <span className="font-medium">${preview.original.toFixed(2)}</span>
+                    <span className="font-medium">₦{preview.original.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex items-center justify-between text-sm">
@@ -812,7 +812,7 @@ const PromotionForm: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-900 dark:text-white">Final Amount:</span>
                       <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
-                        ${preview.final.toFixed(2)}
+                        ₦{preview.final.toFixed(2)}
                       </span>
                     </div>
                   </div>

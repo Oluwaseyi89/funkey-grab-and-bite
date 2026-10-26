@@ -4,7 +4,7 @@ import {
   TrendingDown,
   Users,
   ShoppingBag,
-  DollarSign,
+  Banknote,
   Clock,
   PieChart,
   BarChart3,
@@ -137,17 +137,17 @@ const Analytics: React.FC = () => {
   const customerMetrics = [
     { metric: 'New Customers', value: 245, change: +12.5, icon: Users },
     { metric: 'Returning Rate', value: '68%', change: +5.2, icon: TrendingUp },
-    { metric: 'Avg Order Value', value: '$147.50', change: +8.3, icon: DollarSign },
+    { metric: 'Avg Order Value', value: '₦147.50', change: +8.3, icon: Banknote },
     { metric: 'Order Frequency', value: '3.2x/month', change: +2.1, icon: Clock },
   ];
 
   const performanceMetrics = dashboardStats ? [
     { label: 'Total Orders', value: dashboardStats.totalOrders, change: 15.2, icon: ShoppingBag },
-    { label: 'Total Revenue', value: `$${dashboardStats.totalRevenue.toLocaleString()}`, change: 22.8, icon: DollarSign },
+    { label: 'Total Revenue', value: `₦${dashboardStats.totalRevenue.toLocaleString()}`, change: 22.8, icon: Banknote },
     { label: 'Pending Orders', value: dashboardStats.pendingOrders, change: -8.5, icon: Clock },
     { label: 'Active Catering', value: dashboardStats.activeCatering, change: 32.1, icon: Users },
     { label: 'New Customers', value: dashboardStats.newCustomers, change: 18.7, icon: Users },
-    { label: 'Avg Order Value', value: `$${(dashboardStats.totalRevenue / dashboardStats.totalOrders || 0).toFixed(2)}`, change: 5.4, icon: BarChart3 },
+    { label: 'Avg Order Value', value: `₦${(dashboardStats.totalRevenue / dashboardStats.totalOrders || 0).toFixed(2)}`, change: 5.4, icon: BarChart3 },
   ] : [];
 
   const popularItems = dashboardStats?.popularItems || [];
@@ -158,9 +158,9 @@ const Analytics: React.FC = () => {
   };
 
   const formatNumber = (num: number) => {
-    if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
-    return `$${num}`;
+    if (num >= 1000000) return `₦${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `₦${(num / 1000).toFixed(1)}K`;
+    return `₦${num}`;
   };
 
   const handleRefresh = () => {
@@ -356,10 +356,10 @@ const Analytics: React.FC = () => {
               <AreaChart data={revenueTrendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="date" stroke="#9CA3AF" fontSize={12} />
-                <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `$${value/1000}K`} />
+                <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `₦${value/1000}K`} />
                 <Tooltip 
                   formatter={(value, name) => [
-                    name === 'revenue' ? `$${Number(value).toLocaleString()}` : value,
+                    name === 'revenue' ? `₦${Number(value).toLocaleString()}` : value,
                     name === 'revenue' ? 'Revenue' : 'Orders'
                   ]}
                   contentStyle={{ 
@@ -455,7 +455,7 @@ const Analytics: React.FC = () => {
                 <YAxis stroke="#9CA3AF" fontSize={12} />
                 <Tooltip 
                   formatter={(value, name) => [
-                    name === 'revenue' ? `$${Number(value).toLocaleString()}` : value,
+                    name === 'revenue' ? `₦${Number(value).toLocaleString()}` : value,
                     name === 'revenue' ? 'Revenue' : 'Orders'
                   ]}
                   contentStyle={{ 
@@ -485,7 +485,7 @@ const Analytics: React.FC = () => {
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Peak Hour: 6 PM</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  180 orders • $10,800 revenue
+                  180 orders • ₦10,800 revenue
                 </p>
               </div>
               <div className="text-right">
@@ -537,7 +537,7 @@ const Analytics: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-gray-900 dark:text-white">
-                      ${item.revenue.toFixed(2)}
+                      ₦{item.revenue.toFixed(2)}
                     </p>
                     <p className="text-sm text-green-600 dark:text-green-400 flex items-center justify-end">
                       <TrendingUp className="h-3 w-3 mr-1" />
@@ -679,7 +679,7 @@ const Analytics: React.FC = () => {
                 </li>
                 <li className="flex items-start space-x-2">
                   <Zap className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
-                  <span><strong>6 PM is peak hour</strong> with 180 orders ($10,800 revenue)</span>
+                  <span><strong>6 PM is peak hour</strong> with 180 orders (₦10,800 revenue)</span>
                 </li>
                 <li className="flex items-start space-x-2">
                   <Star className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />

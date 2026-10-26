@@ -8,7 +8,7 @@ import {
   Package, 
   ShoppingCart,
   Users,
-  DollarSign,
+  Banknote,
   MoreVertical,
   Eye
 } from 'lucide-react';
@@ -295,11 +295,11 @@ const OrderCalendar: React.FC = () => {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Today's Revenue</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                ${todaySummary.revenue.toFixed(2)}
+                ₦{todaySummary.revenue.toFixed(2)}
               </p>
             </div>
             <div className="h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+              <Banknote className="h-6 w-6 text-primary-600 dark:text-primary-400" />
             </div>
           </div>
         </div>
@@ -462,7 +462,7 @@ const OrderCalendar: React.FC = () => {
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Total Amount</p>
                     <p className="font-semibold text-primary-600">
-                      ${selectedEvent.data.totalAmount.toFixed(2)}
+                      ₦{selectedEvent.data.totalAmount.toFixed(2)}
                     </p>
                   </div>
                   <div>

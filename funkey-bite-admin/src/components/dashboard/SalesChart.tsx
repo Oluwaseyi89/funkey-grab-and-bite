@@ -39,7 +39,7 @@ const SalesChart: React.FC<SalesChartProps> = ({ data = [], loading = false }) =
           </p>
           <div className="space-y-1">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Sales: <span className="font-semibold text-primary-600">${payload[0].value}</span>
+              Sales: <span className="font-semibold text-primary-600">₦{payload[0].value}</span>
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Orders: <span className="font-semibold text-blue-600">{payload[1].value}</span>
@@ -108,7 +108,7 @@ const SalesChart: React.FC<SalesChartProps> = ({ data = [], loading = false }) =
               axisLine={false}
               tickLine={false}
               tick={{ fill: '#6B7280' }}
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={(value) => `₦${value}`}
             />
             <Tooltip content={<CustomTooltip />} />
             <Area
@@ -135,7 +135,7 @@ const SalesChart: React.FC<SalesChartProps> = ({ data = [], loading = false }) =
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total This Week</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            ${chartData.reduce((sum, day) => sum + day.sales, 0).toLocaleString()}
+            ₦{chartData.reduce((sum, day) => sum + day.sales, 0).toLocaleString()}
           </p>
         </div>
         <div className="flex items-center text-green-600">

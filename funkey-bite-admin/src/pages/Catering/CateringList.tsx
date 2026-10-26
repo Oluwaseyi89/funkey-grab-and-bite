@@ -7,7 +7,7 @@ import {
   Users,
   Phone,
   Mail,
-  DollarSign,
+  Banknote,
   Clock,
   CheckCircle,
   XCircle,
@@ -127,7 +127,7 @@ const CateringList: React.FC = () => {
   const getTotalRevenue = () => {
     return cateringRequests.reduce((sum, request) => {
       if (request.budget) return sum + request.budget;
-      const estimate = request.guestCount * 25; // $25 per person estimate
+      const estimate = request.guestCount * 25; // ₦25 per person estimate
       return sum + estimate;
     }, 0);
   };
@@ -207,11 +207,11 @@ const CateringList: React.FC = () => {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Estimated Revenue</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                ${getTotalRevenue().toLocaleString()}
+                ₦{getTotalRevenue().toLocaleString()}
               </p>
             </div>
             <div className="h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+              <Banknote className="h-6 w-6 text-primary-600 dark:text-primary-400" />
             </div>
           </div>
         </div>
@@ -385,7 +385,7 @@ const CateringList: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900 dark:text-white">
                           {request.budget ? (
-                            <>${request.budget.toLocaleString()}</>
+                            <>₦{request.budget.toLocaleString()}</>
                           ) : (
                             <span className="text-gray-400">Not specified</span>
                           )}
