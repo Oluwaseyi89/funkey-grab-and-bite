@@ -110,7 +110,7 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({ orders = [], loading = fals
                 </span>
                 <div className="text-right">
                   <p className="font-semibold text-gray-900 dark:text-white">
-                    ${order.totalAmount.toFixed(2)}
+                    ₦{order.totalAmount.toFixed(2)}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {formatDate(order.createdAt)}
