@@ -365,3 +365,21 @@ func TestUpdateAdminUserSelfModificationBlockedBeforeService(t *testing.T) {
 func TestUpdateEndpointsMissingRecordsMaintainErrorSemantics(t *testing.T) {
 	_ = time.Now()
 }
+
+func TestUpdateStockAcceptsSettingZero(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := NewInventoryHandler(&fakeInventoryService{})
+
+	router := gin.New()
+	router.PATCH("/admin/inventory/stock", handler.UpdateStock)
+
+	body := []byte(`{"menuItemId": 3, "quantity": 0, "operation": "set", "reason": "sold out"}`)
+	req := httptest.NewRequest(http.MethodPatch, "/admin/inventory/stock", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("setting stock to 0 must pass validation, got %d body=%s", res.Code, res.Body.String())
+	}
+}
