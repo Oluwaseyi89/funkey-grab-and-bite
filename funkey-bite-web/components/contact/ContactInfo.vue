@@ -56,21 +56,7 @@
             {{ status === 'unavailable' ? 'Email unavailable right now' : 'Loading…' }}
           </p>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            For general inquiries
-          </p>
-        </div>
-      </div>
-  
-      <!-- Orders Email -->
-      <div class="flex items-center space-x-4 p-4 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
-        <ShoppingBag class="w-6 h-6 text-brand-500 flex-shrink-0" />
-        <div>
-          <h4 class="font-bold text-gray-900 dark:text-white mb-1">Orders & Catering</h4>
-          <a href="mailto:orders@funkeygrabandbite.com" class="text-gray-600 dark:text-gray-400 hover:text-brand-500">
-            orders@funkeygrabandbite.com
-          </a>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            For orders and catering requests
+            For inquiries, orders and catering requests
           </p>
         </div>
       </div>
@@ -117,7 +103,6 @@
     MapPin, 
     Phone, 
     Mail, 
-    ShoppingBag,
     Facebook, 
     Instagram, 
     Twitter,
