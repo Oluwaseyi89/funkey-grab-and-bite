@@ -18,13 +18,22 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getOrder, updateOrderStatus } from '../../api/adminApi';
-import type { Order, OrderStatus, PaymentStatus } from '../../types';
+import { getOrder, getOrderInvoice, markOrderPaymentCollected, updateOrderStatus } from '../../api/adminApi';
+import InvoiceDocument from '../../components/orders/InvoiceDocument';
+import type { Order, OrderStatus, PaymentCollectedVia } from '../../types';
+
+const COLLECTION_OPTIONS: { value: PaymentCollectedVia; label: string }[] = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'pos', label: 'POS' },
+  { value: 'transfer', label: 'Transfer to rider/shop' },
+];
 
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [collectedVia, setCollectedVia] = useState<PaymentCollectedVia>('cash');
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
 
   const { data: order, isLoading, refetch } = useQuery({
     queryKey: ['order', id],
@@ -41,6 +50,26 @@ const OrderDetails: React.FC = () => {
     },
     enabled: !!id,
   });
+
+  const { data: invoice } = useQuery({
+    queryKey: ['order-invoice', id],
+    queryFn: () => getOrderInvoice(parseInt(id as string)),
+    enabled: !!id && !!order?.invoiceNumber,
+  });
+
+  const handleMarkPaid = async () => {
+    if (!order) return;
+    setIsRecordingPayment(true);
+    try {
+      await markOrderPaymentCollected(order.id, collectedVia);
+      toast.success('Payment recorded');
+      refetch();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to record payment');
+    } finally {
+      setIsRecordingPayment(false);
+    }
+  };
 
   const handleStatusUpdate = async (newStatus: OrderStatus) => {
     if (!order || !id) return;
@@ -104,12 +133,15 @@ const OrderDetails: React.FC = () => {
     }
   };
 
-  const getPaymentStatusInfo = (status: PaymentStatus) => {
+  const getPaymentStatusInfo = ({ paymentStatus: status, paymentMethod }: Order) => {
     switch (status) {
       case 'not_required':
-        return { badge: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', text: 'Pay on delivery' };
+        return { badge: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', text: 'Pay on delivery (not tracked)' };
       case 'pending':
-        return { badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200', text: 'Awaiting transfer' };
+        return {
+          badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+          text: paymentMethod === 'cash' ? 'Awaiting payment' : 'Awaiting transfer',
+        };
       case 'paid':
         return { badge: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200', text: 'Paid' };
       case 'failed':
@@ -174,9 +206,21 @@ const OrderDetails: React.FC = () => {
   }
 
   const statusInfo = getStatusInfo(order.status);
+  const paymentMethodLabel = order.paymentMethod === 'transfer'
+    ? 'Online (Paystack transfer)'
+    : order.orderType === 'delivery' ? 'Pay on delivery' : 'Pay at pickup';
+  const awaitingCollection = order.paymentMethod === 'cash' && order.paymentStatus === 'pending';
+  const itemsSubtotal = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   return (
-    <div className="space-y-6">
+    <>
+    {/* Printing shows only the invoice (or, without one, this page). */}
+    {invoice && (
+      <div className="hidden print:block">
+        <InvoiceDocument invoice={invoice} />
+      </div>
+    )}
+    <div className={`space-y-6 ${invoice ? 'print:hidden' : ''}`}>
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
@@ -197,14 +241,20 @@ const OrderDetails: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+          >
             <Printer className="h-4 w-4" />
-            <span>Print</span>
+            <span>{invoice ? 'Print Invoice' : 'Print'}</span>
           </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
-            <Mail className="h-4 w-4" />
-            <span>Contact Customer</span>
-          </button>
+          <a
+            href={`tel:${order.customerPhone}`}
+            className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
+          >
+            <Phone className="h-4 w-4" />
+            <span>Call Customer</span>
+          </a>
         </div>
       </div>
 
@@ -307,16 +357,26 @@ const OrderDetails: React.FC = () => {
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
-                <span className="font-medium">₦{order.totalAmount.toFixed(2)}</span>
+                <span className="font-medium">₦{(order.subtotalAmount ?? itemsSubtotal).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center mt-2">
-                <span className="text-gray-600 dark:text-gray-400">Tax</span>
-                <span className="font-medium">₦0.00</span>
-              </div>
-              <div className="flex justify-between items-center mt-2">
-                <span className="text-gray-600 dark:text-gray-400">Delivery Fee</span>
-                <span className="font-medium">₦0.00</span>
-              </div>
+              {order.taxAmount != null && (
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-gray-600 dark:text-gray-400">Tax</span>
+                  <span className="font-medium">₦{order.taxAmount.toFixed(2)}</span>
+                </div>
+              )}
+              {order.deliveryFee != null && (
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-gray-600 dark:text-gray-400">Delivery Fee</span>
+                  <span className="font-medium">₦{order.deliveryFee.toFixed(2)}</span>
+                </div>
+              )}
+              {!!order.discountAmount && (
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-gray-600 dark:text-gray-400">Discount</span>
+                  <span className="font-medium">-₦{order.discountAmount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-lg font-semibold">Total</span>
                 <span className="text-2xl font-bold text-primary-600">
@@ -370,6 +430,15 @@ const OrderDetails: React.FC = () => {
                   </div>
                 </div>
               )}
+              {order.deliveryAddress && (
+                <div className="flex items-start space-x-3">
+                  <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{order.deliveryAddress}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Delivery Address</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -401,16 +470,57 @@ const OrderDetails: React.FC = () => {
               )}
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Payment Method</span>
-                <span className="font-medium">
-                  {order.paymentMethod === 'transfer' ? 'Bank Transfer (Paystack)' : 'Cash on Delivery'}
-                </span>
+                <span className="font-medium">{paymentMethodLabel}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Payment Status</span>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusInfo(order.paymentStatus).badge}`}>
-                  {getPaymentStatusInfo(order.paymentStatus).text}
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusInfo(order).badge}`}>
+                  {getPaymentStatusInfo(order).text}
                 </span>
               </div>
+              {order.invoiceNumber && (
+                <div className="flex items-start justify-between gap-4">
+                  <span className="text-gray-600 dark:text-gray-400">Invoice</span>
+                  <span className="font-mono text-sm font-medium text-right break-all">{order.invoiceNumber}</span>
+                </div>
+              )}
+              {awaitingCollection && (
+                <div className="rounded-lg border border-yellow-200 dark:border-yellow-900/40 bg-yellow-50 dark:bg-yellow-900/10 p-4 space-y-3">
+                  <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                    Collect ₦{order.totalAmount.toFixed(2)} on {order.orderType === 'delivery' ? 'delivery' : 'pickup'}
+                  </p>
+                  <label className="block text-sm text-gray-600 dark:text-gray-400">
+                    Paid by
+                    <select
+                      value={collectedVia}
+                      onChange={(e) => setCollectedVia(e.target.value as PaymentCollectedVia)}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                    >
+                      {COLLECTION_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    onClick={handleMarkPaid}
+                    disabled={isRecordingPayment}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Banknote className="h-4 w-4" />
+                    <span>{isRecordingPayment ? 'Recording…' : 'Mark as Paid'}</span>
+                  </button>
+                </div>
+              )}
+              {order.paymentMethod === 'cash' && order.paymentStatus === 'paid' && order.paymentPaidAt && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Paid</span>
+                  <span className="font-medium">
+                    {COLLECTION_OPTIONS.find((option) => option.value === order.paymentCollectedVia)?.label ?? 'Collected'}
+                    {' · '}
+                    {new Date(order.paymentPaidAt).toLocaleString()}
+                  </span>
+                </div>
+              )}
               {order.paymentMethod === 'transfer' && order.paymentStatus === 'pending' && order.paymentAccountNumber && (
                 <div className="rounded-lg border border-yellow-200 dark:border-yellow-900/40 bg-yellow-50 dark:bg-yellow-900/10 p-4 space-y-2">
                   <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
@@ -484,6 +594,7 @@ const OrderDetails: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

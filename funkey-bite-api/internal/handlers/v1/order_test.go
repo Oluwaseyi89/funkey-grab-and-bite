@@ -3,7 +3,6 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -55,6 +54,10 @@ type fakeOrderService struct {
 	trackErr     error
 	history      []models.Order
 	historyErr   error
+	byNumber     *models.Order
+	collected    *models.Order
+	collectErr   error
+	collectedVia string
 }
 
 func (f *fakeOrderService) CreateOrder(order *models.Order, items []models.OrderItemRequest) (*models.Order, error) {
@@ -84,7 +87,11 @@ func (f *fakeOrderService) CalculateOrderTotal(items []models.OrderItemRequest) 
 	return f.subtotal, nil
 }
 func (f *fakeOrderService) GetOrderByOrderNumber(orderNumber string) (*models.Order, error) {
-	return nil, nil
+	return f.byNumber, nil
+}
+func (f *fakeOrderService) MarkPaymentCollected(id int, via string) (*models.Order, error) {
+	f.collectedVia = via
+	return f.collected, f.collectErr
 }
 func (f *fakeOrderService) GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error) {
 	if f.trackErr != nil {
@@ -95,8 +102,9 @@ func (f *fakeOrderService) GetOrderByPhoneAndOrderNumber(phone, orderNumber stri
 func (f *fakeOrderService) CancelOrder(id int, userID int) error { return nil }
 
 type fakeAuthService struct {
-	authUser *models.User
-	authErr  error
+	authUser      *models.User
+	authErr       error
+	resolvedPhone string
 }
 
 func (f *fakeAuthService) Register(userData models.UserRegistration) (*models.AuthResponse, error) {
@@ -108,7 +116,8 @@ func (f *fakeAuthService) Login(phone, password string) (*models.AuthResponse, e
 func (f *fakeAuthService) CheckUserExists(phone, email string) (*models.User, bool, error) {
 	return nil, false, nil
 }
-func (f *fakeAuthService) AuthenticateOrder(orderData models.OrderWithAuth) (*models.User, error) {
+func (f *fakeAuthService) ResolveOrderCustomer(name, phone string, email *string) (*models.User, error) {
+	f.resolvedPhone = phone
 	if f.authErr != nil {
 		return nil, f.authErr
 	}
@@ -120,18 +129,21 @@ func (f *fakeAuthService) AuthenticateOrder(orderData models.OrderWithAuth) (*mo
 }
 
 type fakeSettingsService struct {
-	minOrderOK   bool
-	minOrderMsg  string
-	orderTimeOK  bool
-	orderTimeMsg string
-	acceptOK     bool
-	acceptMsg    string
-	deliveryFee  float64
-	taxAmount    float64
-	total        float64
+	payOnDeliveryDisabled bool
+	minOrderOK            bool
+	minOrderMsg           string
+	orderTimeOK           bool
+	orderTimeMsg          string
+	acceptOK              bool
+	acceptMsg             string
+	deliveryFee           float64
+	taxAmount             float64
+	total                 float64
 }
 
-func (f *fakeSettingsService) GetSettings() (*models.BusinessSettings, error) { return nil, nil }
+func (f *fakeSettingsService) GetSettings() (*models.BusinessSettings, error) {
+	return &models.BusinessSettings{PayOnDeliveryEnabled: !f.payOnDeliveryDisabled}, nil
+}
 func (f *fakeSettingsService) UpdateSettings(updates *models.BusinessSettingsUpdate) (*models.BusinessSettings, error) {
 	return nil, nil
 }
@@ -148,6 +160,23 @@ func (f *fakeSettingsService) CalculateOrderFees(subtotal float64, orderType str
 }
 func (f *fakeSettingsService) ValidateMinimumOrder(subtotal float64, orderType string) (bool, string) {
 	return f.minOrderOK, f.minOrderMsg
+}
+
+type fakeInvoiceService struct {
+	sent chan *models.Order
+}
+
+func (f *fakeInvoiceService) BuildInvoice(order *models.Order) (*models.Invoice, error) {
+	if order == nil || order.InvoiceNumber == nil {
+		return nil, nil
+	}
+	return &models.Invoice{InvoiceNumber: *order.InvoiceNumber, OrderNumber: order.OrderNumber, Total: order.TotalAmount}, nil
+}
+func (f *fakeInvoiceService) SendInvoice(order *models.Order) error {
+	if f.sent != nil {
+		f.sent <- order
+	}
+	return nil
 }
 
 type fakePromotionService struct {
@@ -194,12 +223,19 @@ func (f *fakePromotionService) ApplyPromotionByCode(code string, orderID int, cu
 }
 func (f *fakePromotionService) GetActivePromotions() ([]models.Promotion, error) { return nil, nil }
 
+var (
+	testCustomerEmail   = "test@example.com"
+	testDeliveryAddress = "12 Admiralty Way, Lekki"
+)
+
 func newOrderRequestBody(t *testing.T, orderType models.OrderType) []byte {
 	t.Helper()
 
+	email := "test@example.com"
 	req := models.OrderWithAuth{
 		CustomerName:  "Test User",
 		CustomerPhone: "+15550001111",
+		CustomerEmail: &email,
 		OrderType:     orderType,
 		PaymentMethod: models.PaymentMethodCash,
 		Items: []models.OrderItemRequest{{
@@ -208,6 +244,10 @@ func newOrderRequestBody(t *testing.T, orderType models.OrderType) []byte {
 			Quantity:   1,
 			UnitPrice:  8,
 		}},
+	}
+	if orderType == models.OrderTypeDelivery {
+		address := "12 Admiralty Way, Lekki"
+		req.DeliveryAddress = &address
 	}
 
 	body, err := json.Marshal(req)
@@ -260,7 +300,7 @@ func TestCreateOrderRejectsBelowMinimumOrder(t *testing.T) {
 		total:       8,
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 	rec := runCreateOrder(t, handler, newOrderRequestBody(t, models.OrderTypePickup))
 
 	if rec.Code != http.StatusBadRequest {
@@ -284,7 +324,7 @@ func TestCreateOrderRejectsOutsideBusinessHours(t *testing.T) {
 		total:        19.44,
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 	rec := runCreateOrder(t, handler, newOrderRequestBody(t, models.OrderTypePickup))
 
 	if rec.Code != http.StatusBadRequest {
@@ -308,7 +348,7 @@ func TestCreateOrderRejectsWhenDeliveryIsDisabled(t *testing.T) {
 		total:       26.87,
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 	rec := runCreateOrder(t, handler, newOrderRequestBody(t, models.OrderTypeDelivery))
 
 	if rec.Code != http.StatusBadRequest {
@@ -336,7 +376,7 @@ func TestCreateOrderPersistsTotalWithDeliveryFeeAndTax(t *testing.T) {
 		total:       23.6,
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 	rec := runCreateOrder(t, handler, newOrderRequestBody(t, models.OrderTypeDelivery))
 
 	if rec.Code != http.StatusCreated {
@@ -369,11 +409,13 @@ func TestCreateOrderAppliesPromotionDiscountToPersistedTotal(t *testing.T) {
 
 	code := "SAVE5"
 	req := models.OrderWithAuth{
-		CustomerName:  "Test User",
-		CustomerPhone: "+15550001111",
-		OrderType:     models.OrderTypeDelivery,
-		PaymentMethod: models.PaymentMethodCash,
-		PromotionCode: &code,
+		CustomerName:    "Test User",
+		CustomerPhone:   "+15550001111",
+		CustomerEmail:   &testCustomerEmail,
+		DeliveryAddress: &testDeliveryAddress,
+		OrderType:       models.OrderTypeDelivery,
+		PaymentMethod:   models.PaymentMethodCash,
+		PromotionCode:   &code,
 		Items: []models.OrderItemRequest{{
 			MenuItemID: 1,
 			Name:       "Burger",
@@ -386,7 +428,7 @@ func TestCreateOrderAppliesPromotionDiscountToPersistedTotal(t *testing.T) {
 		t.Fatalf("failed to marshal request: %v", err)
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc, &fakePaymentService{}, &fakeInvoiceService{})
 	rec := runCreateOrder(t, handler, body)
 
 	if rec.Code != http.StatusCreated {
@@ -417,11 +459,13 @@ func TestCreateOrderRejectsInvalidPromotion(t *testing.T) {
 
 	code := "BADCODE"
 	req := models.OrderWithAuth{
-		CustomerName:  "Test User",
-		CustomerPhone: "+15550001111",
-		OrderType:     models.OrderTypeDelivery,
-		PaymentMethod: models.PaymentMethodCash,
-		PromotionCode: &code,
+		CustomerName:    "Test User",
+		CustomerPhone:   "+15550001111",
+		CustomerEmail:   &testCustomerEmail,
+		DeliveryAddress: &testDeliveryAddress,
+		OrderType:       models.OrderTypeDelivery,
+		PaymentMethod:   models.PaymentMethodCash,
+		PromotionCode:   &code,
 		Items: []models.OrderItemRequest{{
 			MenuItemID: 1,
 			Name:       "Burger",
@@ -434,7 +478,7 @@ func TestCreateOrderRejectsInvalidPromotion(t *testing.T) {
 		t.Fatalf("failed to marshal request: %v", err)
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc, &fakePaymentService{}, &fakeInvoiceService{})
 	rec := runCreateOrder(t, handler, body)
 
 	if rec.Code != http.StatusBadRequest {
@@ -467,11 +511,13 @@ func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
 
 	code := "FLASH3"
 	req := models.OrderWithAuth{
-		CustomerName:  "Test User",
-		CustomerPhone: "+15550001111",
-		OrderType:     models.OrderTypeDelivery,
-		PaymentMethod: models.PaymentMethodCash,
-		PromotionCode: &code,
+		CustomerName:    "Test User",
+		CustomerPhone:   "+15550001111",
+		CustomerEmail:   &testCustomerEmail,
+		DeliveryAddress: &testDeliveryAddress,
+		OrderType:       models.OrderTypeDelivery,
+		PaymentMethod:   models.PaymentMethodCash,
+		PromotionCode:   &code,
 		Items: []models.OrderItemRequest{{
 			MenuItemID: 1,
 			Name:       "Burger",
@@ -484,7 +530,7 @@ func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
 		t.Fatalf("failed to marshal request: %v", err)
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc, &fakePaymentService{}, &fakeInvoiceService{})
 	rec := runCreateOrder(t, handler, body)
 
 	if rec.Code != http.StatusInternalServerError {
@@ -492,60 +538,6 @@ func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "Failed to apply promotion") {
 		t.Fatalf("expected apply promotion error, got body: %s", rec.Body.String())
-	}
-}
-
-func TestCreateOrderUnauthenticatedWithNewPhoneRequiresAccount(t *testing.T) {
-	orderSvc := &fakeOrderService{subtotal: 20}
-	settingsSvc := &fakeSettingsService{
-		minOrderOK:  true,
-		orderTimeOK: true,
-		acceptOK:    true,
-		total:       23.6,
-	}
-	authSvc := &fakeAuthService{authErr: errors.New("user_not_found")}
-
-	handler := NewOrderHandler(orderSvc, authSvc, settingsSvc, &fakePromotionService{}, &fakePaymentService{})
-	rec := runCreateOrderUnauthenticated(t, handler, newOrderRequestBody(t, models.OrderTypeDelivery))
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d, body: %s", http.StatusBadRequest, rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "User not found. Please create an account first.") {
-		t.Fatalf("expected new-user account-required message, got body: %s", rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "USER_NOT_FOUND") {
-		t.Fatalf("expected USER_NOT_FOUND code, got body: %s", rec.Body.String())
-	}
-	if orderSvc.captured != nil {
-		t.Fatal("CreateOrder should not be called for unauthenticated new-phone checkout")
-	}
-}
-
-func TestCreateOrderUnauthenticatedExistingPhoneWithoutPasswordIsRejected(t *testing.T) {
-	orderSvc := &fakeOrderService{subtotal: 20}
-	settingsSvc := &fakeSettingsService{
-		minOrderOK:  true,
-		orderTimeOK: true,
-		acceptOK:    true,
-		total:       23.6,
-	}
-	authSvc := &fakeAuthService{authErr: errors.New("password_required")}
-
-	handler := NewOrderHandler(orderSvc, authSvc, settingsSvc, &fakePromotionService{}, &fakePaymentService{})
-	rec := runCreateOrderUnauthenticated(t, handler, newOrderRequestBody(t, models.OrderTypeDelivery))
-
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d, body: %s", http.StatusUnauthorized, rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "Password required for existing user") {
-		t.Fatalf("expected password-required message, got body: %s", rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "PASSWORD_REQUIRED") {
-		t.Fatalf("expected PASSWORD_REQUIRED code, got body: %s", rec.Body.String())
-	}
-	if orderSvc.captured != nil {
-		t.Fatal("CreateOrder should not be called when existing user omits password")
 	}
 }
 
@@ -573,7 +565,7 @@ func TestTrackOrderPublicReturnsLimitedFieldsOnly(t *testing.T) {
 		},
 	}
 
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{}, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 	router := gin.New()
 	router.GET("/order/track/:phone/:orderNumber", handler.TrackOrderPublic)
 
@@ -604,7 +596,7 @@ func TestTrackOrderPublicMissingOrderReturnsGenericNotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	orderSvc := &fakeOrderService{trackByPhone: nil}
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{}, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 	router := gin.New()
 	router.GET("/order/track/:phone/:orderNumber", handler.TrackOrderPublic)
 
@@ -656,7 +648,7 @@ func TestGetUserOrdersPaginationCorrectnessWithLargeHistory(t *testing.T) {
 
 	history := buildLargeOrderHistory(1000, 2)
 	orderSvc := &fakeOrderService{history: history}
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{}, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 
 	router := gin.New()
 	router.GET("/auth/orders", func(c *gin.Context) {
@@ -709,7 +701,7 @@ func TestGetUserOrdersLargeHistoryLatencyAndMemoryUnderLoad(t *testing.T) {
 
 	history := buildLargeOrderHistory(5000, 6)
 	orderSvc := &fakeOrderService{history: history}
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{}, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, &fakeSettingsService{}, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 
 	router := gin.New()
 	router.GET("/auth/orders", func(c *gin.Context) {
@@ -796,7 +788,7 @@ func TestOrderCreationCanBeSpammedWithoutOrderRateLimiterWired(t *testing.T) {
 		acceptOK:    true,
 		total:       23.6,
 	}
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{})
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 	body := newOrderRequestBody(t, models.OrderTypeDelivery)
 
 	router := gin.New()

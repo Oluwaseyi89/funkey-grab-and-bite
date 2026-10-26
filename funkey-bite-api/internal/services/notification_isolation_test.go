@@ -144,11 +144,14 @@ func TestCreateOrderSucceedsWhenOrderConfirmationNotificationFails(t *testing.T)
 			"pickup_time", "created_at", "payment_method", "payment_status",
 			"payment_reference", "payment_account_number", "payment_account_name",
 			"payment_bank_name", "payment_expires_at", "payment_paid_at",
+			"delivery_address", "invoice_number", "subtotal_amount", "delivery_fee",
+			"tax_amount", "discount_amount", "payment_collected_via",
 		}).AddRow(
 			101, "FG-2026-04-2001", nil, "Notification Test", "+15550003333", nil,
 			string(models.OrderTypeDelivery), string(models.OrderStatusPending), 37.5, nil, nil, createdAt,
 			string(models.PaymentMethodCash), string(models.PaymentStatusNotRequired),
 			nil, nil, nil, nil, nil, nil,
+			nil, nil, nil, nil, nil, nil, nil,
 		))
 	mock.ExpectQuery("SELECT id, order_id, menu_item_id, name, quantity, unit_price, special_instructions").
 		WillReturnRows(sqlmock.NewRows([]string{

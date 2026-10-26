@@ -52,6 +52,9 @@ type BusinessSettings struct {
 	TaxRate        float64        `json:"taxRate" db:"tax_rate"`
 	IsDeliveryOpen bool           `json:"isDeliveryOpen" db:"is_delivery_open"`
 	IsPickupOpen   bool           `json:"isPickupOpen" db:"is_pickup_open"`
+	// PayOnDeliveryEnabled lets customers pay on delivery or at pickup instead
+	// of paying online.
+	PayOnDeliveryEnabled bool `json:"payOnDeliveryEnabled" db:"pay_on_delivery_enabled"`
 	// Timezone is the IANA zone the opening hours are in (BUSINESS_TIMEZONE);
 	// it is configuration, not a column.
 	Timezone  string    `json:"timezone" db:"-"`

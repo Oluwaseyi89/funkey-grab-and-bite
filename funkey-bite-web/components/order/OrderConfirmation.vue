@@ -72,9 +72,17 @@
 
         <div
           v-else-if="paymentMethod === 'cash'"
-          class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6 text-sm text-amber-800 dark:text-amber-400"
+          class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6 text-sm text-amber-800 dark:text-amber-400 text-left"
         >
-          Pay in cash when your order arrives or is picked up.
+          <p>
+            Pay <strong v-if="totalAmount != null">₦{{ totalAmount.toFixed(2) }}</strong>
+            {{ orderType === 'delivery' ? 'when your order is delivered' : 'when you collect your order' }}
+            — cash, POS or transfer.
+          </p>
+          <p v-if="invoiceNumber" class="mt-2">
+            Invoice <strong>{{ invoiceNumber }}</strong> has been emailed to you.
+            <NuxtLink to="/order/invoice" class="underline font-medium" @click="$emit('close')">View or print invoice</NuxtLink>
+          </p>
         </div>
 
         <div class="space-y-3">
@@ -102,7 +110,7 @@
   import { ref, computed } from 'vue'
   import { CheckCircle, Clock, Loader2, Copy, Check } from 'lucide-vue-next'
   import { useApi } from '../../utils/api'
-  import type { PaymentMethod, PaymentStatus } from '../../types/order'
+  import type { OrderType, PaymentMethod, PaymentStatus } from '../../types/order'
 
   const props = defineProps<{
     orderNumber: string
@@ -114,6 +122,9 @@
     paymentAccountName?: string
     paymentBankName?: string
     paymentExpiresAt?: string
+    invoiceNumber?: string
+    orderType?: OrderType
+    totalAmount?: number
   }>()
 
   defineEmits<{

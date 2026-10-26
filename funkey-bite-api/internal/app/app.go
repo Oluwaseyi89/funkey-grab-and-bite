@@ -91,10 +91,11 @@ func SetupEngine() (*gin.Engine, func()) {
 	settingsService := services.NewSettingsService(*settingsRepo)
 	promotionService := services.NewPromotionService(promotionRepo)
 	paymentService := services.NewPaymentService(paymentGateway, orderRepo, notificationService)
+	invoiceService := services.NewInvoiceService(settingsService, emailService)
 
 	// Initialize handlers
 	authHandler := v1.NewAuthHandler(authService, userService)
-	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService, paymentService)
+	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService, paymentService, invoiceService)
 	paymentHandler := v1.NewPaymentHandler(paymentService)
 	menuHandler := v1.NewMenuHandler(menuService)
 	cateringHandler := v1.NewCateringHandler(cateringService)
@@ -182,6 +183,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	{
 		orderGroup.POST("", orderHandler.CreateOrder)
 		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrder)
+		orderGroup.POST("/lookup", middleware.TrackingRateLimitMiddleware(), orderHandler.LookupOrder)
 		orderGroup.PATCH("/:id/cancel", orderHandler.CancelOrder)
 	}
 
@@ -205,6 +207,8 @@ func SetupEngine() (*gin.Engine, func()) {
 		admin.GET("/orders", adminHandler.GetAllOrders)
 		admin.GET("/orders/:id", orderHandler.GetOrder)
 		admin.PATCH("/orders/:id/status", adminHandler.UpdateOrderStatus)
+		admin.PATCH("/orders/:id/payment", orderHandler.MarkPaymentCollected)
+		admin.GET("/orders/:id/invoice", orderHandler.GetOrderInvoice)
 		admin.GET("/users", adminHandler.GetAllUsers)
 		admin.PATCH("/users/:id/status", adminHandler.UpdateUserStatus)
 		admin.GET("/menu/items", adminHandler.GetMenuItems)

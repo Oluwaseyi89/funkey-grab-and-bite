@@ -94,14 +94,20 @@ func (h *AdminHandler) GetSalesReport(c *gin.Context) {
 // @Param page query int false "Page number" default(1)
 // @Param limit query int false "Items per page" default(20)
 // @Param status query string false "Filter by status"
+// @Param paymentStatus query string false "Filter by payment status (e.g. pending)"
+// @Param paymentMethod query string false "Filter by payment method (cash or transfer)"
 // @Success 200 {object} map[string]interface{}
 // @Router /admin/orders [get]
 func (h *AdminHandler) GetAllOrders(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	status := c.Query("status")
+	filter := models.OrderListFilter{
+		Status:        c.Query("status"),
+		PaymentStatus: c.Query("paymentStatus"),
+		PaymentMethod: c.Query("paymentMethod"),
+	}
 
-	orders, total, err := h.adminService.GetAllOrders(page, limit, status)
+	orders, total, err := h.adminService.GetAllOrders(page, limit, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get orders",

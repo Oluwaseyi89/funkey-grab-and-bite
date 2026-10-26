@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -22,20 +23,25 @@ type OrderHandler struct {
 	settings       services.SettingsService
 	promotions     services.PromotionService
 	paymentService services.PaymentService
+	invoices       services.InvoiceService
 	validate       *validator.Validate
 }
 
-func NewOrderHandler(orderService services.OrderService, authService services.AuthService, settingsService services.SettingsService, promotionService services.PromotionService, paymentService services.PaymentService) *OrderHandler {
+func NewOrderHandler(orderService services.OrderService, authService services.AuthService, settingsService services.SettingsService, promotionService services.PromotionService, paymentService services.PaymentService, invoiceService services.InvoiceService) *OrderHandler {
 	return &OrderHandler{
 		orderService:   orderService,
 		authService:    authService,
 		settings:       settingsService,
 		promotions:     promotionService,
 		paymentService: paymentService,
+		invoices:       invoiceService,
 		validate:       validator.New(),
 	}
 }
 
+// CreateOrder places an order. Customers check out as guests: name, phone and
+// email are required, plus an address for delivery. Pay on delivery is only
+// accepted while the admin has it enabled, and raises an invoice.
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req models.OrderWithAuth
 
@@ -44,18 +50,52 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	req.CustomerName = strings.TrimSpace(req.CustomerName)
+	req.CustomerPhone = utils.CleanPhone(req.CustomerPhone)
+	if req.CustomerEmail != nil {
+		email := strings.TrimSpace(*req.CustomerEmail)
+		req.CustomerEmail = &email
+	}
+
 	if err := h.validate.Struct(req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	totalAmount, err := h.orderService.CalculateOrderTotal(req.Items)
+	if !utils.IsValidPhone(req.CustomerPhone) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Enter a valid phone number"})
+		return
+	}
+
+	var deliveryAddress *string
+	if req.OrderType == models.OrderTypeDelivery {
+		if req.DeliveryAddress == nil || len(strings.TrimSpace(*req.DeliveryAddress)) < 5 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "A delivery address is required for delivery orders"})
+			return
+		}
+		address := strings.TrimSpace(*req.DeliveryAddress)
+		deliveryAddress = &address
+	}
+
+	if req.PaymentMethod == models.PaymentMethodCash {
+		settings, err := h.settings.GetSettings()
+		if err != nil || settings == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to check payment options"})
+			return
+		}
+		if !settings.PayOnDeliveryEnabled {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Pay on delivery is not available right now. Please pay online."})
+			return
+		}
+	}
+
+	subtotal, err := h.orderService.CalculateOrderTotal(req.Items)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if ok, message := h.settings.ValidateMinimumOrder(totalAmount, string(req.OrderType)); !ok {
+	if ok, message := h.settings.ValidateMinimumOrder(subtotal, string(req.OrderType)); !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": message})
 		return
 	}
@@ -70,44 +110,22 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	_, _, totalWithFees := h.settings.CalculateOrderFees(totalAmount, string(req.OrderType))
+	deliveryFee, taxAmount, totalWithFees := h.settings.CalculateOrderFees(subtotal, string(req.OrderType))
 
 	var userID *int
-
 	if authUserID, exists := c.Get("user_id"); exists {
 		id := authUserID.(int)
 		userID = &id
-	} else {
-		user, err := h.authService.AuthenticateOrder(req)
-		if err != nil {
-			switch err.Error() {
-			case "user_not_found":
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error": "User not found. Please create an account first.",
-					"code":  "USER_NOT_FOUND",
-				})
-				return
-			case "password_required":
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"error": "Password required for existing user",
-					"code":  "PASSWORD_REQUIRED",
-				})
-				return
-			case "invalid_password":
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"error": "Invalid password",
-					"code":  "INVALID_PASSWORD",
-				})
-				return
-			default:
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-		}
-		userID = &user.ID
+	} else if customer, err := h.authService.ResolveOrderCustomer(req.CustomerName, req.CustomerPhone, req.CustomerEmail); err != nil {
+		// The customer record is for the admin's follow-up; failing to save it
+		// must never lose the order itself.
+		log.Printf("Failed to record customer for phone ending %s: %v", lastDigits(req.CustomerPhone), err)
+	} else if customer != nil {
+		userID = &customer.ID
 	}
 
 	finalTotal := totalWithFees
+	discount := 0.0
 	promotionCode := ""
 	if req.PromotionCode != nil {
 		promotionCode = strings.TrimSpace(*req.PromotionCode)
@@ -125,19 +143,22 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 			return
 		}
 
-		finalTotal = totalWithFees - validation.Discount
+		discount = validation.Discount
+		finalTotal = totalWithFees - discount
 		if finalTotal < 0 {
 			finalTotal = 0
 		}
 	}
 
-	paymentStatus := models.PaymentStatusNotRequired
-	if req.PaymentMethod == models.PaymentMethodTransfer {
-		paymentStatus = models.PaymentStatusPending
+	orderNumber := utils.GenerateOrderNumber()
+	var invoiceNumber *string
+	if req.PaymentMethod == models.PaymentMethodCash {
+		number := services.InvoiceNumberFor(orderNumber)
+		invoiceNumber = &number
 	}
 
 	order := &models.Order{
-		OrderNumber:   utils.GenerateOrderNumber(),
+		OrderNumber:   orderNumber,
 		UserID:        userID,
 		CustomerName:  req.CustomerName,
 		CustomerPhone: req.CustomerPhone,
@@ -149,7 +170,15 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		PickupTime:    req.PickupTime,
 		CreatedAt:     time.Now(),
 		PaymentMethod: req.PaymentMethod,
-		PaymentStatus: paymentStatus,
+		// Both methods start pending: online payments until Paystack confirms,
+		// pay on delivery until the admin records the payment.
+		PaymentStatus:   models.PaymentStatusPending,
+		DeliveryAddress: deliveryAddress,
+		InvoiceNumber:   invoiceNumber,
+		SubtotalAmount:  &subtotal,
+		DeliveryFee:     &deliveryFee,
+		TaxAmount:       &taxAmount,
+		DiscountAmount:  &discount,
 	}
 
 	createdOrder, err := h.orderService.CreateOrder(order, req.Items)
@@ -176,9 +205,26 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		}
 	}
 
+	if createdOrder.InvoiceNumber != nil {
+		invoiceOrder := createdOrder
+		go func() {
+			if err := h.invoices.SendInvoice(invoiceOrder); err != nil {
+				log.Printf("Failed to send invoice for order #%s: %v", invoiceOrder.OrderNumber, err)
+			}
+		}()
+	}
+
 	realtime.GlobalBroadcaster.Broadcast("new_order", createdOrder)
 
 	c.JSON(http.StatusCreated, createdOrder)
+}
+
+// lastDigits keeps phone numbers out of logs apart from a short suffix.
+func lastDigits(phone string) string {
+	if len(phone) <= 4 {
+		return phone
+	}
+	return phone[len(phone)-4:]
 }
 
 func (h *OrderHandler) GetOrder(c *gin.Context) {
@@ -389,6 +435,132 @@ func (h *OrderHandler) TrackOrderPublic(c *gin.Context) {
 		"orderType":          order.OrderType,
 		"message":            "Limited order information available",
 	})
+}
+
+// LookupOrder lets a customer see their order and its invoice using the order
+// number and the phone number it was placed with. Both are sent in the body so
+// the phone number never appears in URLs or access logs.
+// @Summary Look up an order
+// @Description Get an order and its invoice by order number and customer phone
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param lookup body models.OrderLookupRequest true "Order number and phone"
+// @Success 200 {object} map[string]interface{}
+// @Router /orders/lookup [post]
+func (h *OrderHandler) LookupOrder(c *gin.Context) {
+	var req models.OrderLookupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order number and phone are required"})
+		return
+	}
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order number and phone are required"})
+		return
+	}
+
+	order, err := h.orderService.GetOrderByOrderNumber(strings.TrimSpace(req.OrderNumber))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch order"})
+		return
+	}
+	// The same answer for an unknown order and a wrong phone, so the lookup
+	// can't be used to confirm which order numbers exist.
+	if order == nil || !utils.SamePhone(order.CustomerPhone, req.Phone) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	invoice, err := h.invoices.BuildInvoice(order)
+	if err != nil {
+		log.Printf("Failed to build invoice for order #%s: %v", order.OrderNumber, err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"order":   order,
+		"invoice": invoice,
+	})
+}
+
+// GetOrderInvoice returns the invoice of an order for the admin
+// @Summary Get order invoice
+// @Description Get the invoice raised for a pay-on-delivery order
+// @Tags admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Order ID"
+// @Success 200 {object} models.Invoice
+// @Router /admin/orders/{id}/invoice [get]
+func (h *OrderHandler) GetOrderInvoice(c *gin.Context) {
+	orderID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+
+	order, err := h.orderService.GetOrderByID(orderID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch order"})
+		return
+	}
+	if order == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	invoice, err := h.invoices.BuildInvoice(order)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build invoice"})
+		return
+	}
+	if invoice == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "This order has no invoice"})
+		return
+	}
+
+	c.JSON(http.StatusOK, invoice)
+}
+
+// MarkPaymentCollected records that a pay-on-delivery order was paid
+// @Summary Mark pay-on-delivery order as paid
+// @Description Record that the customer paid on delivery or at pickup, and how
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Order ID"
+// @Param payment body models.PaymentCollectionRequest true "How the payment was collected"
+// @Success 200 {object} models.Order
+// @Router /admin/orders/{id}/payment [patch]
+func (h *OrderHandler) MarkPaymentCollected(c *gin.Context) {
+	orderID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+
+	var req models.PaymentCollectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil || h.validate.Struct(req) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "collectedVia must be cash, pos or transfer"})
+		return
+	}
+
+	order, err := h.orderService.MarkPaymentCollected(orderID, req.CollectedVia)
+	switch {
+	case errors.Is(err, services.ErrOrderNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	case errors.Is(err, services.ErrPaymentNotCollectable):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	case err != nil:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record payment"})
+		return
+	}
+
+	realtime.GlobalBroadcaster.Broadcast("order_updated", order)
+
+	c.JSON(http.StatusOK, order)
 }
 
 func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {

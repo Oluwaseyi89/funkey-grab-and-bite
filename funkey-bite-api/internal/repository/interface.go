@@ -27,8 +27,8 @@ type IAdminRepository interface {
 	UpdateMenuItem(item *models.MenuItem) error
 	DeleteMenuItem(id int) error
 
-	GetAllOrders(limit, offset int, status string) ([]models.Order, error)
-	GetOrdersCount(status string) (int, error)
+	GetAllOrders(limit, offset int, filter models.OrderListFilter) ([]models.Order, error)
+	GetOrdersCount(filter models.OrderListFilter) (int, error)
 
 	GetAllUsers(limit, offset int) ([]models.User, error)
 	GetUsersCount() (int, error)
@@ -52,4 +52,5 @@ type IOrderRepository interface {
 	GetOrderByPaymentReference(reference string) (*models.Order, error)
 	SetOrderPaymentInitiated(orderID int, reference, accountNumber, accountName, bankName string, expiresAt *time.Time) error
 	MarkOrderPaymentPaid(orderID int, paidAt time.Time) error
+	MarkPaymentCollected(orderID int, via string, paidAt time.Time) (bool, error)
 }

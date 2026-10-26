@@ -22,14 +22,20 @@ const OrderList: React.FC = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  // Pay-on-delivery orders whose payment hasn't been collected yet.
+  const [awaitingPaymentOnly, setAwaitingPaymentOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: ordersData, isLoading, refetch } = useQuery({
-    queryKey: ['orders', page, limit, statusFilter],
+    queryKey: ['orders', page, limit, statusFilter, awaitingPaymentOnly],
     queryFn: async () => {
       try {
         const params: any = { page, limit };
         if (statusFilter) params.status = statusFilter;
+        if (awaitingPaymentOnly) {
+          params.paymentMethod = 'cash';
+          params.paymentStatus = 'pending';
+        }
         if (searchQuery) params.search = searchQuery;
         
         const data = await getOrders(params);
@@ -75,7 +81,13 @@ const OrderList: React.FC = () => {
   };
 
   const paymentLabel = (order: Order) => {
-    if (order.paymentMethod === 'cash') return 'Cash';
+    if (order.paymentMethod === 'cash') {
+      switch (order.paymentStatus) {
+        case 'paid': return 'On delivery · Paid';
+        case 'pending': return 'On delivery · Awaiting';
+        default: return 'On delivery';
+      }
+    }
     switch (order.paymentStatus) {
       case 'paid': return 'Transfer · Paid';
       case 'pending': return 'Transfer · Pending';
@@ -85,7 +97,6 @@ const OrderList: React.FC = () => {
   };
 
   const paymentColor = (order: Order) => {
-    if (order.paymentMethod === 'cash') return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     switch (order.paymentStatus) {
       case 'paid': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
@@ -155,6 +166,18 @@ const OrderList: React.FC = () => {
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
+            <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap cursor-pointer">
+              <input
+                type="checkbox"
+                checked={awaitingPaymentOnly}
+                onChange={(e) => {
+                  setAwaitingPaymentOnly(e.target.checked);
+                  setPage(1);
+                }}
+                className="rounded border-gray-300"
+              />
+              <span>Awaiting payment on delivery</span>
+            </label>
           </div>
         </div>
       </div>

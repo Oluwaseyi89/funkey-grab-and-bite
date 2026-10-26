@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import { ref } from 'vue'
 import type { MenuCategory, MenuItem } from '~/types/menu'
-import type { Order, CateringRequest } from '~/types/order'
+import type { Order, CateringRequest, OrderCreatePayload, OrderLookupResult } from '~/types/order'
 import type { BusinessSettings } from '~/types/settings'
 import { mockCategories, mockMenuItems, mockOrders, mockPromotions } from './mockData'
 import { useNuxtApp, useRuntimeConfig } from 'nuxt/app'
@@ -89,6 +89,13 @@ type BackendOrder = {
   payment_expires_at?: string
   paymentPaidAt?: string
   payment_paid_at?: string
+  paymentCollectedVia?: Order['paymentCollectedVia']
+  deliveryAddress?: string
+  invoiceNumber?: string
+  subtotalAmount?: number
+  deliveryFee?: number
+  taxAmount?: number
+  discountAmount?: number
 }
 
 type BackendCateringRequest = {
@@ -222,6 +229,13 @@ export class ApiService {
       paymentBankName: order.paymentBankName ?? order.payment_bank_name,
       paymentExpiresAt: order.paymentExpiresAt ?? order.payment_expires_at,
       paymentPaidAt: order.paymentPaidAt ?? order.payment_paid_at,
+      paymentCollectedVia: order.paymentCollectedVia,
+      deliveryAddress: order.deliveryAddress,
+      invoiceNumber: order.invoiceNumber,
+      subtotalAmount: order.subtotalAmount,
+      deliveryFee: order.deliveryFee,
+      taxAmount: order.taxAmount,
+      discountAmount: order.discountAmount,
     }
   }
 
@@ -277,7 +291,7 @@ export class ApiService {
   private async fetchJSON<T>(endpoint: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${this.baseURL}${endpoint}`, init)
     if (!res.ok) {
-      throw new Error(`HTTP ${res.status} at ${endpoint}`)
+      throw new Error(await this.errorMessage(res, endpoint))
     }
 
     // Any successful API response means backend is reachable.
@@ -322,6 +336,20 @@ export class ApiService {
       console.error(`[API] ⚠️ Unexpected error on ${endpoint}:`, err)
       throw err
     }
+  }
+
+  // The API explains rejections (e.g. a missing delivery address) in the
+  // response body; show that instead of a bare status code.
+  private async errorMessage(res: Response, endpoint: string): Promise<string> {
+    try {
+      const body = await res.json() as { error?: { message?: string } | string; message?: string }
+      if (typeof body.error === 'string') return body.error
+      if (body.error?.message) return body.error.message
+      if (body.message) return body.message
+    } catch {
+      // not JSON
+    }
+    return `HTTP ${res.status} at ${endpoint}`
   }
 
   private unwrapPayload<T>(payload: unknown): T {
@@ -373,7 +401,7 @@ export class ApiService {
     }
   }
 
-  async createOrder(orderData: Partial<Order>): Promise<Order> {
+  async createOrder(orderData: OrderCreatePayload): Promise<Order> {
     try {
       const payload = await this.fetchJSON<BackendOrder>('/orders', {
         method: 'POST',
@@ -393,13 +421,13 @@ export class ApiService {
           customerPhone: orderData.customerPhone || '',
           orderType: orderData.orderType || 'pickup',
           status: 'pending',
-          totalAmount: orderData.totalAmount || 0,
-          items: orderData.items || [],
+          totalAmount: orderData.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
+          items: orderData.items.map((item) => ({ ...item, menuItemId: String(item.menuItemId) })),
           createdAt: new Date().toISOString(),
           // No real Paystack call happened offline, so no account details to show —
           // just echo back what was requested with an honest "not actually paid" status.
           paymentMethod,
-          paymentStatus: paymentMethod === 'cash' ? 'not_required' : 'pending',
+          paymentStatus: 'pending',
         }
       }
 
@@ -419,6 +447,22 @@ export class ApiService {
         return mockOrders[0] || null
       }
 
+      throw err
+    }
+  }
+
+  // Looks up the full order and its invoice. The phone goes in the body, not
+  // the URL, so it stays out of logs and browser history.
+  async lookupOrder(orderNumber: string, phone: string): Promise<OrderLookupResult | null> {
+    try {
+      const payload = await this.fetchJSON<{ order: BackendOrder; invoice: OrderLookupResult['invoice'] }>('/orders/lookup', {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({ orderNumber, phone }),
+      })
+      return { order: this.normalizeOrder(payload.order), invoice: payload.invoice ?? null }
+    } catch (err) {
+      if (err instanceof Error && /not found/i.test(err.message)) return null
       throw err
     }
   }

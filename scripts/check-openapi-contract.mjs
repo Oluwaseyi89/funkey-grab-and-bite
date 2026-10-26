@@ -46,6 +46,8 @@ const routeSets = {
     ['post', '/api/v1/admin/promotions'],
     ['put', '/api/v1/admin/promotions/{id}'],
     ['delete', '/api/v1/admin/promotions/{id}'],
+    ['patch', '/api/v1/admin/orders/{id}/payment'],
+    ['get', '/api/v1/admin/orders/{id}/invoice'],
     ['get', '/api/v1/admin/settings'],
     ['put', '/api/v1/admin/settings'],
     ['get', '/api/v1/admin/realtime/ws']
@@ -58,6 +60,7 @@ const routeSets = {
     ['get', '/api/v1/menu/category'],
     ['post', '/api/v1/orders'],
     ['get', '/api/v1/orders/track/{orderNumber}'],
+    ['post', '/api/v1/orders/lookup'],
     ['post', '/api/v1/catering/requests'],
     ['get', '/api/v1/promotions/active'],
     ['get', '/api/v1/settings']

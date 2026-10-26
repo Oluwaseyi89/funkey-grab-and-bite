@@ -31,7 +31,7 @@ type AdminService interface {
 	GetTodayStats() (*models.AdminStats, error)
 	GetSalesReport(fromDate, toDate string) ([]models.SalesReport, error)
 
-	GetAllOrders(page, limit int, status string) ([]models.Order, int, error)
+	GetAllOrders(page, limit int, filter models.OrderListFilter) ([]models.Order, int, error)
 	UpdateOrderStatus(orderID int, status string) error
 
 	GetAllUsers(page, limit int) ([]models.User, int, error)
@@ -242,7 +242,7 @@ func (s *adminService) GetSalesReport(fromDateStr, toDateStr string) ([]models.S
 	return s.adminRepo.GetSalesReport(fromDate, toDate)
 }
 
-func (s *adminService) GetAllOrders(page, limit int, status string) ([]models.Order, int, error) {
+func (s *adminService) GetAllOrders(page, limit int, filter models.OrderListFilter) ([]models.Order, int, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -251,12 +251,12 @@ func (s *adminService) GetAllOrders(page, limit int, status string) ([]models.Or
 	}
 	offset := (page - 1) * limit
 
-	orders, err := s.adminRepo.GetAllOrders(limit, offset, status)
+	orders, err := s.adminRepo.GetAllOrders(limit, offset, filter)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	totalCount, err := s.adminRepo.GetOrdersCount(status)
+	totalCount, err := s.adminRepo.GetOrdersCount(filter)
 	if err != nil {
 		return nil, 0, err
 	}

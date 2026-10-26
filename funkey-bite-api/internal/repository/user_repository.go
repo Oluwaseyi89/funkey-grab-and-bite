@@ -79,6 +79,15 @@ func (r *UserRepository) Create(user *models.User) (*models.User, error) {
 	return user, nil
 }
 
+// SetPassword gives an account a password; guest customers created at checkout
+// have none until they register.
+func (r *UserRepository) SetPassword(userID int, passwordHash string) error {
+	query := `UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3`
+
+	_, err := r.db.Exec(query, passwordHash, time.Now(), userID)
+	return err
+}
+
 func (r *UserRepository) UpdateLastLogin(userID int, loginTime time.Time) error {
 	query := `UPDATE users SET last_login = $1, updated_at = $2 WHERE id = $3`
 

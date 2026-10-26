@@ -24,12 +24,22 @@ type PaymentMethod string
 type PaymentStatus string
 
 const (
+	// PaymentMethodCash is pay on delivery (or at pickup): the customer pays
+	// when they receive the order, and the admin records the payment.
 	PaymentMethodCash     PaymentMethod = "cash"
 	PaymentMethodTransfer PaymentMethod = "transfer"
 )
 
+// How a pay-on-delivery payment was collected, recorded by the admin.
 const (
-	// PaymentStatusNotRequired is for cash-on-delivery orders — there is nothing to reconcile.
+	PaymentCollectedCash     = "cash"
+	PaymentCollectedPOS      = "pos"
+	PaymentCollectedTransfer = "transfer"
+)
+
+const (
+	// PaymentStatusNotRequired was used for cash orders before pay on delivery
+	// was tracked; new cash orders start as pending until the admin records payment.
 	PaymentStatusNotRequired PaymentStatus = "not_required"
 	PaymentStatusPending     PaymentStatus = "pending"
 	PaymentStatusPaid        PaymentStatus = "paid"
@@ -59,6 +69,13 @@ type Order struct {
 	PaymentBankName      *string       `json:"paymentBankName,omitempty" db:"payment_bank_name"`
 	PaymentExpiresAt     *time.Time    `json:"paymentExpiresAt,omitempty" db:"payment_expires_at"`
 	PaymentPaidAt        *time.Time    `json:"paymentPaidAt,omitempty" db:"payment_paid_at"`
+	PaymentCollectedVia  *string       `json:"paymentCollectedVia,omitempty" db:"payment_collected_via"`
+	DeliveryAddress      *string       `json:"deliveryAddress,omitempty" db:"delivery_address"`
+	InvoiceNumber        *string       `json:"invoiceNumber,omitempty" db:"invoice_number"`
+	SubtotalAmount       *float64      `json:"subtotalAmount,omitempty" db:"subtotal_amount"`
+	DeliveryFee          *float64      `json:"deliveryFee,omitempty" db:"delivery_fee"`
+	TaxAmount            *float64      `json:"taxAmount,omitempty" db:"tax_amount"`
+	DiscountAmount       *float64      `json:"discountAmount,omitempty" db:"discount_amount"`
 	Items                []OrderItem   `json:"items"`
 }
 
@@ -92,17 +109,73 @@ type OrderRequest struct {
 	Items         []OrderItemRequest `json:"items" validate:"required,min=1"`
 }
 
+// OrderWithAuth is the checkout request. Customers check out as guests: the
+// contact details are required on every order and link it to a customer record
+// by phone number; a signed-in customer's token links it to their account.
 type OrderWithAuth struct {
-	CustomerName  string             `json:"customerName" validate:"required"`
-	CustomerPhone string             `json:"customerPhone" validate:"required"`
-	CustomerEmail *string            `json:"customerEmail,omitempty" validate:"omitempty,email"`
-	OrderType     OrderType          `json:"orderType" validate:"required,oneof=pickup delivery catering"`
-	PaymentMethod PaymentMethod      `json:"paymentMethod" validate:"required,oneof=cash transfer"`
-	PromotionCode *string            `json:"promotionCode,omitempty" validate:"omitempty,min=3,max=50"`
-	Notes         *string            `json:"notes,omitempty"`
-	PickupTime    *time.Time         `json:"pickupTime,omitempty"`
-	Items         []OrderItemRequest `json:"items" validate:"required,min=1"`
-	Password      *string            `json:"password,omitempty" validate:"omitempty,min=8"`
+	CustomerName    string             `json:"customerName" validate:"required,max=200"`
+	CustomerPhone   string             `json:"customerPhone" validate:"required,max=30"`
+	CustomerEmail   *string            `json:"customerEmail" validate:"required,email,max=200"`
+	OrderType       OrderType          `json:"orderType" validate:"required,oneof=pickup delivery catering"`
+	PaymentMethod   PaymentMethod      `json:"paymentMethod" validate:"required,oneof=cash transfer"`
+	DeliveryAddress *string            `json:"deliveryAddress,omitempty" validate:"omitempty,max=500"`
+	PromotionCode   *string            `json:"promotionCode,omitempty" validate:"omitempty,min=3,max=50"`
+	Notes           *string            `json:"notes,omitempty" validate:"omitempty,max=1000"`
+	PickupTime      *time.Time         `json:"pickupTime,omitempty"`
+	Items           []OrderItemRequest `json:"items" validate:"required,min=1"`
+}
+
+// OrderLookupRequest identifies an order to the customer who placed it.
+type OrderLookupRequest struct {
+	OrderNumber string `json:"orderNumber" validate:"required,max=50"`
+	Phone       string `json:"phone" validate:"required,max=30"`
+}
+
+// PaymentCollectionRequest records how a pay-on-delivery payment was received.
+type PaymentCollectionRequest struct {
+	CollectedVia string `json:"collectedVia" validate:"required,oneof=cash pos transfer"`
+}
+
+// OrderListFilter narrows the admin order list; empty fields match everything.
+type OrderListFilter struct {
+	Status        string
+	PaymentStatus string
+	PaymentMethod string
+}
+
+// Invoice is raised for pay-on-delivery orders so the customer knows what to
+// pay on delivery and the admin has a record to collect against.
+type Invoice struct {
+	InvoiceNumber       string        `json:"invoiceNumber"`
+	OrderNumber         string        `json:"orderNumber"`
+	IssuedAt            time.Time     `json:"issuedAt"`
+	Business            InvoiceParty  `json:"business"`
+	Customer            InvoiceParty  `json:"customer"`
+	OrderType           OrderType     `json:"orderType"`
+	Items               []InvoiceLine `json:"items"`
+	Subtotal            float64       `json:"subtotal"`
+	DeliveryFee         float64       `json:"deliveryFee"`
+	Tax                 float64       `json:"tax"`
+	Discount            float64       `json:"discount"`
+	Total               float64       `json:"total"`
+	PaymentMethod       PaymentMethod `json:"paymentMethod"`
+	PaymentStatus       PaymentStatus `json:"paymentStatus"`
+	PaymentCollectedVia *string       `json:"paymentCollectedVia,omitempty"`
+	PaidAt              *time.Time    `json:"paidAt,omitempty"`
+}
+
+type InvoiceParty struct {
+	Name    string `json:"name"`
+	Phone   string `json:"phone"`
+	Email   string `json:"email,omitempty"`
+	Address string `json:"address,omitempty"`
+}
+
+type InvoiceLine struct {
+	Name      string  `json:"name"`
+	Quantity  int     `json:"quantity"`
+	UnitPrice float64 `json:"unitPrice"`
+	Total     float64 `json:"total"`
 }
 
 func (o *Order) ToFrontendFormat() map[string]interface{} {

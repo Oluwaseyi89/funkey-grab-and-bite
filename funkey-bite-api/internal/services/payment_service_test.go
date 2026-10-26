@@ -86,6 +86,10 @@ func (f *fakePaymentOrderRepo) SetOrderPaymentInitiated(orderID int, reference, 
 	f.setInitiatedCalls++
 	return f.setInitiatedErr
 }
+func (f *fakePaymentOrderRepo) MarkPaymentCollected(orderID int, via string, paidAt time.Time) (bool, error) {
+	return false, nil
+}
+
 func (f *fakePaymentOrderRepo) MarkOrderPaymentPaid(orderID int, paidAt time.Time) error {
 	f.markPaidCalls++
 	return f.markPaidErr
