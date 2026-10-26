@@ -287,3 +287,14 @@ func TestMarkPaymentCollected(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateOrderReportsUnavailableItemsAsConflict(t *testing.T) {
+	orderSvc := &fakeOrderService{subtotal: 1000, createErr: &services.ItemUnavailableError{Message: "Shawarma is out of stock"}}
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
+
+	rec := runCreateOrder(t, handler, newOrderRequestBody(t, models.OrderTypePickup))
+
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), `"Shawarma is out of stock"`) {
+		t.Fatalf("expected 409 with the item message only, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
