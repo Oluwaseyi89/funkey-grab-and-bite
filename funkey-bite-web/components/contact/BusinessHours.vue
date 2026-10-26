@@ -13,7 +13,7 @@
           <span class="font-medium text-right">{{ group.hours }}</span>
         </div>
         <p class="pt-2 text-sm" :class="settings?.isOpenNow ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'">
-          {{ settings?.isOpenNow ? 'Open now' : 'Closed now' }} · Times shown in West Africa Time (WAT)
+          {{ settings?.isOpenNow ? 'Open now' : 'Closed now' }} · Times shown in {{ timezoneLabel }}
         </p>
       </div>
       <p v-else-if="status === 'unavailable'" class="text-gray-600 dark:text-gray-400">
@@ -38,7 +38,7 @@
   import { onMounted } from 'vue'
   import { useBusinessSettings } from '../../composables/useBusinessSettings'
   
-  const { settings, status, hoursGroups, today, load } = useBusinessSettings()
+  const { settings, status, hoursGroups, today, timezoneLabel, load } = useBusinessSettings()
   
   onMounted(() => load())
   </script>
