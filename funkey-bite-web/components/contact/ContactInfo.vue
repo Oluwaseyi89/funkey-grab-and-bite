@@ -7,13 +7,17 @@
         <MapPin class="w-6 h-6 text-brand-500 mt-1 flex-shrink-0" />
         <div>
           <h4 class="font-bold text-gray-900 dark:text-white mb-1">Visit Our Location</h4>
-          <p class="text-gray-600 dark:text-gray-400">
-            123 Food Street<br>
-            City Center, Your City<br>
-            State 12345
+          <p v-if="status === 'ready'" class="text-gray-600 dark:text-gray-400">
+            <template v-for="(line, index) in addressLines" :key="index">
+              {{ line }}<br v-if="index < addressLines.length - 1">
+            </template>
+          </p>
+          <p v-else class="text-gray-600 dark:text-gray-400">
+            {{ status === 'unavailable' ? 'Address unavailable right now' : 'Loading address…' }}
           </p>
           <a 
-            href="https://maps.google.com/?q=123+Food+Street+City+Center"
+            v-if="mapsUrl"
+            :href="mapsUrl"
             target="_blank"
             rel="noopener noreferrer"
             class="inline-block mt-2 text-brand-500 hover:text-brand-600 font-medium"
@@ -28,11 +32,14 @@
         <Phone class="w-6 h-6 text-brand-500 flex-shrink-0" />
         <div>
           <h4 class="font-bold text-gray-900 dark:text-white mb-1">Call Us</h4>
-          <a href="tel:+15551234567" class="text-gray-600 dark:text-gray-400 hover:text-brand-500">
-            (555) 123-4567
+          <a v-if="phoneHref" :href="phoneHref" class="text-gray-600 dark:text-gray-400 hover:text-brand-500">
+            {{ settings?.phoneNumber }}
           </a>
+          <p v-else class="text-gray-600 dark:text-gray-400">
+            {{ status === 'unavailable' ? 'Phone unavailable right now' : 'Loading…' }}
+          </p>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Available 8AM-10PM daily
+            Available during our opening hours
           </p>
         </div>
       </div>
@@ -42,9 +49,12 @@
         <Mail class="w-6 h-6 text-brand-500 flex-shrink-0" />
         <div>
           <h4 class="font-bold text-gray-900 dark:text-white mb-1">Email Us</h4>
-          <a href="mailto:info@funkeygrabandbite.com" class="text-gray-600 dark:text-gray-400 hover:text-brand-500">
-            info@funkeygrabandbite.com
+          <a v-if="settings?.email" :href="`mailto:${settings.email}`" class="text-gray-600 dark:text-gray-400 hover:text-brand-500">
+            {{ settings.email }}
           </a>
+          <p v-else class="text-gray-600 dark:text-gray-400">
+            {{ status === 'unavailable' ? 'Email unavailable right now' : 'Loading…' }}
+          </p>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
             For general inquiries
           </p>
@@ -113,4 +123,10 @@
     Twitter,
     MessageCircle
   } from 'lucide-vue-next'
+  import { onMounted } from 'vue'
+  import { useBusinessSettings } from '../../composables/useBusinessSettings'
+  
+  const { settings, status, addressLines, mapsUrl, phoneHref, load } = useBusinessSettings()
+  
+  onMounted(() => load())
   </script>
