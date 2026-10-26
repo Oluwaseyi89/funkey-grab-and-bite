@@ -115,18 +115,21 @@ func (s *inventoryService) ResolveAlert(alertID int) error {
 	return s.inventoryRepo.ResolveAlert(alertID)
 }
 
+// CheckAvailability reports whether quantity can be ordered. The message
+// completes a sentence starting with the item's name, e.g. "Shawarma is out
+// of stock", so it can be shown to customers as is.
 func (s *inventoryService) CheckAvailability(menuItemID, quantity int) (bool, string) {
 	item, err := s.inventoryRepo.GetByMenuItemID(menuItemID)
-	if err != nil || item == nil {
-		return false, "Item not found in inventory"
+	if err != nil || item == nil || !item.IsActive {
+		return false, "is not available right now"
 	}
 
-	if !item.IsActive {
-		return false, "Item is not available"
+	if item.CurrentStock <= 0 {
+		return false, "is out of stock"
 	}
 
 	if item.CurrentStock < quantity {
-		return false, fmt.Sprintf("Insufficient stock. Available: %d, Requested: %d", item.CurrentStock, quantity)
+		return false, fmt.Sprintf("has only %d left", item.CurrentStock)
 	}
 
 	return true, ""
