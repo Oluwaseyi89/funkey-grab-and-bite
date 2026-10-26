@@ -8,10 +8,11 @@
         <div class="space-y-6">
           <NuxtLink to="/" class="flex items-center space-x-4 group">
             <div class="w-14 h-14 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-lg">
-              <span class="text-white font-bold text-2xl">F</span>
+              <span class="text-white font-bold text-2xl">{{ businessInitial }}</span>
             </div>
             <div>
-              <h2 class="text-2xl font-bold text-gray-900 dark:text-white leading-tight">Funkey Grab & Bite</h2>
+              <h2 v-if="businessName" class="text-2xl font-bold text-gray-900 dark:text-white leading-tight">{{ businessName }}</h2>
+              <span v-else class="block h-7 w-44 rounded bg-gray-200 dark:bg-slate-700 animate-pulse" aria-label="Loading business name"></span>
               <p class="text-brand-500 dark:text-brand-300 text-sm mt-1">Fast Food & Catering</p>
             </div>
           </NuxtLink>
@@ -115,7 +116,7 @@
       <!-- Bottom Bar -->
       <div class="flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
         <div class="text-gray-600 dark:text-gray-500 text-sm text-center md:text-left">
-          © {{ new Date().getFullYear() }} Funkey Grab & Bite. All rights reserved.
+          © {{ new Date().getFullYear() }}{{ businessName ? ` ${businessName}` : '' }}. All rights reserved.
         </div>
         <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
           <NuxtLink to="/legal/privacy" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors hover:underline">
@@ -163,7 +164,7 @@ import { onMounted } from 'vue'
 import { mockCategories } from '../../utils/mockData';
 import { useBusinessSettings } from '../../composables/useBusinessSettings'
 
-const { settings, status, fullAddress, hoursGroups, phoneHref, load } = useBusinessSettings()
+const { settings, status, businessName, businessInitial, fullAddress, hoursGroups, phoneHref, load } = useBusinessSettings()
 
 onMounted(() => load())
 
