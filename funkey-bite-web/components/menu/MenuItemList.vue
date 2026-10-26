@@ -17,7 +17,7 @@
             <p class="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">{{ item.description }}</p>
           </div>
           <div class="text-right">
-            <div class="text-2xl font-bold text-brand-500 mb-2">${{ item.price.toFixed(2) }}</div>
+            <div class="text-2xl font-bold text-brand-500 mb-2">₦{{ item.price.toFixed(2) }}</div>
             <div class="flex items-center text-sm text-gray-500">
               <Clock class="w-4 h-4 mr-1" />
               {{ item.preparationTime }} mins
