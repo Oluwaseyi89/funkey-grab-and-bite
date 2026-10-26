@@ -17,7 +17,7 @@
           <span>₦{{ subtotal.toFixed(2) }}</span>
         </div>
         <div class="flex justify-between text-gray-600 dark:text-gray-400">
-          <span>Tax (8%)</span>
+          <span>Tax ({{ taxRate }}%)</span>
           <span>₦{{ tax.toFixed(2) }}</span>
         </div>
         <div v-if="deliveryFee > 0" class="flex justify-between text-gray-600 dark:text-gray-400">
@@ -84,8 +84,10 @@
   items: CartItem[]
   isLoading?: boolean
   deliveryFee?: number
+  taxRate?: number
 }>(), {
-  deliveryFee: 0 // ✅ Default value
+  deliveryFee: 0, // ✅ Default value
+  taxRate: 8
 })
 
   
@@ -100,7 +102,7 @@
     return props.items.reduce((sum, item) => sum + (item.menuItem.price * item.quantity), 0)
   })
   
-  const tax = computed(() => subtotal.value * 0.08)
+  const tax = computed(() => subtotal.value * (props.taxRate / 100))
   
   const total = computed(() => {
     return subtotal.value + tax.value + (props.deliveryFee || 0) - discount.value
