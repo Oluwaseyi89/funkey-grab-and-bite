@@ -3,7 +3,7 @@
     <PageHeader
       title-before="Terms of"
       highlight-text="Service"
-      subtitle="The terms that govern use of the Funkey Grab & Bite website and ordering experience."
+      :subtitle="subtitle"
       variant="simple"
       header-class="pb-12"
     />
@@ -45,5 +45,15 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
 import PageHeader from '../../components/layout/PageHeader.vue'
+import { useBusinessSettings } from '../../composables/useBusinessSettings'
+
+const { businessName, load } = useBusinessSettings()
+
+onMounted(() => load())
+
+const subtitle = computed(() =>
+  `The terms that govern use of the ${businessName.value ? `${businessName.value} ` : ''}website and ordering experience.`,
+)
 </script>
