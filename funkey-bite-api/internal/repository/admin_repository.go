@@ -119,13 +119,22 @@ func (r *AdminRepository) CreateMenuItem(item *models.MenuItem) (*models.MenuIte
 		nutritionalInfoJSON, _ = json.Marshal(item.NutritionalInfo)
 	}
 
+	// Every orderable item needs a stock record, so the item is created with
+	// one at zero stock in the same statement; the admin restocks it in
+	// Inventory before customers can order it.
 	query := `
-		INSERT INTO menu_items (
-			category_id, name, description, price, image_url,
-			is_available, is_pre_order, preparation_time, tags, nutritional_info
+		WITH new_item AS (
+			INSERT INTO menu_items (
+				category_id, name, description, price, image_url,
+				is_available, is_pre_order, preparation_time, tags, nutritional_info
+			)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			RETURNING id, name, created_at
+		), new_stock AS (
+			INSERT INTO inventory_items (menu_item_id, name, current_stock)
+			SELECT id, name, 0 FROM new_item
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, created_at
+		SELECT id, created_at FROM new_item
 	`
 
 	var createdAt time.Time
@@ -198,20 +207,24 @@ func (r *AdminRepository) DeleteMenuItem(id int) error {
 	return err
 }
 
-func (r *AdminRepository) GetAllOrders(limit, offset int, status string) ([]models.Order, error) {
+func (r *AdminRepository) GetAllOrders(limit, offset int, filter models.OrderListFilter) ([]models.Order, error) {
 	query := `
 		SELECT id, order_number, user_id, customer_name, customer_phone,
 		       customer_email, order_type, status, total_amount, notes,
 		       pickup_time, created_at, payment_method, payment_status,
 		       payment_reference, payment_account_number, payment_account_name,
-		       payment_bank_name, payment_expires_at, payment_paid_at
+		       payment_bank_name, payment_expires_at, payment_paid_at,
+		       delivery_address, invoice_number, subtotal_amount, delivery_fee,
+		       tax_amount, discount_amount, payment_collected_via
 		FROM orders
 		WHERE ($1 = '' OR status = $1)
+		  AND ($2 = '' OR payment_status = $2)
+		  AND ($3 = '' OR payment_method = $3)
 		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
+		LIMIT $4 OFFSET $5
 	`
 
-	rows, err := r.db.Query(query, status, limit, offset)
+	rows, err := r.db.Query(query, filter.Status, filter.PaymentStatus, filter.PaymentMethod, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orders: %w", err)
 	}
@@ -309,10 +322,15 @@ func (r *AdminRepository) getOrderItems(orderID int) ([]models.OrderItem, error)
 	return items, nil
 }
 
-func (r *AdminRepository) GetOrdersCount(status string) (int, error) {
-	query := `SELECT COUNT(*) FROM orders WHERE ($1 = '' OR status = $1)`
+func (r *AdminRepository) GetOrdersCount(filter models.OrderListFilter) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM orders
+		WHERE ($1 = '' OR status = $1)
+		  AND ($2 = '' OR payment_status = $2)
+		  AND ($3 = '' OR payment_method = $3)
+	`
 	var count int
-	err := r.db.QueryRow(query, status).Scan(&count)
+	err := r.db.QueryRow(query, filter.Status, filter.PaymentStatus, filter.PaymentMethod).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get orders count: %w", err)
 	}
