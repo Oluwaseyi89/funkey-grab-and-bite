@@ -8,14 +8,10 @@ import {
   TrendingUp,
   TrendingDown,
   Plus,
-  Edit,
-  Eye,
-  BarChart3,
-  Download,
+  PackageX,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
   CheckCircle,
   XCircle,
   Package2,
@@ -24,9 +20,10 @@ import {
   Box,
   Scale
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getInventory, getLowStock, getInventoryAlerts } from '../../api/adminApi';
+import { getInventory, getLowStock, getInventoryAlerts, resolveInventoryAlert } from '../../api/adminApi';
+import StockAdjustDialog, { type StockAdjustMode } from '../../components/inventory/StockAdjustDialog';
 import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { InventoryItem, InventoryAlert } from '../../types';
 import { useInventoryStore } from '../../stores/inventoryStore';
@@ -39,6 +36,8 @@ const InventoryList: React.FC = () => {
   const [limit, setLimit] = useState(20);
   
   const { setItems, setAlerts } = useInventoryStore();
+  const queryClient = useQueryClient();
+  const [stockDialog, setStockDialog] = useState<{ item: InventoryItem; mode: StockAdjustMode } | null>(null);
 
   const { data: inventoryData, isLoading, refetch } = useQuery({
     queryKey: ['inventory', page, limit, statusFilter, searchQuery],
@@ -131,12 +130,18 @@ const InventoryList: React.FC = () => {
   const filteredItems = getFilteredItems();
   const pagedItems = filteredItems.slice((page - 1) * limit, page * limit);
 
-  const handleRestock = (item: InventoryItem) => {
-    toast.success(`Restock order placed for ${item.name}`);
+  const openStockDialog = (item: InventoryItem, mode: StockAdjustMode = 'add') => {
+    setStockDialog({ item, mode });
   };
 
-  const handleMarkAlertAsResolved = (alertId: number) => {
-    toast.success('Alert marked as resolved');
+  const handleMarkAlertAsResolved = async (alertId: number) => {
+    try {
+      await resolveInventoryAlert(alertId);
+      toast.success('Alert marked as resolved');
+      queryClient.invalidateQueries({ queryKey: ['inventory-alerts'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to resolve alert');
+    }
   };
 
   const getStockStatus = (item: InventoryItem) => {
@@ -202,16 +207,7 @@ const InventoryList: React.FC = () => {
     });
   };
 
-  const calculateTotalValue = () => {
-    return inventoryItems.reduce((sum, item) => sum + (item.currentStock * 10), 0);
-  };
-
-  const calculateRestockCost = () => {
-    return lowStockItems.reduce((sum, item) => {
-      const needed = item.minimumStock - item.currentStock;
-      return sum + (Math.max(0, needed) * 10); // Estimate ₦10 per unit
-    }, 0);
-  };
+  const outOfStockCount = inventoryItems.filter((item) => item.currentStock <= 0).length;
 
   if (isLoading) {
     return (
@@ -249,16 +245,13 @@ const InventoryList: React.FC = () => {
             <RefreshCw className="h-4 w-4" />
             <span>Refresh</span>
           </button>
-          <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            <Download className="h-4 w-4" />
-            <span>Export</span>
-          </button>
           <Link
-            to="/inventory/new"
+            to="/menu/new"
+            title="Each menu item gets a stock record automatically"
             className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
           >
             <Plus className="h-4 w-4" />
-            <span>Add Item</span>
+            <span>Add Menu Item</span>
           </Link>
         </div>
       </div>
@@ -296,13 +289,13 @@ const InventoryList: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Inventory Value</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Out of Stock</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                ₦{calculateTotalValue().toLocaleString()}
+                {outOfStockCount}
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
-              <BarChart3 className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <div className="h-12 w-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+              <PackageX className="h-6 w-6 text-gray-600 dark:text-gray-300" />
             </div>
           </div>
         </div>
@@ -482,12 +475,12 @@ const InventoryList: React.FC = () => {
                                 </button>
                               )}
                               {relatedItem && (
-                                <Link
-                                  to={`/inventory/${relatedItem.id}`}
+                                <button
+                                  onClick={() => openStockDialog(relatedItem)}
                                   className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
                                 >
-                                  View Item
-                                </Link>
+                                  Restock
+                                </button>
                               )}
                             </div>
                           </td>
@@ -512,10 +505,10 @@ const InventoryList: React.FC = () => {
               <p className="text-gray-500 dark:text-gray-400 mb-6">
                 {searchQuery || statusFilter
                   ? 'Try changing your filters'
-                  : 'Get started by adding your first inventory item.'}
+                  : 'Stock records are created automatically when you add a menu item.'}
               </p>
               <Link
-                to="/inventory/new"
+                to="/menu/new"
                 className="inline-flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
               >
                 <Plus className="h-4 w-4" />
@@ -612,54 +605,22 @@ const InventoryList: React.FC = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center space-x-2">
-                              <Link
-                                to={`/inventory/${item.id}`}
-                                className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
-                                title="View Details"
+                              <button
+                                onClick={() => openStockDialog(item, 'add')}
+                                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                                  needsRestock
+                                    ? 'bg-primary-500 hover:bg-primary-600 text-white'
+                                    : 'border border-primary-500 text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20'
+                                }`}
                               >
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                              <Link
-                                to={`/inventory/${item.id}/edit`}
-                                className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
-                                title="Edit"
+                                Restock
+                              </button>
+                              <button
+                                onClick={() => openStockDialog(item, 'set')}
+                                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                               >
-                                <Edit className="h-4 w-4" />
-                              </Link>
-                              {needsRestock && (
-                                <button
-                                  onClick={() => handleRestock(item)}
-                                  className="px-3 py-1 text-sm bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
-                                >
-                                  Restock
-                                </button>
-                              )}
-                              <div className="relative group">
-                                <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                                  <MoreVertical className="h-4 w-4" />
-                                </button>
-                                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-                                  <button
-                                    onClick={() => handleRestock(item)}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                  >
-                                    Quick Restock
-                                  </button>
-                                  <Link
-                                    to={`/inventory/${item.id}/history`}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 block"
-                                  >
-                                    View History
-                                  </Link>
-                                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    Adjust Stock
-                                  </button>
-                                  <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                                  <button className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-                                    Deactivate
-                                  </button>
-                                </div>
-                              </div>
+                                Adjust
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -735,13 +696,9 @@ const InventoryList: React.FC = () => {
                 Quick Restock Summary
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {lowStockItems.length} items need restocking • Estimated cost: ${calculateRestockCost()}
+                {lowStockItems.length} {lowStockItems.length === 1 ? 'item needs' : 'items need'} restocking
               </p>
             </div>
-            <button className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
-              <RefreshCw className="h-4 w-4" />
-              <span>Order All</span>
-            </button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -763,15 +720,24 @@ const InventoryList: React.FC = () => {
                   Needs {Math.max(0, item.minimumStock - item.currentStock)} {item.unit}
                 </div>
                 <button
-                  onClick={() => handleRestock(item)}
+                  onClick={() => openStockDialog(item, 'add')}
                   className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg transition-colors"
                 >
-                  Order Now
+                  Restock
                 </button>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {stockDialog && (
+        <StockAdjustDialog
+          key={`${stockDialog.item.id}-${stockDialog.mode}`}
+          item={stockDialog.item}
+          initialMode={stockDialog.mode}
+          onClose={() => setStockDialog(null)}
+        />
       )}
     </div>
   );
