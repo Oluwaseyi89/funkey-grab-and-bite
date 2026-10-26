@@ -9,6 +9,9 @@ import (
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 )
 
+// defaultCountry seeds the address country for a fresh install.
+const defaultCountry = "Nigeria"
+
 type SettingsRepository struct {
 	db *sql.DB
 }
@@ -19,9 +22,10 @@ func NewSettingsRepository(db *sql.DB) *SettingsRepository {
 
 func (r *SettingsRepository) GetSettings() (*models.BusinessSettings, error) {
 	query := `
-        SELECT id, business_name, phone_number, email, address, opening_hours,
-               delivery_fee, min_order_amount, tax_rate, is_delivery_open,
-               is_pickup_open, created_at, updated_at
+        SELECT id, business_name, phone_number, email, address, city, state,
+               postal_code, country, opening_hours, delivery_fee,
+               min_order_amount, tax_rate, is_delivery_open, is_pickup_open,
+               created_at, updated_at
         FROM business_settings
         ORDER BY id DESC
         LIMIT 1
@@ -38,6 +42,10 @@ func (r *SettingsRepository) GetSettings() (*models.BusinessSettings, error) {
 		&settings.PhoneNumber,
 		&settings.Email,
 		&settings.Address,
+		&settings.City,
+		&settings.State,
+		&settings.PostalCode,
+		&settings.Country,
 		&openingHoursJSON,
 		&settings.DeliveryFee,
 		&settings.MinOrderAmount,
@@ -92,8 +100,28 @@ func (r *SettingsRepository) UpdateSettings(updates *models.BusinessSettingsUpda
 		params = append(params, *updates.Address)
 		paramCount++
 	}
+	if updates.City != nil {
+		query += fmt.Sprintf("city = $%d, ", paramCount)
+		params = append(params, *updates.City)
+		paramCount++
+	}
+	if updates.State != nil {
+		query += fmt.Sprintf("state = $%d, ", paramCount)
+		params = append(params, *updates.State)
+		paramCount++
+	}
+	if updates.PostalCode != nil {
+		query += fmt.Sprintf("postal_code = $%d, ", paramCount)
+		params = append(params, *updates.PostalCode)
+		paramCount++
+	}
+	if updates.Country != nil {
+		query += fmt.Sprintf("country = $%d, ", paramCount)
+		params = append(params, *updates.Country)
+		paramCount++
+	}
 	if updates.OpeningHours != nil {
-		openingHoursJSON, err := json.Marshal(updates.OpeningHours)
+		openingHoursJSON, err := json.Marshal(*updates.OpeningHours)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal opening hours: %w", err)
 		}
@@ -156,11 +184,11 @@ func (r *SettingsRepository) createDefaultSettings() (*models.BusinessSettings, 
 
 	query := `
         INSERT INTO business_settings (
-            business_name, phone_number, email, address, opening_hours,
+            business_name, phone_number, email, address, country, opening_hours,
             delivery_fee, min_order_amount, tax_rate, is_delivery_open,
             is_pickup_open, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING id, created_at, updated_at
     `
 
@@ -173,6 +201,7 @@ func (r *SettingsRepository) createDefaultSettings() (*models.BusinessSettings, 
 		"+1234567890",
 		"contact@funkeygrabandbite.com",
 		"123 Fast Food Street, Food City",
+		defaultCountry,
 		string(openingHoursJSON),
 		2.99,
 		10.00,
@@ -191,6 +220,7 @@ func (r *SettingsRepository) createDefaultSettings() (*models.BusinessSettings, 
 	settings.PhoneNumber = "+1234567890"
 	settings.Email = "contact@funkeygrabandbite.com"
 	settings.Address = "123 Fast Food Street, Food City"
+	settings.Country = defaultCountry
 	settings.OpeningHours = defaultHours
 	settings.DeliveryFee = 2.99
 	settings.MinOrderAmount = 10.00
