@@ -52,7 +52,7 @@ func (f *fakeAdminService) GetTodayStats() (*models.AdminStats, error)     { ret
 func (f *fakeAdminService) GetSalesReport(fromDate, toDate string) ([]models.SalesReport, error) {
 	return nil, nil
 }
-func (f *fakeAdminService) GetAllOrders(page, limit int, status string) ([]models.Order, int, error) {
+func (f *fakeAdminService) GetAllOrders(page, limit int, filter models.OrderListFilter) ([]models.Order, int, error) {
 	return nil, 0, nil
 }
 func (f *fakeAdminService) UpdateOrderStatus(orderID int, status string) error {
