@@ -24,4 +24,6 @@ export interface BusinessSettings {
   isDeliveryOpen: boolean
   isPickupOpen: boolean
   isOpenNow: boolean
+  // IANA zone the opening hours are in, e.g. "Africa/Lagos".
+  timezone: string
 }
