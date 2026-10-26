@@ -4,9 +4,11 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { useSocket } from '../../contexts/SocketContext';
 import { Bell, Wifi, WifiOff } from 'lucide-react';
+import { useBusinessSettings } from '../../hooks/useBusinessSettings';
 
 const Layout: React.FC = () => {
   const { isConnected, isRealtimeEnabled } = useSocket();
+  const { settings } = useBusinessSettings();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -58,7 +60,7 @@ const Layout: React.FC = () => {
 
           
           <footer className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-            <p>Funkey Grab & Bite Admin Dashboard © {new Date().getFullYear()}</p>
+            <p>{settings?.businessName ? `${settings.businessName} ` : ''}Admin Dashboard © {new Date().getFullYear()}</p>
             <p className="mt-1">Version 1.0.0</p>
           </footer>
         </main>
