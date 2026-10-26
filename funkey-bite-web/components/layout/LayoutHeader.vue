@@ -5,10 +5,11 @@
 
         <NuxtLink to="/" class="flex items-center space-x-3 group">
           <div class="w-10 h-10 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-brand-500/20">
-            <span class="text-white font-bold text-xl">F</span>
+            <span class="text-white font-bold text-xl">{{ businessInitial }}</span>
           </div>
           <div>
-            <span class="text-xl font-bold text-gradient bg-clip-text md:text-2xl">Funkey Grab & Bite</span>
+            <span v-if="businessName" class="text-xl font-bold text-gradient bg-clip-text md:text-2xl">{{ businessName }}</span>
+            <span v-else class="inline-block h-6 w-40 rounded bg-gray-200 dark:bg-slate-700 animate-pulse align-middle" aria-label="Loading business name"></span>
             <p class="text-xs text-gray-600/80 hidden md:block dark:text-gray-400/80">Fast Food & Catering</p>
           </div>
         </NuxtLink>
@@ -101,9 +102,9 @@
           <div class="drawer-topbar">
             <div class="flex items-center gap-2.5">
               <div class="drawer-logo-mark">
-                <span>F</span>
+                <span>{{ businessInitial }}</span>
               </div>
-              <span class="font-bold text-sm tracking-tight">Funkey Grab & Bite</span>
+              <span class="font-bold text-sm tracking-tight">{{ businessName }}</span>
             </div>
             <button @click="isMobileMenuOpen = false" aria-label="Close" class="drawer-x">
               <X class="w-[18px] h-[18px]" />
@@ -308,6 +309,10 @@
     import { ref, onMounted, watch } from 'vue'
     import { useRoute } from 'vue-router'
     import { storeToRefs } from 'pinia'
+    import { useBusinessSettings } from '../../composables/useBusinessSettings'
+
+    const { businessName, businessInitial, load: loadBusinessSettings } = useBusinessSettings()
+    onMounted(() => loadBusinessSettings())
 
     // 1. State & Logic
     const colorMode = useColorMode()
