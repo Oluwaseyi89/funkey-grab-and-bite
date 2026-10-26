@@ -12,7 +12,7 @@ import {
   Phone,
   MapPin,
   Calendar,
-  DollarSign,
+  Banknote,
   User,
   ChevronDown
 } from 'lucide-react';
@@ -294,10 +294,10 @@ const OrderDetails: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      ${(item.unitPrice * item.quantity).toFixed(2)}
+                      ₦{(item.unitPrice * item.quantity).toFixed(2)}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      ${item.unitPrice} each
+                      ₦{item.unitPrice} each
                     </p>
                   </div>
                 </div>
@@ -307,20 +307,20 @@ const OrderDetails: React.FC = () => {
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
-                <span className="font-medium">${order.totalAmount.toFixed(2)}</span>
+                <span className="font-medium">₦{order.totalAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center mt-2">
                 <span className="text-gray-600 dark:text-gray-400">Tax</span>
-                <span className="font-medium">$0.00</span>
+                <span className="font-medium">₦0.00</span>
               </div>
               <div className="flex justify-between items-center mt-2">
                 <span className="text-gray-600 dark:text-gray-400">Delivery Fee</span>
-                <span className="font-medium">$0.00</span>
+                <span className="font-medium">₦0.00</span>
               </div>
               <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-lg font-semibold">Total</span>
                 <span className="text-2xl font-bold text-primary-600">
-                  ${order.totalAmount.toFixed(2)}
+                  ₦{order.totalAmount.toFixed(2)}
                 </span>
               </div>
             </div>
