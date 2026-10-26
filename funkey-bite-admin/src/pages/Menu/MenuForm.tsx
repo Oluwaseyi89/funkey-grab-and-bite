@@ -9,7 +9,7 @@ import {
   Upload, 
   ChefHat, 
   Tag, 
-  DollarSign, 
+  Banknote, 
   Clock,
   Info,
   Image as ImageIcon,
@@ -319,10 +319,10 @@ const MenuForm: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Price ($) *
+                    Price (₦) *
                   </label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     <input
                       type="number"
                       step="0.01"
@@ -609,7 +609,7 @@ const MenuForm: React.FC = () => {
                     {watch('name') || 'Item Name'}
                   </h3>
                   <span className="font-bold text-primary-600 dark:text-primary-400">
-                    ${watch('price') || '0.00'}
+                    ₦{watch('price') || '0.00'}
                   </span>
                 </div>
                 
