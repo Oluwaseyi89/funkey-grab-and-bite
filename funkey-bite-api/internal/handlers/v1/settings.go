@@ -94,13 +94,27 @@ func (h *SettingsHandler) GetPublicSettings(c *gin.Context) {
 		return
 	}
 
+	// isOpenNow is computed here, in the business timezone, so clients never
+	// have to reason about the server's or the visitor's clock.
+	isOpenNow, err := h.settingsService.IsBusinessOpen()
+	if err != nil {
+		handlers.ErrorWithDetails(c, http.StatusInternalServerError,
+			"SETTINGS_FETCH_FAILED", "Failed to fetch settings", err.Error())
+		return
+	}
+
 	// Return only public fields
 	handlers.Success(c, gin.H{
 		"businessName":   settings.BusinessName,
 		"phoneNumber":    settings.PhoneNumber,
 		"email":          settings.Email,
 		"address":        settings.Address,
+		"city":           settings.City,
+		"state":          settings.State,
+		"postalCode":     settings.PostalCode,
+		"country":        settings.Country,
 		"openingHours":   settings.OpeningHours,
+		"isOpenNow":      isOpenNow,
 		"deliveryFee":    settings.DeliveryFee,
 		"minOrderAmount": settings.MinOrderAmount,
 		"taxRate":        settings.TaxRate,
@@ -115,7 +129,7 @@ func (h *SettingsHandler) GetPublicSettings(c *gin.Context) {
 // @Tags public
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.BusinessHours
+// @Success 200 {array} models.OpeningHours
 // @Router /settings/hours [get]
 func (h *SettingsHandler) GetOpeningHours(c *gin.Context) {
 	hours, err := h.settingsService.GetOpeningHours()
