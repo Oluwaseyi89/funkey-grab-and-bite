@@ -246,6 +246,9 @@ export const restockItem = (data: { menuItemId: number; quantity: number; reason
 export const getInventoryAlerts = (params?: { resolved?: boolean }) =>
   apiGet<InventoryAlert[]>('/api/v1/admin/inventory/alerts', params);
 
+export const resolveInventoryAlert = (id: number) =>
+  apiPatch<{ message: string }>(`/api/v1/admin/inventory/alerts/${id}/resolve`, {});
+
 export const getCateringRequests = (params?: {
   page?: number;
   limit?: number;

@@ -21,11 +21,13 @@ type InventoryItem struct {
 }
 
 type InventoryUpdate struct {
-	MenuItemID int    `json:"menuItemId" validate:"required"`
-	Quantity   int    `json:"quantity" validate:"required"`
-	Operation  string `json:"operation" validate:"required,oneof=add subtract set"`
-	Reason     string `json:"reason" validate:"required"`
-	Notes      string `json:"notes,omitempty"`
+	MenuItemID int `json:"menuItemId" validate:"required"`
+	// Quantity may be 0 for "set" (marking an item out of stock); "add" and
+	// "subtract" need a positive amount, which the service checks.
+	Quantity  int    `json:"quantity" validate:"min=0"`
+	Operation string `json:"operation" validate:"required,oneof=add subtract set"`
+	Reason    string `json:"reason" validate:"required"`
+	Notes     string `json:"notes,omitempty"`
 }
 
 type InventoryAlert struct {

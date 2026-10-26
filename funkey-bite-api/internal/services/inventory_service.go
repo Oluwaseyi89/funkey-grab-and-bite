@@ -66,6 +66,10 @@ func (s *inventoryService) GetLowStock() ([]models.InventoryItem, error) {
 }
 
 func (s *inventoryService) UpdateStock(update *models.InventoryUpdate) (*models.InventoryItem, error) {
+	if update.Operation != "set" && update.Quantity <= 0 {
+		return nil, fmt.Errorf("quantity must be greater than 0 to %s stock", update.Operation)
+	}
+
 	updatedItem, err := s.inventoryRepo.AdjustStockByMenuItemID(update.MenuItemID, update.Quantity, update.Operation, update.Reason)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update stock: %w", err)
