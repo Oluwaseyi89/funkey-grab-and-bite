@@ -13,7 +13,11 @@ import type {
   User,
   AdminStats,
   PaginatedResponse,
-  InventoryAlert
+  InventoryAlert,
+  Invoice,
+  PaymentCollectedVia,
+  PaymentMethod,
+  PaymentStatus
 } from '../types';
 
 type PaginationShape = {
@@ -122,14 +126,21 @@ export const getOrders = (params?: {
   page?: number;
   limit?: number;
   status?: string;
+  paymentStatus?: PaymentStatus;
+  paymentMethod?: PaymentMethod;
   search?: string;
   userId?: number;
 }) => {
-  const { page = 1, limit = 20, status, search, userId } = params || {};
+  const { page = 1, limit = 20, status, paymentStatus, paymentMethod, search, userId } = params || {};
   const requiresClientFiltering = Boolean(search || userId);
+  const filters = {
+    ...(status ? { status } : {}),
+    ...(paymentStatus ? { paymentStatus } : {}),
+    ...(paymentMethod ? { paymentMethod } : {}),
+  };
   const requestParams = requiresClientFiltering
-    ? { page: 1, limit: 1000, ...(status ? { status } : {}) }
-    : { page, limit, ...(status ? { status } : {}) };
+    ? { page: 1, limit: 1000, ...filters }
+    : { page, limit, ...filters };
 
   return apiGet<KeyedListPayload<Order, 'orders'>>('/api/v1/admin/orders', requestParams).then((payload) => {
     const normalized = normalizeKeyedList(payload, 'orders', requestParams.page, requestParams.limit);
@@ -156,6 +167,13 @@ export const getOrders = (params?: {
 
 export const getOrder = (id: number) =>
   apiGet<Order>(`/api/v1/admin/orders/${id}`);
+
+// Records that a pay-on-delivery order was paid, and how.
+export const markOrderPaymentCollected = (id: number, collectedVia: PaymentCollectedVia) =>
+  apiPatch<Order>(`/api/v1/admin/orders/${id}/payment`, { collectedVia });
+
+export const getOrderInvoice = (id: number) =>
+  apiGet<Invoice>(`/api/v1/admin/orders/${id}/invoice`);
 
 export const updateOrderStatus = (id: number, data: { status: string }) =>
   apiPatch<{ message: string; orderId: number; status: string }>(
