@@ -30,7 +30,7 @@ func TestGetPublicSettingsFailsSafelyWhenOpeningHoursJSONIsMalformed(t *testing.
         SELECT id, business_name, phone_number, email, address, city, state,
                postal_code, country, opening_hours, delivery_fee,
                min_order_amount, tax_rate, is_delivery_open, is_pickup_open,
-               created_at, updated_at
+               pay_on_delivery_enabled, created_at, updated_at
         FROM business_settings
         ORDER BY id DESC
         LIMIT 1
@@ -41,7 +41,7 @@ func TestGetPublicSettingsFailsSafelyWhenOpeningHoursJSONIsMalformed(t *testing.
 			"id", "business_name", "phone_number", "email", "address", "city", "state",
 			"postal_code", "country", "opening_hours",
 			"delivery_fee", "min_order_amount", "tax_rate", "is_delivery_open",
-			"is_pickup_open", "created_at", "updated_at",
+			"is_pickup_open", "pay_on_delivery_enabled", "created_at", "updated_at",
 		}).AddRow(
 			1,
 			"Funkey Grab & Bite",
@@ -56,6 +56,7 @@ func TestGetPublicSettingsFailsSafelyWhenOpeningHoursJSONIsMalformed(t *testing.
 			2.99,
 			10.00,
 			8.5,
+			true,
 			true,
 			true,
 			time.Now(),
