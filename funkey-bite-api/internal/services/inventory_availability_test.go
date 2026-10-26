@@ -36,3 +36,21 @@ func TestCheckAvailabilityMessages(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateStockAllowsSettingZeroButNotAddingZero(t *testing.T) {
+	store := &fakeInventoryStore{itemsByMenu: map[int]*models.InventoryItem{
+		1: {ID: 1, MenuItemID: 1, CurrentStock: 7, IsActive: true},
+	}}
+	svc := NewInventoryService(store, &fakeInventoryMenuReader{})
+
+	item, err := svc.UpdateStock(&models.InventoryUpdate{MenuItemID: 1, Quantity: 0, Operation: "set", Reason: "sold out"})
+	if err != nil || item.CurrentStock != 0 {
+		t.Fatalf("setting stock to 0 should succeed, got %+v, %v", item, err)
+	}
+
+	for _, operation := range []string{"add", "subtract"} {
+		if _, err := svc.UpdateStock(&models.InventoryUpdate{MenuItemID: 1, Quantity: 0, Operation: operation, Reason: "noop"}); err == nil {
+			t.Fatalf("%s with quantity 0 should be rejected", operation)
+		}
+	}
+}
