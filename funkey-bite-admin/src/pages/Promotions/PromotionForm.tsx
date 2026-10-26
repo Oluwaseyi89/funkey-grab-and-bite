@@ -840,7 +840,7 @@ const PromotionForm: React.FC = () => {
                   {watch('minOrderAmount') && (
                     <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium inline-flex items-center space-x-1">
                       <ShoppingBag className="h-3 w-3" />
-                      <span>Min ${watch('minOrderAmount')}</span>
+                      <span>Min ₦{watch('minOrderAmount')}</span>
                     </span>
                   )}
                   
