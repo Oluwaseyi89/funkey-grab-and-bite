@@ -34,7 +34,12 @@ func NewSettingsService(settingsRepo repository.SettingsRepository) SettingsServ
 }
 
 func (s *settingsService) GetSettings() (*models.BusinessSettings, error) {
-	return s.settingsRepo.GetSettings()
+	settings, err := s.settingsRepo.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+	settings.Timezone = s.location.String()
+	return settings, nil
 }
 
 func (s *settingsService) UpdateSettings(updates *models.BusinessSettingsUpdate) (*models.BusinessSettings, error) {
@@ -51,7 +56,12 @@ func (s *settingsService) UpdateSettings(updates *models.BusinessSettingsUpdate)
 		return nil, err
 	}
 
-	return s.settingsRepo.UpdateSettings(updates)
+	settings, err := s.settingsRepo.UpdateSettings(updates)
+	if err != nil {
+		return nil, err
+	}
+	settings.Timezone = s.location.String()
+	return settings, nil
 }
 
 func (s *settingsService) GetOpeningHours() ([]models.OpeningHours, error) {
