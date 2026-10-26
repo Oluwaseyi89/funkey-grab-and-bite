@@ -204,7 +204,7 @@
     ArrowRight,
     Loader2,
     Landmark,
-    DollarSign
+    Banknote
   } from 'lucide-vue-next'
   
   import PageHeader from '../../components/layout/PageHeader.vue'
@@ -253,7 +253,7 @@
       id: 'cash',
       name: 'Cash on Delivery',
       description: 'Pay when you receive your order',
-      icon: DollarSign,
+      icon: Banknote,
       iconClass: 'text-amber-500'
     }
   ]
