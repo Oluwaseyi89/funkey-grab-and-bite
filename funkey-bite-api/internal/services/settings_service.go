@@ -21,11 +21,15 @@ type SettingsService interface {
 
 type settingsService struct {
 	settingsRepo repository.SettingsRepository
+	location     *time.Location
+	now          func() time.Time
 }
 
 func NewSettingsService(settingsRepo repository.SettingsRepository) SettingsService {
 	return &settingsService{
 		settingsRepo: settingsRepo,
+		location:     LoadBusinessLocation(),
+		now:          time.Now,
 	}
 }
 
@@ -42,6 +46,9 @@ func (s *settingsService) UpdateSettings(updates *models.BusinessSettingsUpdate)
 	}
 	if updates.TaxRate != nil && (*updates.TaxRate < 0 || *updates.TaxRate > 100) {
 		return nil, fmt.Errorf("tax rate must be between 0 and 100")
+	}
+	if err := normalizeSettingsUpdate(updates); err != nil {
+		return nil, err
 	}
 
 	return s.settingsRepo.UpdateSettings(updates)
@@ -62,19 +69,7 @@ func (s *settingsService) IsBusinessOpen() (bool, error) {
 		return false, err
 	}
 
-	now := time.Now()
-	currentDay := now.Weekday().String()
-	currentTime := now.Format("15:04")
-
-	for _, hours := range settings.OpeningHours {
-		if hours.Day == currentDay && hours.IsOpen {
-			if currentTime >= hours.OpenTime && currentTime <= hours.CloseTime {
-				return true, nil
-			}
-		}
-	}
-
-	return false, nil
+	return isOpenAt(settings.OpeningHours, s.now().In(s.location)), nil
 }
 
 func (s *settingsService) ValidateOrderTime(orderType string, requestedTime *time.Time) (bool, string) {
@@ -87,27 +82,25 @@ func (s *settingsService) ValidateOrderTime(orderType string, requestedTime *tim
 		return false, "Unable to validate order time"
 	}
 
-	if requestedTime.Before(time.Now()) {
+	now := s.now()
+	if requestedTime.Before(now) {
 		return false, "Order time must be in the future"
 	}
 
-	maxFuture := time.Now().Add(7 * 24 * time.Hour)
+	maxFuture := now.Add(7 * 24 * time.Hour)
 	if requestedTime.After(maxFuture) {
 		return false, "Orders can only be placed up to 7 days in advance"
 	}
 
-	requestedDay := requestedTime.Weekday().String()
-	requestedTimeStr := requestedTime.Format("15:04")
+	local := requestedTime.In(s.location)
+	if isOpenAt(settings.OpeningHours, local) {
+		return true, ""
+	}
 
-	for _, hours := range settings.OpeningHours {
-		if hours.Day == requestedDay && hours.IsOpen {
-			if requestedTimeStr >= hours.OpenTime && requestedTimeStr <= hours.CloseTime {
-				return true, ""
-			} else {
-				return false, fmt.Sprintf("Business is closed at %s. Hours: %s - %s",
-					requestedTimeStr, hours.OpenTime, hours.CloseTime)
-			}
-		}
+	requestedDay := weekdayNames[local.Weekday()]
+	if hours, found := hoursFor(settings.OpeningHours, local.Weekday()); found && hours.IsOpen {
+		return false, fmt.Sprintf("Business is closed at %s. %s hours: %s - %s",
+			local.Format("15:04"), requestedDay, hours.OpenTime, hours.CloseTime)
 	}
 
 	return false, "Business is closed on " + requestedDay
@@ -176,6 +169,10 @@ func (s *settingsService) GetPublicInfo() (map[string]interface{}, error) {
 		"phoneNumber":    settings.PhoneNumber,
 		"email":          settings.Email,
 		"address":        settings.Address,
+		"city":           settings.City,
+		"state":          settings.State,
+		"postalCode":     settings.PostalCode,
+		"country":        settings.Country,
 		"openingHours":   settings.OpeningHours,
 		"deliveryFee":    settings.DeliveryFee,
 		"minOrderAmount": settings.MinOrderAmount,
