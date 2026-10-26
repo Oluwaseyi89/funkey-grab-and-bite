@@ -115,6 +115,7 @@ func (h *SettingsHandler) GetPublicSettings(c *gin.Context) {
 		"country":        settings.Country,
 		"openingHours":   settings.OpeningHours,
 		"isOpenNow":      isOpenNow,
+		"timezone":       settings.Timezone,
 		"deliveryFee":    settings.DeliveryFee,
 		"minOrderAmount": settings.MinOrderAmount,
 		"taxRate":        settings.TaxRate,
