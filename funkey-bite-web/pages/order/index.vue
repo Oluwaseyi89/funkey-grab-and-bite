@@ -29,6 +29,15 @@
 
           <div v-else>
 
+            <div
+              v-if="orderBlockedReason"
+              role="alert"
+              class="mt-4 p-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
+            >
+              {{ orderBlockedReason }}
+              <NuxtLink to="/contact" class="underline font-medium ml-1">See opening hours</NuxtLink>
+            </div>
+
             <div class="my-5 md:my-8 py-3 md:py-8">
               <div class="flex items-center justify-center gap-3 sm:gap-6 md:gap-12 flex-wrap">
                 <div v-for="(step, index) in steps" :key="step.id" class="flex items-center">
@@ -146,7 +155,7 @@
                     </button>
                     <button
                       @click="submitOrder"
-                      :disabled="isSubmitting"
+                      :disabled="isSubmitting || !!orderBlockedReason"
                       class="btn-primary w-full sm:w-auto"
                     >
                       <template v-if="isSubmitting">
@@ -166,6 +175,7 @@
                 <CartSummary
                   :items="cart.items"
                   :delivery-fee="deliveryFee"
+                  :tax-rate="taxRate"
                   :is-loading="isSubmitting"
                   @checkout="currentStep = 1"
                 />
@@ -214,10 +224,12 @@
   import CustomerInfoForm from '../../components/order/CustomerInfoForm.vue'
   import OrderConfirmation from '../../components/order/OrderConfirmation.vue'
   import { useApi } from '../../utils/api'
+  import { useBusinessSettings } from '../../composables/useBusinessSettings'
   
   const cart = useCartStore()
   const api = useApi()
   const { $toast } = useNuxtApp()
+  const { settings: businessSettings, load: loadBusinessSettings } = useBusinessSettings()
   
   const currentStep = ref(0)
   const isSubmitting = ref(false)
@@ -258,14 +270,33 @@
     }
   ]
   
+  // Fees come from the admin settings the API charges with; the constants are
+  // only used if the settings could not be loaded.
   const deliveryFee = computed(() => {
-    return orderData.value.orderType === 'delivery' ? 3.99 : 0
+    return orderData.value.orderType === 'delivery' ? (businessSettings.value?.deliveryFee ?? 3.99) : 0
   })
+  
+  const taxRate = computed(() => businessSettings.value?.taxRate ?? 8)
   
   const orderTotal = computed(() => {
     const subtotal = cart.items.reduce((sum, item) => sum + (item.menuItem.price * item.quantity), 0)
-    const tax = subtotal * 0.08
+    const tax = subtotal * (taxRate.value / 100)
     return subtotal + tax + deliveryFee.value
+  })
+  
+  // Mirrors the API's checks so customers learn about a closure before they
+  // check out, not from a rejected order. Unknown settings defer to the API.
+  const orderBlockedReason = computed(() => {
+    const s = businessSettings.value
+    if (!s) return ''
+    if (!s.isOpenNow) return "We're closed right now, so orders can't be placed until we open again."
+    if (orderData.value.orderType === 'delivery' && !s.isDeliveryOpen) {
+      return 'Delivery is unavailable right now. Please choose pickup instead.'
+    }
+    if (orderData.value.orderType === 'pickup' && !s.isPickupOpen) {
+      return 'Pickup is unavailable right now. Please choose delivery instead.'
+    }
+    return ''
   })
   
   const updateQuantity = (item: CartItemType, change: number) => {
@@ -289,6 +320,15 @@
     isSubmitting.value = true
   
     try {
+      // The page may have been open for a while; re-check before ordering.
+      await loadBusinessSettings(true)
+      if (orderBlockedReason.value) {
+        if ($toast && typeof $toast.error === 'function') {
+          $toast.error(orderBlockedReason.value)
+        }
+        return
+      }
+
       const orderPayload: Partial<Order> = {
         customerName: orderData.value.customerName,
         customerPhone: orderData.value.customerPhone,
@@ -349,5 +389,6 @@
   
   onMounted(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    loadBusinessSettings()
   })
   </script>
