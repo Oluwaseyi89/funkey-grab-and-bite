@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,9 +29,16 @@ import type { BusinessSettings, OpeningHours } from '../../types';
 
 const settingsSchema = z.object({
   businessName: z.string().min(2, 'Business name must be at least 2 characters'),
-  phoneNumber: z.string().min(5, 'Phone number is required'),
-  email: z.string().email('Valid email is required'),
-  address: z.string().min(5, 'Address is required'),
+  phoneNumber: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9][0-9 ()-]{5,18}$/, 'Enter a valid phone number, e.g. +234 801 234 5678'),
+  email: z.string().trim().email('Valid email is required'),
+  address: z.string().trim().min(3, 'Street address is required').max(500, 'Street address is too long'),
+  city: z.string().trim().min(1, 'City is required').max(100, 'City is too long'),
+  state: z.string().trim().min(1, 'State is required').max(100, 'State is too long'),
+  postalCode: z.string().trim().max(20, 'Postal code is too long'),
+  country: z.string().trim().min(1, 'Country is required').max(100, 'Country is too long'),
   deliveryFee: z.number().min(0, 'Delivery fee cannot be negative'),
   minOrderAmount: z.number().min(0, 'Minimum order amount cannot be negative'),
   taxRate: z.number().min(0).max(100, 'Tax rate must be between 0-100'),
@@ -50,6 +57,36 @@ const DAYS_OF_WEEK = [
   { id: 'Saturday', label: 'Saturday' },
   { id: 'Sunday', label: 'Sunday' },
 ];
+
+// Every day must be sent to the API exactly once, so fill in any day the
+// stored settings are missing (as closed) and keep the Monday-first order.
+const completeWeek = (hours: OpeningHours[] = []): OpeningHours[] =>
+  DAYS_OF_WEEK.map((day) => {
+    const existing = hours.find((h) => h.day.toLowerCase() === day.id.toLowerCase());
+    return existing
+      ? { ...existing, day: day.id }
+      : { day: day.id, openTime: '08:00', closeTime: '22:00', isOpen: false };
+  });
+
+const CLOCK_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Mirrors the API rules: open days need valid, different times. A close time
+// at or before the open time means the business closes after midnight.
+const validateOpeningHours = (hours: OpeningHours[]): Record<string, string> => {
+  const errors: Record<string, string> = {};
+  for (const h of hours) {
+    if (!h.isOpen) continue;
+    if (!CLOCK_PATTERN.test(h.openTime) || !CLOCK_PATTERN.test(h.closeTime)) {
+      errors[h.day] = 'Choose both an opening and a closing time';
+    } else if (h.openTime === h.closeTime) {
+      errors[h.day] = 'Opening and closing times cannot be the same';
+    }
+  }
+  return errors;
+};
+
+const closesNextDay = (h: OpeningHours) =>
+  h.isOpen && CLOCK_PATTERN.test(h.openTime) && CLOCK_PATTERN.test(h.closeTime) && h.closeTime <= h.openTime;
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   const hour = Math.floor(i / 2);
@@ -73,7 +110,7 @@ const GeneralSettings: React.FC = () => {
       try {
         const data = await getSettings();
         setSettings(data);
-        setOpeningHours(data.openingHours || []);
+        setOpeningHours(completeWeek(data.openingHours));
         return data;
       } catch (error) {
         toast.error('Failed to load settings');
@@ -96,6 +133,10 @@ const GeneralSettings: React.FC = () => {
       phoneNumber: '',
       email: '',
       address: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'Nigeria',
       deliveryFee: 0,
       minOrderAmount: 0,
       taxRate: 0,
@@ -111,15 +152,21 @@ const GeneralSettings: React.FC = () => {
         phoneNumber: settings.phoneNumber,
         email: settings.email,
         address: settings.address,
+        city: settings.city ?? '',
+        state: settings.state ?? '',
+        postalCode: settings.postalCode ?? '',
+        country: settings.country || 'Nigeria',
         deliveryFee: settings.deliveryFee,
         minOrderAmount: settings.minOrderAmount,
         taxRate: settings.taxRate,
         isDeliveryOpen: settings.isDeliveryOpen,
         isPickupOpen: settings.isPickupOpen,
       });
-      setOpeningHours(settings.openingHours || []);
+      setOpeningHours(completeWeek(settings.openingHours));
     }
   }, [settings, reset]);
+
+  const hoursErrors = useMemo(() => validateOpeningHours(openingHours), [openingHours]);
 
   const isDeliveryOpen = watch('isDeliveryOpen');
   const isPickupOpen = watch('isPickupOpen');
@@ -164,11 +211,16 @@ const GeneralSettings: React.FC = () => {
       toast.success('Settings updated successfully!');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update settings');
+      // The API puts the specific validation failure in details.
+      toast.error(error.details || error.message || 'Failed to update settings');
     },
   });
 
   const onSubmit = (data: SettingsFormData) => {
+    if (Object.keys(hoursErrors).length > 0) {
+      toast.error('Fix the highlighted opening hours before saving');
+      return;
+    }
     mutation.mutate(data);
   };
 
@@ -260,7 +312,7 @@ const GeneralSettings: React.FC = () => {
                   type="tel"
                   {...register('phoneNumber')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="+1 (234) 567-890"
+                  placeholder="+234 801 234 5678"
                 />
               </div>
               {errors.phoneNumber && (
@@ -290,7 +342,7 @@ const GeneralSettings: React.FC = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Business Address *
+                Street Address *
               </label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -298,13 +350,35 @@ const GeneralSettings: React.FC = () => {
                   type="text"
                   {...register('address')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="123 Fast Food Street, Food City"
+                  placeholder="12 Admiralty Way"
                 />
               </div>
               {errors.address && (
                 <p className="mt-1 text-sm text-red-600">{errors.address.message}</p>
               )}
             </div>
+
+            {([
+              { name: 'city', label: 'City *', placeholder: 'Lekki' },
+              { name: 'state', label: 'State *', placeholder: 'Lagos' },
+              { name: 'postalCode', label: 'Postal Code', placeholder: '106104' },
+              { name: 'country', label: 'Country *', placeholder: 'Nigeria' },
+            ] as const).map((field) => (
+              <div key={field.name}>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {field.label}
+                </label>
+                <input
+                  type="text"
+                  {...register(field.name)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder={field.placeholder}
+                />
+                {errors[field.name] && (
+                  <p className="mt-1 text-sm text-red-600">{errors[field.name]?.message}</p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -327,84 +401,94 @@ const GeneralSettings: React.FC = () => {
           </div>
           
           <div className="space-y-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Times are in the business's local time (WAT). Pick a closing time earlier than the
+              opening time for hours that run past midnight.
+            </p>
             {DAYS_OF_WEEK.map((day) => {
               const dayHours = openingHours.find(h => h.day === day.id) || {
                 day: day.id,
                 openTime: '08:00',
                 closeTime: '22:00',
-                isOpen: true,
+                isOpen: false,
               };
+              const dayError = hoursErrors[day.id];
               
               return (
-                <div key={day.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <Controller
-                      name=""
-                      render={() => (
-                        <label className="flex items-center space-x-2 cursor-pointer">
-                          <div className="relative">
-                            <input
-                              type="checkbox"
-                              checked={dayHours.isOpen}
-                              onChange={() => toggleDayOpen(day.id)}
-                              className="sr-only"
-                            />
-                            <div className={`w-10 h-6 rounded-full transition-colors ${dayHours.isOpen ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                              <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${dayHours.isOpen ? 'left-5' : 'left-1'}`}></div>
+                <div key={day.id}>
+                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border rounded-lg ${dayError ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-gray-700'}`}>
+                    <div className="flex items-center space-x-4">
+                      <Controller
+                        name=""
+                        render={() => (
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <div className="relative">
+                              <input
+                                type="checkbox"
+                                checked={dayHours.isOpen}
+                                onChange={() => toggleDayOpen(day.id)}
+                                className="sr-only"
+                              />
+                              <div className={`w-10 h-6 rounded-full transition-colors ${dayHours.isOpen ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${dayHours.isOpen ? 'left-5' : 'left-1'}`}></div>
+                              </div>
                             </div>
-                          </div>
-                          <span className={`font-medium ${dayHours.isOpen ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
-                            {day.label}
-                          </span>
-                        </label>
-                      )}
-                    />
-                  </div>
+                            <span className={`font-medium ${dayHours.isOpen ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
+                              {day.label}
+                            </span>
+                          </label>
+                        )}
+                      />
+                    </div>
                   
-                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-3">
                     
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Open:</span>
-                      <select
-                        value={dayHours.openTime}
-                        onChange={(e) => updateDayHours(day.id, 'openTime', e.target.value)}
-                        disabled={!dayHours.isOpen}
-                        className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50"
-                      >
-                        {TIME_OPTIONS.map(time => (
-                          <option key={time.value} value={time.value}>
-                            {time.label}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Open:</span>
+                        <select
+                          value={dayHours.openTime}
+                          onChange={(e) => updateDayHours(day.id, 'openTime', e.target.value)}
+                          disabled={!dayHours.isOpen}
+                          className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50"
+                        >
+                          {TIME_OPTIONS.map(time => (
+                            <option key={time.value} value={time.value}>
+                              {time.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    
+                    
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Close:</span>
+                        <select
+                          value={dayHours.closeTime}
+                          onChange={(e) => updateDayHours(day.id, 'closeTime', e.target.value)}
+                          disabled={!dayHours.isOpen}
+                          className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50"
+                        >
+                          {TIME_OPTIONS.map(time => (
+                            <option key={time.value} value={time.value}>
+                              {time.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    
+                    
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        dayHours.isOpen 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {dayHours.isOpen ? (closesNextDay(dayHours) ? 'Closes next day' : 'Open') : 'Closed'}
+                      </span>
                     </div>
-                    
-                    
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Close:</span>
-                      <select
-                        value={dayHours.closeTime}
-                        onChange={(e) => updateDayHours(day.id, 'closeTime', e.target.value)}
-                        disabled={!dayHours.isOpen}
-                        className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50"
-                      >
-                        {TIME_OPTIONS.map(time => (
-                          <option key={time.value} value={time.value}>
-                            {time.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      dayHours.isOpen 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    }`}>
-                      {dayHours.isOpen ? 'Open' : 'Closed'}
-                    </span>
                   </div>
+                  {dayError && (
+                    <p className="mt-1 text-sm text-red-600">{dayError}</p>
+                  )}
                 </div>
               );
             })}
@@ -576,7 +660,7 @@ const GeneralSettings: React.FC = () => {
               </div>
               {isPickupOpen && (
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Minimum order: ${minOrderAmount.toFixed(2)}
+                  Minimum order: ₦{minOrderAmount.toFixed(2)}
                 </div>
               )}
             </div>
@@ -645,7 +729,7 @@ const GeneralSettings: React.FC = () => {
                 </div>
                 
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Minimum order for pickup: ${minOrderAmount.toFixed(2)}
+                  Minimum order for pickup: ₦{minOrderAmount.toFixed(2)}
                 </div>
               </div>
             </div>
