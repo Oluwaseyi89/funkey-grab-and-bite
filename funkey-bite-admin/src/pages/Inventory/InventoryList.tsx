@@ -209,7 +209,7 @@ const InventoryList: React.FC = () => {
   const calculateRestockCost = () => {
     return lowStockItems.reduce((sum, item) => {
       const needed = item.minimumStock - item.currentStock;
-      return sum + (Math.max(0, needed) * 10); // Estimate $10 per unit
+      return sum + (Math.max(0, needed) * 10); // Estimate ₦10 per unit
     }, 0);
   };
 
@@ -298,7 +298,7 @@ const InventoryList: React.FC = () => {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Inventory Value</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                ${calculateTotalValue().toLocaleString()}
+                ₦{calculateTotalValue().toLocaleString()}
               </p>
             </div>
             <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
