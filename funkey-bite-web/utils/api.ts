@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 import type { MenuCategory, MenuItem } from '~/types/menu'
 import type { Order, CateringRequest } from '~/types/order'
+import type { BusinessSettings } from '~/types/settings'
 import { mockCategories, mockMenuItems, mockOrders, mockPromotions } from './mockData'
 import { useNuxtApp, useRuntimeConfig } from 'nuxt/app'
 
@@ -443,6 +444,20 @@ export class ApiService {
 
   async getActivePromotions(): Promise<any[]> {
     return this.fetchWithFallback('/promotions/active', mockPromotions)
+  }
+
+  // Contact details and opening hours never fall back to demo data: a made-up
+  // address or hours would mislead customers, so callers get null instead.
+  async getBusinessSettings(): Promise<BusinessSettings | null> {
+    try {
+      return await this.fetchJSON<BusinessSettings>('/settings')
+    } catch (err) {
+      if (this.isBackendUnavailableError(err)) {
+        this.markBackendUnavailable()
+      }
+      console.warn('[API] Could not load business settings:', err instanceof Error ? err.message : err)
+      return null
+    }
   }
 }
 
