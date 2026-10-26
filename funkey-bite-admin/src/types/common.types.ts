@@ -43,6 +43,8 @@ export interface PaginatedResponse<T> {
     taxRate: number;
     isDeliveryOpen: boolean;
     isPickupOpen: boolean;
+    /** IANA timezone the opening hours are in, e.g. "Africa/Lagos". */
+    timezone: string;
     createdAt: string;
     updatedAt: string;
   }
