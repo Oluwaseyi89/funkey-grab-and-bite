@@ -23,7 +23,12 @@ const (
 
 	// MenuImagePrefix is the key "folder" every menu image is stored under.
 	MenuImagePrefix = "menu-items/"
+	// TeamPhotoPrefix is the key "folder" for team member photos.
+	TeamPhotoPrefix = "team/"
 )
+
+// managedPrefixes are the folders this API uploads into.
+var managedPrefixes = []string{MenuImagePrefix, TeamPhotoPrefix}
 
 // Storage is the minimal surface the API needs from an object store.
 type Storage interface {
@@ -127,17 +132,30 @@ func NewFromEnv(ctx context.Context) (Storage, error) {
 
 // NewMenuImageKey returns a random, collision-free key for a menu image.
 func NewMenuImageKey(extension string) (string, error) {
+	return NewImageKey(MenuImagePrefix, extension)
+}
+
+// NewImageKey returns a random, collision-free key under prefix.
+func NewImageKey(prefix, extension string) (string, error) {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
 		return "", fmt.Errorf("generating image key: %w", err)
 	}
-	return MenuImagePrefix + hex.EncodeToString(buf) + extension, nil
+	return prefix + hex.EncodeToString(buf) + extension, nil
 }
 
 // IsManagedKey reports whether value is an object key this API stored, as
 // opposed to an external URL (e.g. a placeholder) it must never delete.
 func IsManagedKey(value string) bool {
-	return strings.HasPrefix(value, MenuImagePrefix) && !strings.Contains(value, "://")
+	if strings.Contains(value, "://") {
+		return false
+	}
+	for _, prefix := range managedPrefixes {
+		if strings.HasPrefix(value, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // ResolveURL turns a stored image value into the URL clients load: managed

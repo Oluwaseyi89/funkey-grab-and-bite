@@ -113,9 +113,20 @@ func TestIsManagedKey(t *testing.T) {
 		"https://x.test/menu-items/a.jpg":    false,
 		"other/a.jpg":                        false,
 		"menu-items/https://evil.test/a.jpg": false,
+		"team/b.webp":                        true,
 	} {
 		if got := IsManagedKey(value); got != want {
 			t.Errorf("IsManagedKey(%q) = %t, want %t", value, got, want)
 		}
+	}
+}
+
+func TestNewImageKeyForTeamPhotos(t *testing.T) {
+	key, err := NewImageKey(TeamPhotoPrefix, ".png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`^team/[0-9a-f]{32}\.png$`).MatchString(key) || !IsManagedKey(key) {
+		t.Fatalf("unexpected team photo key %q", key)
 	}
 }

@@ -27,9 +27,11 @@
             v-show="openIndex === index"
             class="px-6 pb-4 text-gray-600 dark:text-gray-400"
           >
-            <p v-for="(part, i) in faq.parts" :key="i">
-              <strong v-if="part.bold">{{ part.text }}</strong>
-              <template v-else>{{ part.text }}</template>
+            <p>
+              <template v-for="(part, i) in faq.parts" :key="i">
+                <strong v-if="part.bold">{{ part.text }}</strong>
+                <template v-else>{{ part.text }}</template>
+              </template>
             </p>
           </div>
         </div>
@@ -57,49 +59,43 @@
     {
       question: 'How far in advance should I book?',
       parts: [
-        { text: 'We recommend booking at least ' },
-        { text: '2 weeks in advance', bold: true },
-        { text: ' for small events and ' },
-        { text: '4-6 weeks', bold: true },
-        { text: ' for large events or weddings. Last-minute bookings may be available based on our schedule.' }
+        { text: 'Each package shows its minimum notice. Custom requests need at least ' },
+        { text: '3 days', bold: true },
+        { text: ", and more for large events. The request form only offers dates we can cater." }
       ]
     },
     {
-      question: 'What is included in the catering packages?',
+      question: 'What is the difference between a package and a custom request?',
       parts: [
-        { text: 'All packages include food, serving utensils, basic table setup, and staff. Premium and Executive packages include additional menu options, professional staff, and extended service hours. See package details for specifics.' }
+        { text: 'A package has a set price per guest, a guest range and a list of dishes to choose from, so you see an estimate straight away. A custom request lets you describe any menu and service you want, and we quote for it.' }
       ]
     },
     {
-      question: 'Do you provide alcoholic beverages?',
+      question: 'How is the price decided?',
       parts: [
-        { text: "We can arrange bar service through our licensed partners. Additional fees and permits may apply. We'll discuss your beverage needs during the consultation." }
+        { text: "For packages, the estimate is the price per guest times the number of guests. We review every request and send you a quote with the final price before anything is confirmed." }
       ]
     },
     {
-      question: 'Can you accommodate dietary restrictions?',
+      question: 'Can you accommodate dietary needs?',
       parts: [
-        { text: 'Absolutely! We can accommodate vegetarian, vegan, gluten-free, halal, and other dietary needs. Please mention any restrictions in your special requests.' }
+        { text: 'Yes. Tick vegetarian, vegan, halal, no pork, nut-free, gluten-free or dairy-free on the form, and add any allergies in the notes.' }
       ]
     },
     {
-      question: 'What is your cancellation policy?',
+      question: 'Do you serve at the venue or just deliver?',
       parts: [
-        { text: 'Cancellations made ' },
-        { text: '7+ days', bold: true },
-        { text: ' before the event receive a full refund. ' },
-        { text: '3-6 days', bold: true },
-        { text: " receive 50% refund. Less than 48 hours is non-refundable." }
+        { text: 'Both. Choose drop-off (food delivered ready to serve), a buffet with our staff, or full service with servers, setup and cleanup.' }
       ]
     },
     {
-      question: 'Do you provide setup and cleanup?',
+      question: 'How do I check or change my request?',
       parts: [
-        { text: "Yes! Our staff handles setup, food service, and cleanup. We'll coordinate with your venue for setup times and requirements." }
+        { text: "Use your reference and phone number on the Check your request page to see its status and quote. To change or cancel it, call us and quote your reference." }
       ]
     }
   ]
-  
+
   const toggleFAQ = (index: number) => {
     openIndex.value = openIndex.value === index ? null : index
   }

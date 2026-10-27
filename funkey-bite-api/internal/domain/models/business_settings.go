@@ -16,4 +16,5 @@ type BusinessSettingsUpdate struct {
 	IsDeliveryOpen       *bool           `json:"isDeliveryOpen,omitempty"`
 	IsPickupOpen         *bool           `json:"isPickupOpen,omitempty"`
 	PayOnDeliveryEnabled *bool           `json:"payOnDeliveryEnabled,omitempty"`
+	CateringTerms        *string         `json:"cateringTerms,omitempty"`
 }

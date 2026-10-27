@@ -1,7 +1,16 @@
 import type { Ref } from 'vue'
 import { ref } from 'vue'
 import type { MenuCategory, MenuItem } from '~/types/menu'
-import type { Order, CateringRequest, OrderCreatePayload, OrderLookupResult } from '~/types/order'
+import type { Order, OrderCreatePayload, OrderLookupResult } from '~/types/order'
+import type {
+  CateringBooking,
+  CateringBookingAuth,
+  CateringPackage,
+  CateringPaymentCharge,
+  CateringRequest,
+  CateringRequestPayload,
+} from '~/types/catering'
+import type { TeamMember } from '~/types/team'
 import type { BusinessSettings } from '~/types/settings'
 import { mockCategories, mockMenuItems, mockOrders, mockPromotions } from './mockData'
 import { useNuxtApp, useRuntimeConfig } from 'nuxt/app'
@@ -98,46 +107,6 @@ type BackendOrder = {
   deliveryFee?: number
   taxAmount?: number
   discountAmount?: number
-}
-
-type BackendCateringRequest = {
-  id: string | number
-  eventName?: string
-  event_name?: string
-  contactName: string
-  contact_name?: string
-  contactPhone: string
-  contact_phone?: string
-  contactEmail?: string
-  contact_email?: string
-  eventDate: string
-  event_date?: string
-  eventTime?: string
-  event_time?: string
-  guestCount: number
-  guest_count?: number
-  eventType: string
-  event_type?: string
-  budget?: number
-  specialRequests?: string
-  special_requests?: string
-  status: CateringRequest['status']
-  createdAt: string
-  created_at?: string
-}
-
-type CateringRequestPayload = {
-  eventName?: string
-  contactName: string
-  contactPhone: string
-  contactEmail?: string
-  eventDate: string
-  eventTime?: string
-  guestCount: number
-  eventType: string
-  package?: string
-  budget?: number
-  specialRequests?: string
 }
 
 export class ApiService {
@@ -239,24 +208,6 @@ export class ApiService {
       deliveryFee: order.deliveryFee,
       taxAmount: order.taxAmount,
       discountAmount: order.discountAmount,
-    }
-  }
-
-  private normalizeCateringRequest(request: BackendCateringRequest): CateringRequest {
-    return {
-      id: String(request.id),
-      eventName: request.eventName ?? request.event_name,
-      contactName: request.contactName ?? request.contact_name ?? '',
-      contactPhone: request.contactPhone ?? request.contact_phone ?? '',
-      contactEmail: request.contactEmail ?? request.contact_email,
-      eventDate: request.eventDate ?? request.event_date ?? '',
-      eventTime: request.eventTime ?? request.event_time,
-      guestCount: request.guestCount ?? request.guest_count ?? 0,
-      eventType: request.eventType ?? request.event_type ?? '',
-      budget: request.budget,
-      specialRequests: request.specialRequests ?? request.special_requests,
-      status: request.status,
-      createdAt: request.createdAt ?? request.created_at ?? new Date().toISOString(),
     }
   }
 
@@ -470,23 +421,76 @@ export class ApiService {
     }
   }
 
+  // Catering packages are the admin's offer; with none (or the API down) the
+  // page still takes custom requests, so this never falls back to demo data.
+  async getCateringPackages(): Promise<CateringPackage[] | null> {
+    try {
+      return await this.fetchJSON<CateringPackage[]>('/catering/packages')
+    } catch (err) {
+      console.warn('[API] Could not load catering packages:', err instanceof Error ? err.message : err)
+      return null
+    }
+  }
+
+  // The team section only shows real people added by the admin, so there is
+  // no demo fallback: on failure the section is simply hidden.
+  async getTeamMembers(): Promise<TeamMember[]> {
+    try {
+      return await this.fetchJSON<TeamMember[]>('/team')
+    } catch (err) {
+      console.warn('[API] Could not load team members:', err instanceof Error ? err.message : err)
+      return []
+    }
+  }
+
+  // Never pretends to succeed: a customer must know if their request was not sent.
   async submitCateringRequest(req: CateringRequestPayload): Promise<CateringRequest> {
     try {
-      const payload = await this.fetchJSON<BackendCateringRequest>('/catering/requests', {
+      return await this.fetchJSON<CateringRequest>('/catering/requests', {
         method: 'POST',
         headers: this.headers,
         body: JSON.stringify(req),
       })
-      return this.normalizeCateringRequest(payload)
     } catch (err) {
       if (this.isBackendUnavailableError(err)) {
         this.markBackendUnavailable()
-        this.notifyFallback('/catering/requests', 'backend-unavailable', false)
-        return { ...req, id: Math.random().toString(36).substr(2, 9), status: 'pending', createdAt: new Date().toISOString() }
+        throw new Error('We could not reach our server, so your request was not sent. Please try again or call us.')
       }
-
       throw err
     }
+  }
+
+  // The customer's request, quote, invoice and payments. The token or phone
+  // goes in the body so it stays out of URLs and logs. Null when nothing
+  // matches the reference and phone.
+  async getCateringBooking(auth: CateringBookingAuth): Promise<CateringBooking | null> {
+    try {
+      return await this.fetchJSON<CateringBooking>('/catering/booking', {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify(auth),
+      })
+    } catch (err) {
+      if (err instanceof Error && /request not found/i.test(err.message)) return null
+      throw err
+    }
+  }
+
+  async acceptCateringQuote(auth: CateringBookingAuth): Promise<CateringBooking> {
+    return this.fetchJSON<CateringBooking>('/catering/booking/accept', {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({ ...auth, agreeToTerms: true }),
+    })
+  }
+
+  // A bank account to transfer the deposit or balance to.
+  async payCateringOnline(auth: CateringBookingAuth, portion: 'deposit' | 'balance'): Promise<CateringPaymentCharge> {
+    return this.fetchJSON<CateringPaymentCharge>('/catering/booking/pay', {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({ ...auth, portion }),
+    })
   }
 
   async getActivePromotions(): Promise<any[]> {

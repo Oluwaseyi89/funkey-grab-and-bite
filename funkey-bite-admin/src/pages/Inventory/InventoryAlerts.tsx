@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getInventoryAlerts, updateCateringStatus } from '../../api/adminApi';
+import { getInventoryAlerts } from '../../api/adminApi';
 import type { InventoryAlert } from '../../types';
 import { useInventoryStore } from '../../stores/inventoryStore';
 

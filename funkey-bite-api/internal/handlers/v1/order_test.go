@@ -13,6 +13,7 @@ import (
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
+	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,6 +27,8 @@ type fakePaymentService struct {
 	capturedBody      []byte
 	capturedSignature string
 }
+
+func (f *fakePaymentService) SetCateringHandler(services.CateringPaymentHandler) {}
 
 func (f *fakePaymentService) InitiateTransferPayment(order *models.Order) (*models.Order, error) {
 	if f.initiateErr != nil {

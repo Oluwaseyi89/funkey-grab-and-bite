@@ -174,6 +174,7 @@ const OrderCalendar: React.FC = () => {
     switch (status) {
       case 'completed':
       case 'confirmed':
+      case 'paid':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'cancelled':
       case 'declined':

@@ -26,12 +26,20 @@ type PaymentService interface {
 	// must be the exact, unparsed request body — the signature is computed over
 	// those exact bytes.
 	HandleWebhook(rawBody []byte, signature string) error
+	// SetCateringHandler routes catering payments, which share the webhook,
+	// to the catering contract service.
+	SetCateringHandler(handler CateringPaymentHandler)
 }
+
+// CateringPaymentHandler records a confirmed catering transfer; handled is
+// false when the reference is not a catering payment.
+type CateringPaymentHandler func(reference string, amountKobo int64) (handled bool, err error)
 
 type paymentService struct {
 	gateway             utils.PaymentGateway
 	orderRepo           repository.IOrderRepository
 	notificationService NotificationService
+	catering            CateringPaymentHandler
 }
 
 func NewPaymentService(gateway utils.PaymentGateway, orderRepo repository.IOrderRepository, notificationService NotificationService) PaymentService {
@@ -40,6 +48,10 @@ func NewPaymentService(gateway utils.PaymentGateway, orderRepo repository.IOrder
 		orderRepo:           orderRepo,
 		notificationService: notificationService,
 	}
+}
+
+func (s *paymentService) SetCateringHandler(handler CateringPaymentHandler) {
+	s.catering = handler
 }
 
 func (s *paymentService) InitiateTransferPayment(order *models.Order) (*models.Order, error) {
@@ -95,6 +107,13 @@ func (s *paymentService) HandleWebhook(rawBody []byte, signature string) error {
 
 	if event.Data.Reference == "" {
 		return fmt.Errorf("webhook charge.success event carried no reference")
+	}
+
+	if s.catering != nil {
+		handled, err := s.catering(event.Data.Reference, event.Data.Amount)
+		if handled {
+			return err
+		}
 	}
 
 	order, err := s.orderRepo.GetOrderByPaymentReference(event.Data.Reference)

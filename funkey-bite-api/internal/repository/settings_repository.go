@@ -25,7 +25,7 @@ func (r *SettingsRepository) GetSettings() (*models.BusinessSettings, error) {
         SELECT id, business_name, phone_number, email, address, city, state,
                postal_code, country, opening_hours, delivery_fee,
                min_order_amount, tax_rate, is_delivery_open, is_pickup_open,
-               pay_on_delivery_enabled, created_at, updated_at
+               pay_on_delivery_enabled, catering_terms, created_at, updated_at
         FROM business_settings
         ORDER BY id DESC
         LIMIT 1
@@ -53,6 +53,7 @@ func (r *SettingsRepository) GetSettings() (*models.BusinessSettings, error) {
 		&settings.IsDeliveryOpen,
 		&settings.IsPickupOpen,
 		&settings.PayOnDeliveryEnabled,
+		&settings.CateringTerms,
 		&settings.CreatedAt,
 		&settings.UpdatedAt,
 	)
@@ -153,6 +154,11 @@ func (r *SettingsRepository) UpdateSettings(updates *models.BusinessSettingsUpda
 	if updates.IsPickupOpen != nil {
 		query += fmt.Sprintf("is_pickup_open = $%d, ", paramCount)
 		params = append(params, *updates.IsPickupOpen)
+		paramCount++
+	}
+	if updates.CateringTerms != nil {
+		query += fmt.Sprintf("catering_terms = $%d, ", paramCount)
+		params = append(params, *updates.CateringTerms)
 		paramCount++
 	}
 	if updates.PayOnDeliveryEnabled != nil {

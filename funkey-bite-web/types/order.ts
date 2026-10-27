@@ -115,19 +115,3 @@ export interface OrderItem {
   unitPrice: number
   specialInstructions?: string
 }
-
-export interface CateringRequest {
-  id: string
-  eventName?: string
-  contactName: string
-  contactPhone: string
-  contactEmail?: string
-  eventDate: string
-  eventTime?: string
-  guestCount: number
-  eventType: string
-  budget?: number
-  specialRequests?: string
-  status: 'pending' | 'confirmed' | 'declined' | 'completed'
-  createdAt: string
-}
