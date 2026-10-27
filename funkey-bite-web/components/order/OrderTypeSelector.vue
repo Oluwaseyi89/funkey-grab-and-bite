@@ -1,7 +1,7 @@
 <template>
     <div>
       <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Order Type</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <button
           v-for="type in orderTypes"
           :key="type.id"
@@ -16,16 +16,20 @@
           <component :is="type.icon" class="w-10 h-10 mx-auto mb-3" :class="type.iconClass" />
           <h4 class="font-bold text-gray-900 dark:text-white mb-1">{{ type.name }}</h4>
           <p class="text-sm text-gray-600 dark:text-gray-400">{{ type.description }}</p>
-          <div v-if="type.fee" class="mt-2 text-brand-500 font-medium">
-            +₦{{ type.fee }} fee
+          <div v-if="type.id === 'delivery' && deliveryFee" class="mt-2 text-brand-500 font-medium">
+            +₦{{ deliveryFee.toLocaleString('en-NG') }} fee
           </div>
         </button>
       </div>
+      <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">
+        Planning an event or a large order?
+        <NuxtLink to="/catering" class="text-brand-500 hover:text-brand-600 font-medium">Request catering</NuxtLink>
+      </p>
     </div>
   </template>
   
   <script setup lang="ts">
-  import { Store, Truck, Users } from 'lucide-vue-next'
+  import { Store, Truck } from 'lucide-vue-next'
   import type { OrderType } from '../../types/order'
   
   const orderTypes = [
@@ -35,7 +39,6 @@
       description: 'Order online, pick up in-store',
       icon: Store,
       iconClass: 'text-blue-500',
-      fee: 0
     },
     {
       id: 'delivery' as OrderType,
@@ -43,20 +46,14 @@
       description: 'Get it delivered to your door',
       icon: Truck,
       iconClass: 'text-green-500',
-      fee: 5600
     },
-    {
-      id: 'catering' as OrderType,
-      name: 'Catering',
-      description: 'For events & large orders',
-      icon: Users,
-      iconClass: 'text-purple-500',
-      fee: 0
-    }
   ]
   
+  // Catering has its own request flow on the catering page, so the cart only
+  // offers pickup and delivery. The fee comes from the business settings.
   defineProps<{
     selectedType?: OrderType
+    deliveryFee?: number
   }>()
   
   defineEmits<{
