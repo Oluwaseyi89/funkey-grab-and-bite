@@ -55,6 +55,8 @@ type BusinessSettings struct {
 	// PayOnDeliveryEnabled lets customers pay on delivery or at pickup instead
 	// of paying online.
 	PayOnDeliveryEnabled bool `json:"payOnDeliveryEnabled" db:"pay_on_delivery_enabled"`
+	// CateringTerms are the default terms copied onto each catering quote.
+	CateringTerms string `json:"cateringTerms" db:"catering_terms"`
 	// Timezone is the IANA zone the opening hours are in (BUSINESS_TIMEZONE);
 	// it is configuration, not a column.
 	Timezone  string    `json:"timezone" db:"-"`
