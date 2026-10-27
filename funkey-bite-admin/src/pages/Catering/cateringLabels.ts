@@ -1,4 +1,4 @@
-import type { CateringStatus, ServiceStyle } from '../../types';
+import type { CateringPaymentMethod, CateringStatus, ServiceStyle } from '../../types';
 
 export const SERVICE_STYLE_LABELS: Record<ServiceStyle, string> = {
   drop_off: 'Drop-off (food only)',
@@ -31,20 +31,32 @@ export const DIETARY_LABELS: Record<string, string> = {
 export const STATUS_STYLES: Record<CateringStatus, { label: string; className: string }> = {
   pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200' },
   quoted: { label: 'Quoted', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200' },
+  accepted: { label: 'Accepted', className: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200' },
   confirmed: { label: 'Confirmed', className: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200' },
+  paid: { label: 'Paid', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' },
   declined: { label: 'Declined', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200' },
   completed: { label: 'Completed', className: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' },
   cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
 };
 
-// The statuses a request can move to next.
-export const NEXT_STATUSES: Record<CateringStatus, CateringStatus[]> = {
-  pending: ['quoted', 'confirmed', 'declined', 'cancelled'],
-  quoted: ['confirmed', 'declined', 'cancelled', 'pending'],
-  confirmed: ['completed', 'cancelled'],
+// The statuses an admin can set by hand; quoted, accepted, confirmed and
+// paid follow from quotes and payments. Mirrors the API's rules.
+export const MANUAL_STATUSES: Record<CateringStatus, CateringStatus[]> = {
+  pending: ['declined', 'cancelled'],
+  quoted: ['declined', 'cancelled'],
+  accepted: ['cancelled'],
+  confirmed: ['cancelled'],
+  paid: ['completed', 'cancelled'],
   declined: ['pending'],
   completed: [],
   cancelled: ['pending'],
+};
+
+export const PAYMENT_METHOD_LABELS: Record<CateringPaymentMethod, string> = {
+  cash: 'Cash',
+  bank_transfer: 'Bank transfer',
+  paystack_transfer: 'Online transfer',
+  card: 'Card',
 };
 
 export const eventTypeLabel = (eventType: string, other?: string) =>
