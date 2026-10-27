@@ -1,4 +1,14 @@
-export type CateringStatus = 'pending' | 'quoted' | 'confirmed' | 'declined' | 'completed' | 'cancelled'
+// pending → quoted → accepted (invoice issued) → confirmed (deposit paid)
+// → paid (in full; receipt issued) → completed
+export type CateringStatus =
+  | 'pending'
+  | 'quoted'
+  | 'accepted'
+  | 'confirmed'
+  | 'paid'
+  | 'declined'
+  | 'completed'
+  | 'cancelled'
 export type CateringRequestType = 'package' | 'custom'
 export type ServiceStyle = 'drop_off' | 'buffet' | 'full_service'
 
@@ -79,8 +89,72 @@ export interface CateringRequest {
   dietaryRequirements: string[]
   estimatedTotal?: number
   quotedAmount?: number
+  invoiceNumber?: string
+  contractedAt?: string
+  paidInFullAt?: string
   status: CateringStatus
   createdAt: string
+}
+
+export interface CateringQuote {
+  id: number
+  version: number
+  amount: number
+  lineItems: { description: string; amount: number }[]
+  depositPercent: number
+  depositAmount: number
+  terms: string
+  message?: string
+  validUntil: string
+  status: 'sent' | 'accepted' | 'superseded' | 'withdrawn'
+  isExpired: boolean
+  acceptedAt?: string
+  createdAt: string
+}
+
+export interface CateringPayment {
+  id: number
+  amount: number
+  method: 'cash' | 'bank_transfer' | 'paystack_transfer' | 'card'
+  paidAt: string
+}
+
+export interface CateringPaymentCharge {
+  reference: string
+  amount: number
+  accountNumber?: string
+  accountName?: string
+  bankName?: string
+  expiresAt?: string
+  status: 'pending' | 'paid'
+}
+
+// The customer's view of their request, quote and payments.
+export interface CateringBooking {
+  request: CateringRequest
+  quote?: CateringQuote
+  account?: {
+    total: number
+    depositDue: number
+    amountPaid: number
+    balance: number
+    depositRemaining: number
+  }
+  payments: CateringPayment[]
+  invoice?: { invoiceNumber: string; version: number; issuedAt: string; balance: number }
+  receipt?: { receiptNumber: string; totalPaid: number; issuedAt: string }
+  pendingCharge?: CateringPaymentCharge
+}
+
+// Identifies the customer: the link from their quote email, or their
+// reference and phone number.
+export type CateringBookingAuth = { token: string } | { reference: string; phone: string }
+
+export const PAYMENT_METHOD_LABELS: Record<CateringPayment['method'], string> = {
+  cash: 'Cash',
+  bank_transfer: 'Bank transfer',
+  paystack_transfer: 'Online transfer',
+  card: 'Card',
 }
 
 export const SERVICE_STYLES: { id: ServiceStyle; name: string; description: string }[] = [
@@ -113,8 +187,10 @@ export const DIETARY_OPTIONS: { id: string; name: string }[] = [
 
 export const CATERING_STATUS_LABELS: Record<CateringStatus, string> = {
   pending: 'Received — we will be in touch',
-  quoted: 'Quote sent',
-  confirmed: 'Confirmed',
+  quoted: 'Quote ready for you',
+  accepted: 'Quote accepted — deposit due',
+  confirmed: 'Booking confirmed',
+  paid: 'Paid in full',
   declined: 'Declined',
   completed: 'Completed',
   cancelled: 'Cancelled',
