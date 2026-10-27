@@ -13,14 +13,33 @@ import {
   Building2,
   Utensils,
   AlertCircle,
+  FileText,
+  Wallet,
+  History,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getCateringRequest, updateCateringRequest } from '../../api/adminApi';
-import type { CateringRequest, CateringRequestUpdate, CateringStatus } from '../../types';
+import {
+  changeCateringStatus,
+  getCateringContract,
+  recordCateringPayment,
+  sendCateringQuote,
+  updateCateringRequest,
+} from '../../api/adminApi';
+import { useBusinessSettings } from '../../hooks/useBusinessSettings';
+import type { CateringContract, CateringRequest, CateringStatus } from '../../types';
+import {
+  AccountSummary,
+  DocumentsList,
+  PaymentForm,
+  PaymentsLedger,
+  QuoteComposer,
+  QuoteHistory,
+  StatusHistory,
+} from './CateringContractPanels';
 import {
   DIETARY_LABELS,
-  NEXT_STATUSES,
+  MANUAL_STATUSES,
   SERVICE_STYLE_LABELS,
   STATUS_STYLES,
   eventTypeLabel,
@@ -45,55 +64,21 @@ const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, ch
   </div>
 );
 
-const STATUS_ACTION_LABELS: Record<CateringStatus, string> = {
+const STATUS_ACTION_LABELS: Partial<Record<CateringStatus, string>> = {
   pending: 'Reopen',
-  quoted: 'Mark as quoted',
-  confirmed: 'Confirm booking',
   declined: 'Decline',
   completed: 'Mark completed',
-  cancelled: 'Cancel',
+  cancelled: 'Cancel booking',
 };
 
-interface FollowUpProps {
+interface NotesFormProps {
   request: CateringRequest;
   saving: boolean;
-  onSave: (update: CateringRequestUpdate) => void;
+  onSave: (notes: string) => void;
 }
 
-// Keyed on the request's last update, so it starts from the saved values.
-const QuoteForm: React.FC<FollowUpProps> = ({ request, saving, onSave }) => {
-  const [quote, setQuote] = useState(request.quotedAmount != null ? String(request.quotedAmount) : '');
-  const quoteValue = quote.trim() === '' ? undefined : Number(quote);
-  const quoteInvalid = quoteValue !== undefined && (!Number.isFinite(quoteValue) || quoteValue < 0);
-
-  return (
-    <div className="mt-3 print:hidden">
-      <label htmlFor="quoted-amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your quote (₦)</label>
-      <div className="flex gap-2">
-        <input
-          id="quoted-amount"
-          type="number"
-          min={0}
-          step={500}
-          value={quote}
-          onChange={(e) => setQuote(e.target.value)}
-          className="flex-1 min-w-0 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-        />
-        <button
-          disabled={quoteValue === undefined || quoteInvalid || saving}
-          onClick={() => onSave({ quotedAmount: quoteValue, ...(request.status === 'pending' ? { status: 'quoted' as const } : {}) })}
-          className="px-3 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg disabled:opacity-50"
-        >
-          {request.status === 'pending' ? 'Send quote' : 'Save'}
-        </button>
-      </div>
-      {quoteInvalid && <p className="mt-1 text-sm text-red-600">Enter a valid amount</p>}
-      <p className="mt-1 text-xs text-gray-500">Share the quote with the customer by phone or email.</p>
-    </div>
-  );
-};
-
-const NotesForm: React.FC<FollowUpProps> = ({ request, saving, onSave }) => {
+// Keyed on the request's last update, so it starts from the saved notes.
+const NotesForm: React.FC<NotesFormProps> = ({ request, saving, onSave }) => {
   const [notes, setNotes] = useState(request.adminNotes ?? '');
 
   return (
@@ -109,7 +94,7 @@ const NotesForm: React.FC<FollowUpProps> = ({ request, saving, onSave }) => {
       <div className="flex justify-end mt-2 print:hidden">
         <button
           disabled={notes === (request.adminNotes ?? '') || saving}
-          onClick={() => onSave({ adminNotes: notes })}
+          onClick={() => onSave(notes)}
           className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg disabled:opacity-50"
         >
           Save notes
@@ -125,27 +110,54 @@ const CateringDetails: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: request, isLoading, isError } = useQuery({
+  const { settings } = useBusinessSettings();
+
+  const { data: contract, isLoading, isError } = useQuery({
     queryKey: ['catering-request', requestId],
-    queryFn: () => getCateringRequest(requestId),
+    queryFn: () => getCateringContract(requestId),
     enabled: Number.isInteger(requestId) && requestId > 0,
   });
+  const request = contract?.request;
 
-  const mutation = useMutation({
-    mutationFn: (update: CateringRequestUpdate) => updateCateringRequest(requestId, update),
+  const onContract = (message: string) => (updated: CateringContract) => {
+    queryClient.setQueryData(['catering-request', requestId], updated);
+    queryClient.invalidateQueries({ queryKey: ['catering-requests'] });
+    toast.success(message);
+  };
+  const onError = (error: Error) => toast.error(error.message || 'Something went wrong');
+
+  const notesMutation = useMutation({
+    mutationFn: (adminNotes: string) => updateCateringRequest(requestId, { adminNotes }),
     onSuccess: (updated: CateringRequest) => {
-      queryClient.setQueryData(['catering-request', requestId], updated);
-      queryClient.invalidateQueries({ queryKey: ['catering-requests'] });
-      toast.success('Catering request updated');
+      queryClient.setQueryData<CateringContract>(['catering-request', requestId], (current) =>
+        current ? { ...current, request: updated } : current,
+      );
+      toast.success('Notes saved');
     },
-    onError: (error: Error) => toast.error(error.message || 'Failed to update request'),
+    onError,
   });
+  const quoteMutation = useMutation({
+    mutationFn: (input: Parameters<typeof sendCateringQuote>[1]) => sendCateringQuote(requestId, input),
+    onSuccess: onContract('Quote sent to the customer'),
+    onError,
+  });
+  const paymentMutation = useMutation({
+    mutationFn: (input: Parameters<typeof recordCateringPayment>[1]) => recordCateringPayment(requestId, input),
+    onSuccess: onContract('Payment recorded'),
+    onError,
+  });
+  const statusMutation = useMutation({
+    mutationFn: ({ status, note }: { status: CateringStatus; note?: string }) => changeCateringStatus(requestId, status, note),
+    onSuccess: onContract('Status updated'),
+    onError,
+  });
+  const saving = quoteMutation.isPending || paymentMutation.isPending || statusMutation.isPending;
 
   if (isLoading) {
     return <div className="p-8 text-center text-gray-500">Loading catering request…</div>;
   }
 
-  if (isError || !request) {
+  if (isError || !contract || !request) {
     return (
       <div className="text-center py-12">
         <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -162,12 +174,17 @@ const CateringDetails: React.FC = () => {
   const venue = [request.venueAddress, request.venueArea, request.venueState].filter(Boolean).join(', ');
   const mapsUrl = venue ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue)}` : '';
 
+  const canQuote = request.status === 'pending' || request.status === 'quoted';
+  const paymentDue = (request.status === 'accepted' || request.status === 'confirmed') && contract.account;
+
   const changeStatus = (next: CateringStatus) => {
-    if (next === 'quoted' && request.quotedAmount == null) {
-      toast.error('Enter and save the quoted amount first');
-      return;
+    let note: string | undefined;
+    if (next === 'declined' || next === 'cancelled') {
+      const reason = window.prompt(`Reason for ${next === 'declined' ? 'declining' : 'cancelling'} (shown in the history)`);
+      if (reason === null) return;
+      note = reason.trim() || undefined;
     }
-    mutation.mutate({ status: next });
+    statusMutation.mutate({ status: next, note });
   };
 
   return (
@@ -273,19 +290,53 @@ const CateringDetails: React.FC = () => {
           <Section title="Price" icon={<span className="text-primary-500 font-bold">₦</span>}>
             <Row label="Package estimate">{naira(request.estimatedTotal)}</Row>
             <Row label="Customer budget">{naira(request.budget)}</Row>
-            <Row label="Quoted amount">{naira(request.quotedAmount)}</Row>
-            <QuoteForm key={formKey} request={request} saving={mutation.isPending} onSave={mutation.mutate} />
+            {contract.quote && (
+              <Row label={contract.quote.status === 'accepted' ? 'Accepted quote' : `Open quote v${contract.quote.version}`}>
+                {naira(contract.quote.amount)}
+                {contract.quote.isExpired && <span className="ml-1 text-xs text-red-600">expired</span>}
+              </Row>
+            )}
+            {canQuote && (
+              <div className="mt-4">
+                <QuoteComposer
+                  key={`${formKey}-${contract.quote?.id ?? 0}-${settings ? 'terms' : ''}`}
+                  contract={contract}
+                  defaultTerms={settings?.cateringTerms ?? ''}
+                  saving={saving}
+                  onSend={quoteMutation.mutate}
+                />
+              </div>
+            )}
+          </Section>
+
+          {contract.account && (
+            <Section title="Account" icon={<Wallet className="h-5 w-5 text-primary-500" />}>
+              <AccountSummary contract={contract} />
+              {paymentDue && contract.account.balance > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <PaymentForm key={`${contract.account.balance}`} balance={contract.account.balance} saving={saving} onRecord={paymentMutation.mutate} />
+                </div>
+              )}
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Payments</h3>
+                <PaymentsLedger contract={contract} />
+              </div>
+            </Section>
+          )}
+
+          <Section title="Invoices & receipt" icon={<FileText className="h-5 w-5 text-primary-500" />}>
+            <DocumentsList contract={contract} business={settings} />
           </Section>
 
           <Section title="Status" icon={<Clock className="h-5 w-5 text-primary-500" />}>
             <div className="flex flex-wrap gap-2 print:hidden">
-              {NEXT_STATUSES[request.status].length === 0 && (
-                <p className="text-sm text-gray-500">This request is completed.</p>
+              {MANUAL_STATUSES[request.status].length === 0 && (
+                <p className="text-sm text-gray-500">This booking is completed.</p>
               )}
-              {NEXT_STATUSES[request.status].map((next) => (
+              {MANUAL_STATUSES[request.status].map((next) => (
                 <button
                   key={next}
-                  disabled={mutation.isPending}
+                  disabled={saving}
                   onClick={() => changeStatus(next)}
                   className={`px-3 py-2 text-sm rounded-lg border transition-colors disabled:opacity-50 ${
                     next === 'declined' || next === 'cancelled'
@@ -293,14 +344,25 @@ const CateringDetails: React.FC = () => {
                       : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
-                  {STATUS_ACTION_LABELS[next]}
+                  {STATUS_ACTION_LABELS[next] ?? next}
                 </button>
               ))}
+            </div>
+            <p className="mt-2 text-xs text-gray-500 print:hidden">
+              Quoted, accepted, confirmed and paid are set by quotes, the customer's acceptance and payments.
+            </p>
+          </Section>
+
+          <Section title="History" icon={<History className="h-5 w-5 text-primary-500" />}>
+            <StatusHistory contract={contract} />
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Quotes</h3>
+              <QuoteHistory contract={contract} />
             </div>
           </Section>
 
           <Section title="Internal notes" icon={<AlertCircle className="h-5 w-5 text-primary-500" />}>
-            <NotesForm key={formKey} request={request} saving={mutation.isPending} onSave={mutation.mutate} />
+            <NotesForm key={formKey} request={request} saving={notesMutation.isPending} onSave={notesMutation.mutate} />
           </Section>
         </div>
       </div>
