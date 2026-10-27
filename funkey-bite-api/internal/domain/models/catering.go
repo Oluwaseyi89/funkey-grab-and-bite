@@ -4,12 +4,16 @@ import "time"
 
 type CateringStatus string
 
-// A request moves pending → quoted → confirmed → completed; it can be
-// declined by the business or cancelled by the customer before it happens.
+// A request moves pending → quoted → accepted (quote accepted, invoice
+// issued) → confirmed (deposit paid: the contract) → paid (in full, receipt
+// issued) → completed. It can be declined or cancelled before completion.
+// accepted, confirmed and paid are only ever set by the system.
 const (
 	CateringStatusPending   CateringStatus = "pending"
 	CateringStatusQuoted    CateringStatus = "quoted"
+	CateringStatusAccepted  CateringStatus = "accepted"
 	CateringStatusConfirmed CateringStatus = "confirmed"
+	CateringStatusPaid      CateringStatus = "paid"
 	CateringStatusDeclined  CateringStatus = "declined"
 	CateringStatusCompleted CateringStatus = "completed"
 	CateringStatusCancelled CateringStatus = "cancelled"
@@ -18,8 +22,8 @@ const (
 // IsValidCateringStatus reports whether status is a known request status.
 func IsValidCateringStatus(status string) bool {
 	switch CateringStatus(status) {
-	case CateringStatusPending, CateringStatusQuoted, CateringStatusConfirmed,
-		CateringStatusDeclined, CateringStatusCompleted, CateringStatusCancelled:
+	case CateringStatusPending, CateringStatusQuoted, CateringStatusAccepted, CateringStatusConfirmed,
+		CateringStatusPaid, CateringStatusDeclined, CateringStatusCompleted, CateringStatusCancelled:
 		return true
 	}
 	return false
@@ -132,6 +136,10 @@ type CateringRequest struct {
 	EstimatedTotal      *float64               `json:"estimatedTotal,omitempty"`
 	QuotedAmount        *float64               `json:"quotedAmount,omitempty"`
 	AdminNotes          *string                `json:"adminNotes,omitempty"`
+	AcceptedQuoteID     *int                   `json:"acceptedQuoteId,omitempty"`
+	InvoiceNumber       *string                `json:"invoiceNumber,omitempty"`
+	ContractedAt        *time.Time             `json:"contractedAt,omitempty"`
+	PaidInFullAt        *time.Time             `json:"paidInFullAt,omitempty"`
 	Status              CateringStatus         `json:"status"`
 	CreatedAt           time.Time              `json:"createdAt"`
 	UpdatedAt           *time.Time             `json:"updatedAt,omitempty"`
@@ -174,9 +182,8 @@ type CateringLookupRequest struct {
 }
 
 // CateringRequestUpdate is the admin's follow-up on a request; nil fields are
-// left unchanged.
+// left unchanged. Prices are set by sending a quote, not here.
 type CateringRequestUpdate struct {
-	Status       *string  `json:"status,omitempty"`
-	QuotedAmount *float64 `json:"quotedAmount,omitempty" validate:"omitempty,min=0"`
-	AdminNotes   *string  `json:"adminNotes,omitempty" validate:"omitempty,max=2000"`
+	Status     *string `json:"status,omitempty"`
+	AdminNotes *string `json:"adminNotes,omitempty" validate:"omitempty,max=2000"`
 }
