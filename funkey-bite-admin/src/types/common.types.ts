@@ -45,6 +45,8 @@ export interface PaginatedResponse<T> {
     isPickupOpen: boolean;
     /** Customers may pay on delivery / at pickup instead of online. */
     payOnDeliveryEnabled: boolean;
+    /** Default terms copied onto each catering quote. */
+    cateringTerms: string;
     /** IANA timezone the opening hours are in, e.g. "Africa/Lagos". */
     timezone: string;
     createdAt: string;
