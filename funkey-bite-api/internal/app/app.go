@@ -62,6 +62,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	menuRepo := repository.NewMenuRepository(db)
 	cateringRepo := repository.NewCateringRepository(db)
 	cateringPackageRepo := repository.NewCateringPackageRepository(db)
+	teamRepo := repository.NewTeamRepository(db)
 	adminRepo := repository.NewAdminRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	promotionRepo := repository.NewPromotionRepository(db)
@@ -93,6 +94,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	promotionService := services.NewPromotionService(promotionRepo)
 	paymentService := services.NewPaymentService(paymentGateway, orderRepo, notificationService)
 	invoiceService := services.NewInvoiceService(settingsService, emailService)
+	teamService := services.NewTeamService(teamRepo, imageStorage)
 
 	// Initialize handlers
 	authHandler := v1.NewAuthHandler(authService, userService)
@@ -100,6 +102,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	paymentHandler := v1.NewPaymentHandler(paymentService)
 	menuHandler := v1.NewMenuHandler(menuService)
 	cateringHandler := v1.NewCateringHandler(cateringService)
+	teamHandler := v1.NewTeamHandler(teamService)
 	adminHandler := v1.NewAdminHandler(adminService)
 	uploadHandler := v1.NewUploadHandler(imageStorage)
 	settingsHandler := v1.NewSettingsHandler(settingsService)
@@ -158,6 +161,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		public.GET("/settings/hours", settingsHandler.GetOpeningHours)
 
 		public.GET("/catering/packages", cateringHandler.ListPackages)
+		public.GET("/team", teamHandler.ListPublic)
 		public.POST("/catering/requests", cateringHandler.CreateRequest)
 		public.POST("/catering/requests/lookup", middleware.TrackingRateLimitMiddleware(), cateringHandler.LookupRequest)
 		public.GET("/promotions/validate", promotionHandler.ValidatePromotion)
@@ -220,6 +224,11 @@ func SetupEngine() (*gin.Engine, func()) {
 		admin.PUT("/menu/items/:id", adminHandler.UpdateMenuItem)
 		admin.DELETE("/menu/items/:id", adminHandler.DeleteMenuItem)
 		admin.POST("/uploads/menu-image", uploadHandler.UploadMenuImage)
+		admin.POST("/uploads/team-photo", uploadHandler.UploadTeamPhoto)
+		admin.GET("/team", teamHandler.ListAll)
+		admin.POST("/team", teamHandler.Create)
+		admin.PUT("/team/:id", teamHandler.Update)
+		admin.DELETE("/team/:id", teamHandler.Delete)
 		admin.POST("/menu/categories", adminHandler.CreateMenuCategory)
 		admin.PUT("/menu/categories/:id", adminHandler.UpdateMenuCategory)
 		admin.GET("/catering/requests", cateringHandler.GetAllRequests)
