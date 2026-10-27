@@ -254,13 +254,13 @@ func (h *CateringHandler) GetAllRequests(c *gin.Context) {
 
 // UpdateRequest records the admin's follow-up on a request
 // @Summary Update catering request
-// @Description Change a request's status, quoted amount or internal notes (admin only)
+// @Description Save the admin's internal notes on a request (admin only)
 // @Tags admin
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Catering Request ID"
-// @Param update body models.CateringRequestUpdate true "Status, quote and notes"
+// @Param update body models.CateringRequestUpdate true "Notes"
 // @Success 200 {object} models.CateringRequest
 // @Router /admin/catering/requests/{id} [patch]
 func (h *CateringHandler) UpdateRequest(c *gin.Context) {
@@ -283,38 +283,6 @@ func (h *CateringHandler) UpdateRequest(c *gin.Context) {
 	request, err := h.cateringService.UpdateRequest(id, &update)
 	if err != nil {
 		respondCateringError(c, err, "Failed to update catering request")
-		return
-	}
-	c.JSON(http.StatusOK, request)
-}
-
-// UpdateRequestStatus updates a catering request's status (admin only)
-// @Summary Update catering request status
-// @Tags admin
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Catering Request ID"
-// @Success 200 {object} models.CateringRequest
-// @Router /admin/catering/requests/{id}/status [patch]
-func (h *CateringHandler) UpdateRequestStatus(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request ID"})
-		return
-	}
-
-	var body struct {
-		Status string `json:"status" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Status is required"})
-		return
-	}
-
-	request, err := h.cateringService.UpdateRequest(id, &models.CateringRequestUpdate{Status: &body.Status})
-	if err != nil {
-		respondCateringError(c, err, "Failed to update status")
 		return
 	}
 	c.JSON(http.StatusOK, request)
