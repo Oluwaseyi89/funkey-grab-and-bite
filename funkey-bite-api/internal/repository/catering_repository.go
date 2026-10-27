@@ -204,11 +204,7 @@ func scanCateringRequest(row rowScanner) (*models.CateringRequest, error) {
 	request.EventType = eventType.String
 	request.EventDate = eventDate.Format("2006-01-02")
 	if eventTime.Valid {
-		// TIME columns read back as "15:04:05"; clients use "15:04".
-		t := eventTime.String
-		if len(t) >= 5 {
-			t = t[:5]
-		}
+		t := clockString(eventTime.String)
 		request.EventTime = &t
 	}
 	request.UserID = nullIntPtr(userID)
@@ -235,6 +231,18 @@ func scanCateringRequest(row rowScanner) (*models.CateringRequest, error) {
 	}
 
 	return &request, nil
+}
+
+// clockString turns a TIME column into "15:04". lib/pq reads TIME as
+// "0000-01-01T15:04:05Z"; other drivers return "15:04:05".
+func clockString(value string) string {
+	if t, err := time.Parse(time.RFC3339, value); err == nil {
+		return t.Format("15:04")
+	}
+	if len(value) >= 5 {
+		return value[:5]
+	}
+	return value
 }
 
 func nullIntPtr(v sql.NullInt64) *int {
