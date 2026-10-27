@@ -144,7 +144,10 @@ func (s *notificationService) SendCateringConfirmation(request *models.CateringR
 		email = *request.ContactEmail
 	}
 
-	requestID := fmt.Sprintf("CATER-%d", request.ID)
+	requestID := request.Reference
+	if requestID == "" {
+		requestID = fmt.Sprintf("CATER-%d", request.ID)
+	}
 
 	// Email-only — see SendOrderConfirmation for why SMS is reserved for status updates.
 	if email != "" {
