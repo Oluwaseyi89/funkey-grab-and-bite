@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { useSocket } from '../../contexts/SocketContext';
@@ -7,8 +9,22 @@ import { Bell, Wifi, WifiOff } from 'lucide-react';
 import { useBusinessSettings } from '../../hooks/useBusinessSettings';
 
 const Layout: React.FC = () => {
-  const { isConnected, isRealtimeEnabled } = useSocket();
+  const { socket, isConnected, isRealtimeEnabled } = useSocket();
   const { settings } = useBusinessSettings();
+  const queryClient = useQueryClient();
+
+  // New catering requests are announced on every page, not just Catering.
+  useEffect(() => {
+    if (!socket) return;
+    const handleNewCateringRequest = (request: { reference?: string; contactName?: string; guestCount?: number }) => {
+      toast.success(`New catering request ${request.reference ?? ''} from ${request.contactName ?? 'a customer'} (${request.guestCount ?? '?'} guests)`, { duration: 8000 });
+      queryClient.invalidateQueries({ queryKey: ['catering-requests'] });
+    };
+    socket.on('new_catering_request', handleNewCateringRequest);
+    return () => {
+      socket.off('new_catering_request', handleNewCateringRequest);
+    };
+  }, [socket, queryClient]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
