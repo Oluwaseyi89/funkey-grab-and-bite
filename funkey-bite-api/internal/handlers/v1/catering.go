@@ -55,8 +55,9 @@ var cateringFieldLabels = map[string]string{
 	"adminNotes": "Notes", "reference": "Reference", "phone": "Phone number",
 }
 
-// validationMessage turns the first validation failure into a sentence.
-func validationMessage(err error) string {
+// validationMessage turns the first validation failure into a sentence,
+// naming the field with labels.
+func validationMessage(err error, labels map[string]string) string {
 	var errs validator.ValidationErrors
 	if !errors.As(err, &errs) || len(errs) == 0 {
 		return "Please check the details and try again"
@@ -67,7 +68,7 @@ func validationMessage(err error) string {
 	if i := strings.Index(field, "["); i > 0 {
 		field = field[:i]
 	}
-	label, ok := cateringFieldLabels[field]
+	label, ok := labels[field]
 	if !ok {
 		label = field
 	}
@@ -127,7 +128,7 @@ func (h *CateringHandler) CreateRequest(c *gin.Context) {
 		return
 	}
 	if err := h.validate.Struct(input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": validationMessage(err)})
+		c.JSON(http.StatusBadRequest, gin.H{"error": validationMessage(err, cateringFieldLabels)})
 		return
 	}
 
@@ -275,7 +276,7 @@ func (h *CateringHandler) UpdateRequest(c *gin.Context) {
 		return
 	}
 	if err := h.validate.Struct(update); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": validationMessage(err)})
+		c.JSON(http.StatusBadRequest, gin.H{"error": validationMessage(err, cateringFieldLabels)})
 		return
 	}
 
@@ -428,7 +429,7 @@ func (h *CateringHandler) bindPackage(c *gin.Context) (*models.CateringPackageIn
 		return nil, false
 	}
 	if err := h.validate.Struct(input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": validationMessage(err)})
+		c.JSON(http.StatusBadRequest, gin.H{"error": validationMessage(err, cateringFieldLabels)})
 		return nil, false
 	}
 	return &input, true
