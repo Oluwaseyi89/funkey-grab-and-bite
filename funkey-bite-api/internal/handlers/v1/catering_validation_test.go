@@ -39,7 +39,7 @@ func TestCateringValidationMessagesAreReadable(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := handler.validate.Struct(tc.input)
-			if got := validationMessage(err); got != tc.want {
+			if got := validationMessage(err, cateringFieldLabels); got != tc.want {
 				t.Fatalf("validationMessage() = %q, want %q", got, tc.want)
 			}
 		})
