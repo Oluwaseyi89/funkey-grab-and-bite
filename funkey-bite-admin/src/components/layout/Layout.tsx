@@ -20,9 +20,21 @@ const Layout: React.FC = () => {
       toast.success(`New catering request ${request.reference ?? ''} from ${request.contactName ?? 'a customer'} (${request.guestCount ?? '?'} guests)`, { duration: 8000 });
       queryClient.invalidateQueries({ queryKey: ['catering-requests'] });
     };
+    // Quotes accepted and payments made by customers.
+    const handleCateringUpdate = (update: { reference?: string; status?: string; paymentReference?: string }) => {
+      if (update.status === 'accepted') {
+        toast.success(`Catering quote ${update.reference ?? ''} accepted by the customer`, { duration: 8000 });
+      } else if (update.paymentReference) {
+        toast.success('Online catering payment received', { duration: 8000 });
+      }
+      queryClient.invalidateQueries({ queryKey: ['catering-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['catering-request'] });
+    };
     socket.on('new_catering_request', handleNewCateringRequest);
+    socket.on('catering_request_updated', handleCateringUpdate);
     return () => {
       socket.off('new_catering_request', handleNewCateringRequest);
+      socket.off('catering_request_updated', handleCateringUpdate);
     };
   }, [socket, queryClient]);
 
