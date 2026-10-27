@@ -172,6 +172,7 @@ func normalizeSettingsUpdate(u *models.BusinessSettingsUpdate) error {
 		{"state", u.State, true, 100},
 		{"postal code", u.PostalCode, false, 20},
 		{"country", u.Country, true, 100},
+		{"catering terms", u.CateringTerms, true, 5000},
 	}
 	for _, field := range text {
 		if field.value == nil {
