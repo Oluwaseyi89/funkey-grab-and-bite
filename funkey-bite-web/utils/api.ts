@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import type { MenuCategory, MenuItem } from '~/types/menu'
 import type { Order, OrderCreatePayload, OrderLookupResult } from '~/types/order'
 import type { CateringPackage, CateringRequest, CateringRequestPayload } from '~/types/catering'
+import type { TeamMember } from '~/types/team'
 import type { BusinessSettings } from '~/types/settings'
 import { mockCategories, mockMenuItems, mockOrders, mockPromotions } from './mockData'
 import { useNuxtApp, useRuntimeConfig } from 'nuxt/app'
@@ -421,6 +422,17 @@ export class ApiService {
     } catch (err) {
       console.warn('[API] Could not load catering packages:', err instanceof Error ? err.message : err)
       return null
+    }
+  }
+
+  // The team section only shows real people added by the admin, so there is
+  // no demo fallback: on failure the section is simply hidden.
+  async getTeamMembers(): Promise<TeamMember[]> {
+    try {
+      return await this.fetchJSON<TeamMember[]>('/team')
+    } catch (err) {
+      console.warn('[API] Could not load team members:', err instanceof Error ? err.message : err)
+      return []
     }
   }
 
