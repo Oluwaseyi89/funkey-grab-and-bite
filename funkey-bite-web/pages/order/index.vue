@@ -100,6 +100,7 @@
                 <div v-if="currentStep === 1" class="space-y-8">
                   <OrderTypeSelector
                     :selected-type="orderData.orderType"
+                    :delivery-fee="businessSettings?.deliveryFee"
                     @select="orderData.orderType = $event"
                   />
                   
