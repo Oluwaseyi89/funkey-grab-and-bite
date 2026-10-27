@@ -20,7 +20,9 @@ import type {
   PaymentStatus,
   CateringRequestUpdate,
   CateringPackage,
-  CateringPackageInput
+  CateringPackageInput,
+  TeamMember,
+  TeamMemberInput
 } from '../types';
 
 type PaginationShape = {
@@ -220,6 +222,24 @@ export const uploadMenuImage = (file: File) => {
   formData.append('file', file);
   return apiUpload<{ key: string; url: string }>('/api/v1/admin/uploads/menu-image', formData);
 };
+
+export const uploadTeamPhoto = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiUpload<{ key: string; url: string }>('/api/v1/admin/uploads/team-photo', formData);
+};
+
+export const getTeamMembers = () =>
+  apiGet<TeamMember[]>('/api/v1/admin/team');
+
+export const createTeamMember = (data: TeamMemberInput) =>
+  apiPost<TeamMember>('/api/v1/admin/team', data);
+
+export const updateTeamMember = (id: number, data: TeamMemberInput) =>
+  apiPut<TeamMember>(`/api/v1/admin/team/${id}`, data);
+
+export const deleteTeamMember = (id: number) =>
+  apiDelete<{ message: string }>(`/api/v1/admin/team/${id}`);
 
 export const getCategories = () =>
   apiGet<MenuCategory[]>('/api/v1/menu/categories');
