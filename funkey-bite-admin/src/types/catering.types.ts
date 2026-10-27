@@ -1,6 +1,15 @@
-// A request moves pending → quoted → confirmed → completed; it can be
-// declined by the business or cancelled by the customer.
-export type CateringStatus = 'pending' | 'quoted' | 'confirmed' | 'declined' | 'completed' | 'cancelled';
+// A request moves pending → quoted (quote sent) → accepted (customer agreed;
+// invoice issued) → confirmed (deposit paid) → paid (in full; receipt issued)
+// → completed. It can be declined or cancelled along the way.
+export type CateringStatus =
+  | 'pending'
+  | 'quoted'
+  | 'accepted'
+  | 'confirmed'
+  | 'paid'
+  | 'declined'
+  | 'completed'
+  | 'cancelled';
 export type CateringRequestType = 'package' | 'custom';
 export type ServiceStyle = 'drop_off' | 'buffet' | 'full_service';
 
@@ -42,15 +51,140 @@ export interface CateringRequest {
   estimatedTotal?: number;
   quotedAmount?: number;
   adminNotes?: string;
+  acceptedQuoteId?: number;
+  invoiceNumber?: string;
+  contractedAt?: string;
+  paidInFullAt?: string;
   status: CateringStatus;
   createdAt: string;
   updatedAt?: string;
 }
 
+// Only notes are edited directly; prices and statuses go through quotes,
+// payments and status actions.
 export interface CateringRequestUpdate {
-  status?: CateringStatus;
-  quotedAmount?: number;
   adminNotes?: string;
+}
+
+export type CateringQuoteStatus = 'sent' | 'accepted' | 'superseded' | 'withdrawn';
+export type CateringPaymentMethod = 'cash' | 'bank_transfer' | 'paystack_transfer' | 'card';
+
+export interface CateringQuoteLine {
+  description: string;
+  amount: number;
+}
+
+export interface CateringQuote {
+  id: number;
+  requestId: number;
+  version: number;
+  amount: number;
+  lineItems: CateringQuoteLine[];
+  depositPercent: number;
+  depositAmount: number;
+  terms: string;
+  message?: string;
+  validUntil: string;
+  status: CateringQuoteStatus;
+  isExpired: boolean;
+  acceptedAt?: string;
+  acceptedVia?: 'email_link' | 'status_page';
+  createdAt: string;
+}
+
+export interface CateringQuoteInput {
+  amount: number;
+  lineItems: CateringQuoteLine[];
+  depositPercent?: number;
+  terms?: string;
+  message?: string;
+  validDays?: number;
+}
+
+export interface CateringPayment {
+  id: number;
+  requestId: number;
+  amount: number;
+  method: CateringPaymentMethod;
+  reference?: string;
+  note?: string;
+  recordedBy?: number;
+  paidAt: string;
+  createdAt: string;
+}
+
+export interface CateringPaymentInput {
+  amount: number;
+  method: 'cash' | 'bank_transfer';
+  reference?: string;
+  note?: string;
+  paidOn?: string;
+}
+
+export interface CateringInvoice {
+  id: number;
+  requestId: number;
+  quoteId: number;
+  invoiceNumber: string;
+  version: number;
+  reason: 'accepted' | 'payment';
+  total: number;
+  depositDue: number;
+  amountPaid: number;
+  balance: number;
+  issuedAt: string;
+}
+
+export interface CateringReceipt {
+  id: number;
+  requestId: number;
+  receiptNumber: string;
+  totalPaid: number;
+  issuedAt: string;
+}
+
+export interface CateringStatusChange {
+  id: number;
+  requestId: number;
+  fromStatus?: CateringStatus;
+  toStatus: CateringStatus;
+  actorType: 'admin' | 'customer' | 'system';
+  actorId?: number;
+  note?: string;
+  createdAt: string;
+}
+
+export interface CateringAccount {
+  total: number;
+  depositDue: number;
+  amountPaid: number;
+  balance: number;
+  depositRemaining: number;
+}
+
+export interface CateringPaymentCharge {
+  reference: string;
+  amount: number;
+  accountNumber?: string;
+  accountName?: string;
+  bankName?: string;
+  expiresAt?: string;
+  status: 'pending' | 'paid';
+  createdAt: string;
+}
+
+// A request with everything that has happened to it.
+export interface CateringContract {
+  request: CateringRequest;
+  quote?: CateringQuote;
+  quotes?: CateringQuote[];
+  account?: CateringAccount;
+  payments: CateringPayment[];
+  invoice?: CateringInvoice;
+  invoices?: CateringInvoice[];
+  receipt?: CateringReceipt;
+  pendingCharge?: CateringPaymentCharge;
+  history?: CateringStatusChange[];
 }
 
 export interface CateringPackageItem {
