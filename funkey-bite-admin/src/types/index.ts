@@ -8,3 +8,4 @@ export * from './notification.types';
 export * from './common.types';
 export * from './admin.types';
 export * from './reports.types'
+export * from './team.types';
