@@ -17,7 +17,10 @@ import type {
   Invoice,
   PaymentCollectedVia,
   PaymentMethod,
-  PaymentStatus
+  PaymentStatus,
+  CateringRequestUpdate,
+  CateringPackage,
+  CateringPackageInput
 } from '../types';
 
 type PaginationShape = {
@@ -286,11 +289,21 @@ export const getCateringRequests = (params?: {
   });
 };
 
-export const updateCateringStatus = (id: number, data: { status: string }) =>
-  apiPatch<{ message: string; requestId: number; status: string }>(
-    `/api/v1/admin/catering/requests/${id}/status`,
-    data
-  );
+export const getCateringRequest = (id: number) =>
+  apiGet<CateringRequest>(`/api/v1/admin/catering/requests/${id}`);
+
+// Records the admin's follow-up: status, quoted amount and internal notes.
+export const updateCateringRequest = (id: number, data: CateringRequestUpdate) =>
+  apiPatch<CateringRequest>(`/api/v1/admin/catering/requests/${id}`, data);
+
+export const getCateringPackages = () =>
+  apiGet<CateringPackage[]>('/api/v1/admin/catering/packages');
+
+export const createCateringPackage = (data: CateringPackageInput) =>
+  apiPost<CateringPackage>('/api/v1/admin/catering/packages', data);
+
+export const updateCateringPackage = (id: number, data: CateringPackageInput) =>
+  apiPut<CateringPackage>(`/api/v1/admin/catering/packages/${id}`, data);
 
 export const getPromotions = (params?: {
   page?: number;
