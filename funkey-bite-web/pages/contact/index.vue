@@ -80,25 +80,33 @@
           </div>
   
 
-          <div class="mt-16 pt-12 border-t border-gray-200 dark:border-slate-700">
+          <!-- Shown only once the admin has added team members. -->
+          <div v-if="team.length" class="mt-16 pt-12 border-t border-gray-200 dark:border-slate-700">
             <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
               Meet Our <span class="text-gradient">Team</span>
             </h2>
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
               <div 
                 v-for="member in team" 
-                :key="member.name"
+                :key="member.id"
                 class="text-center"
               >
                 <div class="w-32 h-32 mx-auto mb-4 bg-gradient-to-br from-brand-100 to-accent-100 dark:from-brand-900/30 dark:to-accent-900/30 rounded-full flex items-center justify-center">
-                  <div class="w-28 h-28 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center">
-                    <Users class="w-16 h-16 text-brand-500" />
+                  <img
+                    v-if="member.photoUrl"
+                    :src="member.photoUrl"
+                    :alt="member.name"
+                    class="w-28 h-28 rounded-full object-cover"
+                    loading="lazy"
+                  />
+                  <div v-else class="w-28 h-28 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-3xl font-bold text-brand-500" aria-hidden="true">
+                    {{ initials(member.name) }}
                   </div>
                 </div>
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-1">{{ member.name }}</h3>
                 <p class="text-brand-500 font-medium mb-2">{{ member.role }}</p>
-                <p class="text-gray-600 dark:text-gray-400 text-sm">{{ member.bio }}</p>
+                <p v-if="member.bio" class="text-gray-600 dark:text-gray-400 text-sm">{{ member.bio }}</p>
               </div>
             </div>
           </div>
@@ -148,7 +156,6 @@
   import { ref, computed, onMounted } from 'vue'
   import { 
     Phone, 
-    Users, 
     ChevronDown, 
     CheckCircle 
   } from 'lucide-vue-next'
@@ -159,10 +166,19 @@
   import BusinessHours from '../../components/contact/BusinessHours.vue'
   import ContactMap from '../../components/contact/ContactMap.vue'
   import { useBusinessSettings } from '../../composables/useBusinessSettings'
+  import { useApi } from '../../utils/api'
+  import type { TeamMember } from '../../types/team'
   
   const { settings, phoneHref, load } = useBusinessSettings()
+  const team = ref<TeamMember[]>([])
   
-  onMounted(() => load())
+  onMounted(async () => {
+    load()
+    team.value = await useApi().getTeamMembers()
+  })
+  
+  const initials = (name: string) =>
+    name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('')
   
   const isSubmitting = ref(false)
   const showSuccessModal = ref(false)
@@ -175,7 +191,7 @@
     },
     {
       question: 'Do you offer catering for small events?',
-      answer: 'Yes! We cater events of all sizes, starting from 10 guests. Contact us for a customized quote.'
+      answer: 'Yes. See our catering page: each package shows the guest numbers it serves, and a custom request can be any size. We will send you a quote.'
     },
     {
       question: 'Can I modify or cancel my order?',
@@ -193,23 +209,6 @@
     }
   ])
   
-  const team = [
-    {
-      name: 'Alex Johnson',
-      role: 'General Manager',
-      bio: '15+ years in food service. Passionate about creating memorable dining experiences.'
-    },
-    {
-      name: 'Maria Rodriguez',
-      role: 'Head Chef',
-      bio: 'Trained in culinary arts with a focus on fresh, locally-sourced ingredients.'
-    },
-    {
-      name: 'David Chen',
-      role: 'Catering Director',
-      bio: 'Specializes in event planning and large-scale catering operations.'
-    }
-  ]
   
   const handleSubmit = async (formData: any) => {
     isSubmitting.value = true
