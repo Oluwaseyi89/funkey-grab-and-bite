@@ -2,7 +2,14 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 import type { MenuCategory, MenuItem } from '~/types/menu'
 import type { Order, OrderCreatePayload, OrderLookupResult } from '~/types/order'
-import type { CateringPackage, CateringRequest, CateringRequestPayload } from '~/types/catering'
+import type {
+  CateringBooking,
+  CateringBookingAuth,
+  CateringPackage,
+  CateringPaymentCharge,
+  CateringRequest,
+  CateringRequestPayload,
+} from '~/types/catering'
 import type { TeamMember } from '~/types/team'
 import type { BusinessSettings } from '~/types/settings'
 import { mockCategories, mockMenuItems, mockOrders, mockPromotions } from './mockData'
@@ -453,18 +460,37 @@ export class ApiService {
     }
   }
 
-  // The phone goes in the body so it stays out of URLs and logs.
-  async lookupCateringRequest(reference: string, phone: string): Promise<CateringRequest | null> {
+  // The customer's request, quote, invoice and payments. The token or phone
+  // goes in the body so it stays out of URLs and logs. Null when nothing
+  // matches the reference and phone.
+  async getCateringBooking(auth: CateringBookingAuth): Promise<CateringBooking | null> {
     try {
-      return await this.fetchJSON<CateringRequest>('/catering/requests/lookup', {
+      return await this.fetchJSON<CateringBooking>('/catering/booking', {
         method: 'POST',
         headers: this.headers,
-        body: JSON.stringify({ reference, phone }),
+        body: JSON.stringify(auth),
       })
     } catch (err) {
-      if (err instanceof Error && /not found/i.test(err.message)) return null
+      if (err instanceof Error && /request not found/i.test(err.message)) return null
       throw err
     }
+  }
+
+  async acceptCateringQuote(auth: CateringBookingAuth): Promise<CateringBooking> {
+    return this.fetchJSON<CateringBooking>('/catering/booking/accept', {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({ ...auth, agreeToTerms: true }),
+    })
+  }
+
+  // A bank account to transfer the deposit or balance to.
+  async payCateringOnline(auth: CateringBookingAuth, portion: 'deposit' | 'balance'): Promise<CateringPaymentCharge> {
+    return this.fetchJSON<CateringPaymentCharge>('/catering/booking/pay', {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({ ...auth, portion }),
+    })
   }
 
   async getActivePromotions(): Promise<any[]> {
