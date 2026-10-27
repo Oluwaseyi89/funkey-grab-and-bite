@@ -43,19 +43,10 @@ func (m *memoryCateringStore) GetByReference(reference string) (*models.Catering
 }
 func (m *memoryCateringStore) GetByUserID(int) ([]models.CateringRequest, error) { return nil, nil }
 func (m *memoryCateringStore) GetAll() ([]models.CateringRequest, error)         { return nil, nil }
-func (m *memoryCateringStore) UpdateStatus(id int, status string) error {
-	return m.ApplyUpdate(id, &models.CateringRequestUpdate{Status: &status})
-}
 func (m *memoryCateringStore) ApplyUpdate(id int, update *models.CateringRequestUpdate) error {
 	r, ok := m.requests[id]
 	if !ok {
 		return errors.New("not found")
-	}
-	if update.Status != nil {
-		r.Status = models.CateringStatus(*update.Status)
-	}
-	if update.QuotedAmount != nil {
-		r.QuotedAmount = update.QuotedAmount
 	}
 	if update.AdminNotes != nil {
 		r.AdminNotes = update.AdminNotes
@@ -264,7 +255,7 @@ func TestLookupRequestNeedsMatchingPhone(t *testing.T) {
 	}
 }
 
-func TestUpdateRequestQuoteRules(t *testing.T) {
+func TestUpdateRequestSavesNotesOnly(t *testing.T) {
 	svc, _, _ := newTestCateringService()
 	request, err := svc.CreateRequest(packageInput(), nil)
 	if err != nil {
@@ -273,24 +264,18 @@ func TestUpdateRequestQuoteRules(t *testing.T) {
 
 	quoted := string(models.CateringStatusQuoted)
 	if _, err := svc.UpdateRequest(request.ID, &models.CateringRequestUpdate{Status: &quoted}); err == nil {
-		t.Fatal("quoting without an amount must be rejected")
+		t.Fatal("status changes must go through the contract service")
 	}
 
-	amount := 450000.0
 	notes := "  Includes two servers  "
-	updated, err := svc.UpdateRequest(request.ID, &models.CateringRequestUpdate{Status: &quoted, QuotedAmount: &amount, AdminNotes: &notes})
+	updated, err := svc.UpdateRequest(request.ID, &models.CateringRequestUpdate{AdminNotes: &notes})
 	if err != nil {
 		t.Fatalf("UpdateRequest() error = %v", err)
 	}
-	if updated.Status != models.CateringStatusQuoted || *updated.QuotedAmount != 450000 || *updated.AdminNotes != "Includes two servers" {
+	if updated.Status != models.CateringStatusPending || *updated.AdminNotes != "Includes two servers" {
 		t.Fatalf("unexpected update result %+v", updated)
 	}
-
-	bogus := "shipped"
-	if _, err := svc.UpdateRequest(request.ID, &models.CateringRequestUpdate{Status: &bogus}); err == nil {
-		t.Fatal("unknown status must be rejected")
-	}
-	if _, err := svc.UpdateRequest(999, &models.CateringRequestUpdate{Status: &quoted}); !errors.Is(err, ErrCateringRequestNotFound) {
+	if _, err := svc.UpdateRequest(999, &models.CateringRequestUpdate{AdminNotes: &notes}); !errors.Is(err, ErrCateringRequestNotFound) {
 		t.Fatalf("expected not found, got %v", err)
 	}
 }
