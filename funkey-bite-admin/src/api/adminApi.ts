@@ -21,6 +21,10 @@ import type {
   CateringRequestUpdate,
   CateringPackage,
   CateringPackageInput,
+  CateringContract,
+  CateringQuoteInput,
+  CateringPaymentInput,
+  CateringStatus,
   TeamMember,
   TeamMemberInput
 } from '../types';
@@ -309,12 +313,24 @@ export const getCateringRequests = (params?: {
   });
 };
 
-export const getCateringRequest = (id: number) =>
-  apiGet<CateringRequest>(`/api/v1/admin/catering/requests/${id}`);
-
-// Records the admin's follow-up: status, quoted amount and internal notes.
+// Saves the admin's internal notes on a request.
 export const updateCateringRequest = (id: number, data: CateringRequestUpdate) =>
   apiPatch<CateringRequest>(`/api/v1/admin/catering/requests/${id}`, data);
+
+// A request with its quotes, payments, invoices, receipt and history.
+export const getCateringContract = (id: number) =>
+  apiGet<CateringContract>(`/api/v1/admin/catering/requests/${id}/contract`);
+
+export const sendCateringQuote = (id: number, data: CateringQuoteInput) =>
+  apiPost<CateringContract>(`/api/v1/admin/catering/requests/${id}/quotes`, data);
+
+export const recordCateringPayment = (id: number, data: CateringPaymentInput) =>
+  apiPost<CateringContract>(`/api/v1/admin/catering/requests/${id}/payments`, data);
+
+// Declines, cancels, completes or reopens a request; other statuses follow
+// from quotes and payments.
+export const changeCateringStatus = (id: number, status: CateringStatus, note?: string) =>
+  apiPatch<CateringContract>(`/api/v1/admin/catering/requests/${id}/status`, { status, note });
 
 export const getCateringPackages = () =>
   apiGet<CateringPackage[]>('/api/v1/admin/catering/packages');
