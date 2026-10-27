@@ -24,6 +24,7 @@ const ProfileSettings = lazy(() => import('../pages/Settings/ProfileSettings'));
 const AdminUsers = lazy(() => import('../pages/Settings/AdminUsers'));
 const OrderCalendar = lazy(() => import('../pages/Orders/OrderCalendar'));
 const CateringDetails = lazy(() => import('../pages/Catering/CateringDetails'));
+const CateringPackages = lazy(() => import('../pages/Catering/CateringPackages'));
 
 
 
@@ -75,6 +76,7 @@ const AppRoutes: React.FC = () => {
           
           
           <Route path="catering" element={<CateringList />} />
+          <Route path="catering/packages" element={<CateringPackages />} />
           <Route path="catering/:id" element={<CateringDetails />} />
 
 
