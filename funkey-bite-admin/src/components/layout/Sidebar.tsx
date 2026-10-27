@@ -16,6 +16,7 @@ import {
   FolderOpen,
   PieChart,
   Package2,
+  UserSquare,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -38,6 +39,7 @@ const Sidebar: React.FC = () => {
     { name: 'Inventory', href: '/inventory', icon: Package2 },
     { name: 'Promotions', href: '/promotions', icon: Tag },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
+    { name: 'Team', href: '/team', icon: UserSquare },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
