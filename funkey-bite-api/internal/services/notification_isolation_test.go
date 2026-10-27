@@ -192,7 +192,8 @@ func TestCreateCateringRequestSucceedsWhenNotificationFails(t *testing.T) {
 		cateringErr:    errors.New("twilio failure"),
 		cateringCalled: make(chan struct{}, 1),
 	}
-	svc := NewCateringService(*repo, notifier)
+	// A custom request with menu notes needs neither packages nor menu lookups.
+	svc := NewCateringService(repo, nil, nil, notifier)
 
 	logs := &lockedBuffer{}
 	originalOutput := log.Writer()
@@ -200,30 +201,31 @@ func TestCreateCateringRequestSucceedsWhenNotificationFails(t *testing.T) {
 	defer log.SetOutput(originalOutput)
 
 	eventName := "Office Party"
-	contactEmail := "planner@example.com"
-	eventType := "corporate"
-	eventTime := "18:30"
-	pkg := "premium"
-	budget := 500.0
-	notes := "Vegetarian options needed"
+	menuNotes := "Jollof rice, grilled chicken and small chops"
+	budget := 500000.0
 
-	eventDate := time.Now().AddDate(0, 0, 5).Format("2006-01-02")
+	eventDate := time.Now().AddDate(0, 0, 10).Format("2006-01-02")
 	input := models.CateringRequestInput{
-		EventName:       &eventName,
-		ContactName:     "Planner",
-		ContactPhone:    "+15550004444",
-		ContactEmail:    &contactEmail,
-		EventDate:       eventDate,
-		EventTime:       &eventTime,
-		GuestCount:      25,
-		EventType:       eventType,
-		Package:         &pkg,
-		Budget:          &budget,
-		SpecialRequests: &notes,
+		RequestType:   models.CateringRequestTypeCustom,
+		EventName:     &eventName,
+		ContactName:   "Planner",
+		ContactPhone:  "+15550004444",
+		ContactEmail:  "planner@example.com",
+		EventType:     "corporate",
+		EventDate:     eventDate,
+		EventTime:     "18:30",
+		DurationHours: 4,
+		GuestCount:    25,
+		VenueAddress:  "12 Admiralty Way",
+		VenueArea:     "Lekki",
+		VenueState:    "Lagos",
+		ServiceStyle:  models.ServiceStyleBuffet,
+		MenuNotes:     &menuNotes,
+		Budget:        &budget,
 	}
 
 	mock.ExpectQuery("INSERT INTO catering_requests").WillReturnRows(
-		sqlmock.NewRows([]string{"id", "created_at"}).AddRow(501, time.Now()),
+		sqlmock.NewRows([]string{"id"}).AddRow(501),
 	)
 
 	createdRequest, err := svc.CreateRequest(input, nil)
@@ -241,7 +243,7 @@ func TestCreateCateringRequestSucceedsWhenNotificationFails(t *testing.T) {
 	}
 
 	waitForSignal(t, notifier.cateringCalled, "catering confirmation notification attempt")
-	waitForLogContains(t, logs, "Failed to send catering confirmation notification")
+	waitForLogContains(t, logs, "Failed to send catering confirmation")
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("sqlmock expectations failed: %v", err)
