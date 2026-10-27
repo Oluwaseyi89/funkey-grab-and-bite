@@ -37,7 +37,8 @@ const cateringSelect = `
 	       cr.service_style, cr.selected_items, cr.menu_notes,
 	       cr.dietary_requirements, cr.dietary_notes, cr.budget, cr.special_requests,
 	       cr.estimated_total, cr.quoted_amount, cr.admin_notes, cr.status,
-	       cr.created_at, cr.updated_at
+	       cr.created_at, cr.updated_at, cr.accepted_quote_id, cr.invoice_number,
+	       cr.contracted_at, cr.paid_in_full_at
 	FROM catering_requests cr
 	LEFT JOIN catering_packages cp ON cp.id = cr.package_id
 `
@@ -120,17 +121,15 @@ func (r *CateringRepository) UpdateStatus(id int, status string) error {
 	return nil
 }
 
-// ApplyUpdate saves the admin's status, quote and notes; nil fields keep
-// their current value.
+// ApplyUpdate saves the admin's notes; nil fields keep their current value.
+// Status changes go through the contract repository so they are logged.
 func (r *CateringRepository) ApplyUpdate(id int, update *models.CateringRequestUpdate) error {
 	result, err := r.db.Exec(`
 		UPDATE catering_requests SET
-			status = COALESCE($1, status),
-			quoted_amount = COALESCE($2, quoted_amount),
-			admin_notes = COALESCE($3, admin_notes),
-			updated_at = $4
-		WHERE id = $5`,
-		update.Status, update.QuotedAmount, update.AdminNotes, time.Now(), id,
+			admin_notes = COALESCE($1, admin_notes),
+			updated_at = $2
+		WHERE id = $3`,
+		update.AdminNotes, time.Now(), id,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update catering request: %w", err)
@@ -173,15 +172,17 @@ func (r *CateringRepository) getMany(query string, args ...any) ([]models.Cateri
 func scanCateringRequest(row rowScanner) (*models.CateringRequest, error) {
 	var request models.CateringRequest
 	var (
-		reference                 sql.NullString
-		userID, packageID         sql.NullInt64
-		eventDate                 time.Time
-		eventTime                 sql.NullString
-		duration                  sql.NullFloat64
-		budget, estimated, quoted sql.NullFloat64
-		selectedItems, dietary    []byte
-		updatedAt                 sql.NullTime
-		eventType                 sql.NullString
+		reference                  sql.NullString
+		userID, packageID          sql.NullInt64
+		eventDate                  time.Time
+		eventTime                  sql.NullString
+		duration                   sql.NullFloat64
+		budget, estimated, quoted  sql.NullFloat64
+		selectedItems, dietary     []byte
+		updatedAt                  sql.NullTime
+		acceptedQuoteID            sql.NullInt64
+		contractedAt, paidInFullAt sql.NullTime
+		eventType                  sql.NullString
 	)
 
 	err := row.Scan(
@@ -194,7 +195,8 @@ func scanCateringRequest(row rowScanner) (*models.CateringRequest, error) {
 		&request.ServiceStyle, &selectedItems, &request.MenuNotes,
 		&dietary, &request.DietaryNotes, &budget, &request.SpecialRequests,
 		&estimated, &quoted, &request.AdminNotes, &request.Status,
-		&request.CreatedAt, &updatedAt,
+		&request.CreatedAt, &updatedAt, &acceptedQuoteID, &request.InvoiceNumber,
+		&contractedAt, &paidInFullAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan catering request: %w", err)
@@ -215,6 +217,13 @@ func scanCateringRequest(row rowScanner) (*models.CateringRequest, error) {
 	request.QuotedAmount = nullFloatPtr(quoted)
 	if updatedAt.Valid {
 		request.UpdatedAt = &updatedAt.Time
+	}
+	request.AcceptedQuoteID = nullIntPtr(acceptedQuoteID)
+	if contractedAt.Valid {
+		request.ContractedAt = &contractedAt.Time
+	}
+	if paidInFullAt.Valid {
+		request.PaidInFullAt = &paidInFullAt.Time
 	}
 
 	request.SelectedItems = []models.CateringSelectedItem{}
