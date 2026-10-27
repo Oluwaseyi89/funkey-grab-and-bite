@@ -41,6 +41,11 @@ const routeSets = {
     ['get', '/api/v1/admin/inventory/alerts'],
     ['get', '/api/v1/admin/catering/requests'],
     ['patch', '/api/v1/admin/catering/requests/{id}/status'],
+    ['get', '/api/v1/admin/catering/requests/{id}'],
+    ['patch', '/api/v1/admin/catering/requests/{id}'],
+    ['get', '/api/v1/admin/catering/packages'],
+    ['post', '/api/v1/admin/catering/packages'],
+    ['put', '/api/v1/admin/catering/packages/{id}'],
     ['get', '/api/v1/admin/promotions'],
     ['get', '/api/v1/admin/promotions/{id}'],
     ['post', '/api/v1/admin/promotions'],
@@ -62,6 +67,8 @@ const routeSets = {
     ['get', '/api/v1/orders/track/{orderNumber}'],
     ['post', '/api/v1/orders/lookup'],
     ['post', '/api/v1/catering/requests'],
+    ['get', '/api/v1/catering/packages'],
+    ['post', '/api/v1/catering/requests/lookup'],
     ['get', '/api/v1/promotions/active'],
     ['get', '/api/v1/settings']
   ]
