@@ -1,31 +1,29 @@
 <template>
-    <div class="container-narrow">
-     
-  <PageHeader
-    title-before="Catering for"
-    highlight-text="Every"
-    title-after="Occasion"
-    subtitle="From corporate meetings to wedding celebrations, we bring delicious food and professional service to your event. Serving 10 to 500+ guests."
-    variant="solid"
-    solid-color="brand-50"
-    solid-color-dark="brand-600"
-    :narrow="true"
-    alignment="center"
-    header-class="dark:from-brand-500 dark:to-accent-500"
-    title-class="text-gray-900 dark:text-white"
-    subtitle-class="text-gray-700 dark:text-white/90"
-  >
-
+  <div class="container-narrow">
+    <PageHeader
+      title-before="Catering for"
+      highlight-text="Every"
+      title-after="Occasion"
+      subtitle="Parties, weddings, naming ceremonies, church and office events: choose one of our packages or tell us exactly what you want."
+      variant="solid"
+      solid-color="brand-50"
+      solid-color-dark="brand-600"
+      :narrow="true"
+      alignment="center"
+      header-class="dark:from-brand-500 dark:to-accent-500"
+      title-class="text-gray-900 dark:text-white"
+      subtitle-class="text-gray-700 dark:text-white/90"
+    >
       <div class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-        <button 
+        <button
           @click="scrollToForm"
           class="text-gray-900 dark:text-white font-bold py-3 px-8 rounded-xl transition-colors hover:scale-105 shadow-lg hover:shadow-xl"
         >
-          Request Quote
+          Request a Quote
         </button>
-        <a 
+        <a
           v-if="phoneHref"
-          :href="phoneHref" 
+          :href="phoneHref"
           class="bg-white/80 dark:bg-white/20 hover:bg-white dark:hover:bg-white/30 backdrop-blur-sm font-medium py-3 px-8 rounded-xl transition-colors hover:scale-105 flex items-center justify-center gap-2 border border-brand-200 dark:border-white/30 text-brand-700 dark:text-white"
         >
           <Phone class="w-5 h-5" />
@@ -34,320 +32,142 @@
       </div>
     </PageHeader>
 
-      <section class="section-padding mx-4 px-4 bg-transparent dark:bg-slate-900">
-        <div class="container-narrow">
-          <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
-            Why Choose <span class="text-gradient">Funkey</span> Catering
-          </h2>
-          
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div v-for="feature in features" :key="feature.title" class="text-center">
-              <div class="w-16 h-16 bg-brand-100 dark:bg-brand-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                <component :is="feature.icon" class="w-8 h-8 text-brand-500" />
-              </div>
-              <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3">{{ feature.title }}</h3>
-              <p class="text-gray-600 dark:text-gray-400">{{ feature.description }}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-  
+    <section class="section-padding mx-4 px-4">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-10">How it works</h2>
+      <ol class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <li v-for="(step, index) in steps" :key="step.title" class="text-center">
+          <div class="w-12 h-12 rounded-full bg-brand-500 text-white font-bold flex items-center justify-center mx-auto mb-4">{{ index + 1 }}</div>
+          <h3 class="font-bold text-gray-900 dark:text-white mb-2">{{ step.title }}</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">{{ step.description }}</p>
+        </li>
+      </ol>
+    </section>
 
-      <section class="section-padding px-4 py-8 my-4 bg-transparent">
-        <div class="container-narrow">
-          <CateringPackages
-            :selected-package="selectedPackage"
-            @select="selectedPackage = $event"
-          />
-        </div>
-      </section>
-  
+    <section class="section-padding mx-4 px-4">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-10">
+        Our <span class="text-gradient">Catering</span> Packages
+      </h2>
 
-      <section ref="formSection" class="section-padding mx-4 px-4 py-4 my-8 bg-white dark:bg-slate-900">
-        <div class="container-narrow">
-          <div class="max-w-4xl mx-auto">
-            <div class="grid lg:grid-cols-2 gap-8 lg:gap-12">
+      <p v-if="packagesStatus === 'loading'" class="text-center text-gray-500">Loading packages…</p>
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <article
+          v-for="pkg in packages"
+          :key="pkg.id"
+          class="flex flex-col bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-gray-200 dark:border-slate-700"
+        >
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ pkg.name }}</h3>
+          <p class="text-2xl font-bold text-brand-500 mt-2">{{ naira(pkg.pricePerPerson) }}<span class="text-base text-gray-500"> / guest</span></p>
+          <p v-if="pkg.description" class="text-gray-600 dark:text-gray-400 mt-2">{{ pkg.description }}</p>
+          <ul class="mt-4 space-y-2 text-sm text-gray-700 dark:text-gray-300 flex-1">
+            <li class="flex gap-2"><Users class="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />{{ pkg.maxGuests ? `${pkg.minGuests}–${pkg.maxGuests}` : `${pkg.minGuests}+` }} guests</li>
+            <li class="flex gap-2"><UtensilsCrossed class="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />{{ serviceStyleName(pkg.serviceStyle) }}</li>
+            <li v-if="pkg.dishChoices > 0" class="flex gap-2"><CheckCircle class="w-4 h-4 text-green-500 shrink-0 mt-0.5" />Choose {{ pkg.dishChoices }} of {{ pkg.menuItems.length }} dishes</li>
+            <li v-for="inclusion in pkg.inclusions" :key="inclusion" class="flex gap-2"><CheckCircle class="w-4 h-4 text-green-500 shrink-0 mt-0.5" />{{ inclusion }}</li>
+            <li class="flex gap-2"><CalendarClock class="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />Book at least {{ pkg.minNoticeDays }} days ahead</li>
+          </ul>
+          <button class="btn-primary w-full mt-6 dark:text-white" @click="choose(pkg.id)">Choose {{ pkg.name }}</button>
+        </article>
 
-              <div class="space-y-8">
-                <div>
-                  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Event Details</h2>
-                  <EventTypeSelector
-                    :selected-event="selectedEvent"
-                    @select="selectedEvent = $event"
-                  />
-                </div>
-                
-                <GuestCountSelector
-                  :selected-package="getPackageDetails(selectedPackage)"
-                  @update="guestCount = $event"
-                />
-                
-
-                <div class="bg-brand-50 dark:brand-900/20 p-6 rounded-xl">
-                  <h4 class="font-bold text-brand-700 dark:text-brand-300 mb-3">📍 Service Areas</h4>
-                  <div class="grid grid-cols-2 gap-2 text-sm">
-                    <div class="flex items-center">
-                      <CheckCircle class="w-4 h-4 text-green-500 mr-2" />
-                      <span>Downtown</span>
-                    </div>
-                    <div class="flex items-center">
-                      <CheckCircle class="w-4 h-4 text-green-500 mr-2" />
-                      <span>North Side</span>
-                    </div>
-                    <div class="flex items-center">
-                      <CheckCircle class="w-4 h-4 text-green-500 mr-2" />
-                      <span>South Side</span>
-                    </div>
-                    <div class="flex items-center">
-                      <CheckCircle class="w-4 h-4 text-green-500 mr-2" />
-                      <span>West End</span>
-                    </div>
-                  </div>
-                  <p class="text-sm text-gray-600 dark:text-gray-400 mt-3">
-                    Additional travel fees may apply for locations outside our primary service area.
-                  </p>
-                </div>
-              </div>
-  
-
-              <div>
-                <CateringRequestForm
-                  :guest-count="guestCount"
-                  :selected-package="selectedPackage"
-                  :selected-event="selectedEvent"
-                  :is-submitting="isSubmitting"
-                  @submit="handleSubmit"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-  
-
-      <section class="section-padding mx-4 py-4 bg-gray-50 dark:bg-slate-800">
-        <div class="container-narrow">
-          <CateringFAQ />
-        </div>
-      </section>
-  
-
-      <section class="section-padding my-8 mx-4 px-4 py-4 bg-white dark:bg-slate-900">
-        <div class="container-narrow">
-          <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
-            What Our <span class="text-gradient">Clients</span> Say
-          </h2>
-          
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
-            <div 
-              v-for="testimonial in testimonials" 
-              :key="testimonial.name"
-              class="bg-gray-50 dark:bg-slate-800 p-6 rounded-xl"
-            >
-              <div class="flex items-center mb-4">
-                <div class="w-12 h-12 bg-brand-500 rounded-full flex items-center justify-center text-white font-bold mr-4">
-                  {{ testimonial.initials }}
-                </div>
-                <div>
-                  <h4 class="font-bold text-gray-900 dark:text-white">{{ testimonial.name }}</h4>
-                  <p class="text-sm text-gray-600 dark:text-gray-400">{{ testimonial.event }}</p>
-                </div>
-              </div>
-              <p class="text-gray-700 dark:text-gray-300 italic">"{{ testimonial.quote }}"</p>
-              <div class="flex text-amber-500 mt-3">
-                <Star v-for="i in 5" :key="i" class="w-4 h-4 fill-current" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-  
-
-      <section class="bg-gradient-to-r mx-4 px-4 my-8 py-8 from-brand-600 to-accent-600 text-white">
-        <div class="container-narrow section-padding text-center">
-          <h2 class="text-3xl font-bold mb-4">Ready to Plan Your Event?</h2>
-          <p class="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
-            Contact us today for a personalized quote and let's create an unforgettable experience.
+        <article class="flex flex-col bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-dashed border-brand-300 dark:border-brand-700">
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white">Custom catering</h3>
+          <p class="text-gray-600 dark:text-gray-400 mt-2 flex-1">
+            Have your own menu in mind? Tell us the food, the guests and how you want it served, and we'll quote for it.
           </p>
-          <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <button 
-              @click="scrollToForm"
-              class="bg-white text-brand-600 hover:bg-gray-100 font-bold py-3 px-8 rounded-xl transition-colors"
-            >
-              Get Started
-            </button>
-            <a v-if="phoneHref" :href="phoneHref" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm font-medium py-3 px-8 rounded-xl transition-colors">
-              Call Now: {{ settings?.phoneNumber }}
-            </a>
-          </div>
-        </div>
-      </section>
-  
+          <button class="btn-secondary w-full mt-6" @click="choose('custom')">Make a custom request</button>
+        </article>
+      </div>
+      <p v-if="packagesStatus === 'unavailable'" class="text-center text-sm text-gray-500 mt-4">
+        Our packages couldn't be loaded right now, but you can still send a custom request.
+      </p>
+    </section>
 
-      <div 
-        v-if="showSuccessModal"
-        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      >
-        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-8 text-center">
-          <div class="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle class="w-10 h-10 text-green-600 dark:text-green-400" />
-          </div>
-          
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Request Sent!</h2>
-          <p class="text-gray-600 dark:text-gray-400 mb-6">
-            Thank you for your catering request. We'll contact you within 24 hours to discuss your event details.
-          </p>
-          
-          <div class="space-y-3">
-            <button @click="showSuccessModal = false" class="w-full btn-primary">
-              Continue Browsing
-            </button>
-            <button @click="resetForm" class="w-full btn-secondary">
-              Submit Another Request
-            </button>
-          </div>
+    <section ref="formSection" class="section-padding mx-4 px-4 bg-white dark:bg-slate-900 rounded-2xl">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Request a catering quote</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-8">
+          Already sent one?
+          <NuxtLink to="/catering/request" class="text-brand-500 hover:text-brand-600 font-medium">Check your request</NuxtLink>
+        </p>
+        <CateringRequestForm
+          v-if="packagesStatus !== 'loading'"
+          :packages="packages"
+          :initial-selection="selection"
+          @submitted="handleSubmitted"
+        />
+      </div>
+    </section>
+
+    <section class="section-padding mx-4 px-4 bg-gray-50 dark:bg-slate-800 my-8 rounded-2xl">
+      <CateringFAQ />
+    </section>
+
+    <div v-if="submitted" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="presentation">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-8 text-center" role="dialog" aria-modal="true" aria-labelledby="catering-sent-title">
+        <div class="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+          <CheckCircle class="w-10 h-10 text-green-600 dark:text-green-400" />
+        </div>
+        <h2 id="catering-sent-title" class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Request sent!</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">
+          Your reference is
+        </p>
+        <p class="text-3xl font-mono font-bold text-brand-500 mb-4">{{ submitted.reference }}</p>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">
+          We've emailed you a copy. We'll review your request and contact you with a quote. Keep your reference to check its status.
+        </p>
+        <div class="space-y-3">
+          <NuxtLink to="/catering/request" class="block w-full btn-primary dark:text-white" @click="submitted = null">Check request status</NuxtLink>
+          <button class="w-full btn-secondary" @click="submitted = null">Done</button>
         </div>
       </div>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, onMounted } from 'vue'
-  import type { CateringRequest } from '../../types/order'
-  import { 
-    CheckCircle, 
-    Star,
-    Clock,
-    Award,
-    Users,
-    Shield,
-    Truck
-  } from 'lucide-vue-next'
-  
-  import CateringPackages from '../../components/catering/CateringPackages.vue'
-  import EventTypeSelector from '../../components/catering/EventTypeSelector.vue'
-  import GuestCountSelector from '../../components/catering/GuestCountSelector.vue'
-  import CateringRequestForm from '../../components/catering/CateringRequestForm.vue'
-  import CateringFAQ from '../../components/catering/CateringFAQ.vue'
-  import { Phone } from 'lucide-vue-next'
-  import { useApi } from '../../utils/api'
-  import { useBusinessSettings } from '../../composables/useBusinessSettings'
+  </div>
+</template>
 
-  const { $toast } = useNuxtApp()
-  const api = useApi()
-  const { settings, phoneHref, load: loadBusinessSettings } = useBusinessSettings()
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { CheckCircle, Phone, Users, UtensilsCrossed, CalendarClock } from 'lucide-vue-next'
+import PageHeader from '../../components/layout/PageHeader.vue'
+import CateringRequestForm from '../../components/catering/CateringRequestForm.vue'
+import CateringFAQ from '../../components/catering/CateringFAQ.vue'
+import type { CateringPackage, CateringRequest, ServiceStyle } from '../../types/catering'
+import { SERVICE_STYLES } from '../../types/catering'
+import { useApi } from '../../utils/api'
+import { useBusinessSettings } from '../../composables/useBusinessSettings'
 
-  onMounted(() => loadBusinessSettings())
-  
-  const formSection = ref<HTMLElement>()
-  const selectedPackage = ref('premium')
-  const selectedEvent = ref('corporate')
-  const guestCount = ref(50)
-  const isSubmitting = ref(false)
-  const showSuccessModal = ref(false)
-  
-  const features = [
-    {
-      icon: Award,
-      title: 'Award-Winning Food',
-      description: 'Our chefs create delicious, fresh meals that impress every time.'
-    },
-    {
-      icon: Clock,
-      title: 'On-Time Delivery',
-      description: 'We guarantee timely setup and service for your event schedule.'
-    },
-    {
-      icon: Shield,
-      title: 'Fully Insured',
-      description: 'Professional liability insurance for your peace of mind.'
-    },
-    {
-      icon: Users,
-      title: 'Professional Staff',
-      description: 'Trained, uniformed servers and coordinators.'
-    },
-    {
-      icon: Truck,
-      title: 'Full Setup & Cleanup',
-      description: 'We handle everything from setup to post-event cleanup.'
-    }
-  ]
-  
-  const testimonials = [
-    {
-      name: 'Sarah Johnson',
-      initials: 'SJ',
-      event: 'Wedding Reception',
-      quote: 'The food was incredible! Our guests are still talking about it. Professional service from start to finish.'
-    },
-    {
-      name: 'Michael Chen',
-      initials: 'MC',
-      event: 'Corporate Conference',
-      quote: 'Fed 200 attendees seamlessly. The team was efficient and the food was a hit with everyone.'
-    },
-    {
-      name: 'Jessica Williams',
-      initials: 'JW',
-      event: 'Birthday Party',
-      quote: 'Exceptional service! They accommodated all our dietary needs and made the party stress-free.'
-    }
-  ]
-  
-  const scrollToForm = () => {
-    formSection.value?.scrollIntoView({ behavior: 'smooth' })
-  }
-  
-  const getPackageDetails = (pkgId: string) => {
-    const packages = {
-      standard: { pricePerPerson: 18.99, minGuests: 10 },
-      premium: { pricePerPerson: 24.99, minGuests: 20 },
-      executive: { pricePerPerson: 34.99, minGuests: 50 }
-    }
-    return packages[pkgId as keyof typeof packages] || packages.premium
-  }
-  
-  const handleSubmit = async (data: Partial<CateringRequest>) => {
-    isSubmitting.value = true
-    
-    try {
-      await api.submitCateringRequest({
-        contactName: data.contactName || '',
-        contactPhone: data.contactPhone || '',
-        contactEmail: data.contactEmail,
-        eventName: data.eventName,
-        eventDate: data.eventDate || '',
-        eventTime: data.eventTime,
-        guestCount: data.guestCount || guestCount.value,
-        eventType: data.eventType || selectedEvent.value,
-        package: selectedPackage.value,
-        budget: data.budget,
-        specialRequests: data.specialRequests,
-      })
+const api = useApi()
+const { settings, phoneHref, load: loadBusinessSettings } = useBusinessSettings()
 
-      showSuccessModal.value = true
-      if ($toast && typeof $toast.success === 'function') {
-        $toast.success('Catering request submitted successfully.')
-      }
-      
-      resetForm()
-      
-    } catch (error) {
-      console.error('Submission failed:', error)
-      if ($toast && typeof $toast.error === 'function') {
-        const message = error instanceof Error ? error.message : 'Failed to submit catering request'
-        $toast.error(message)
-      }
-    } finally {
-      isSubmitting.value = false
-    }
-  }
-  
-  const resetForm = () => {
-    selectedPackage.value = 'premium'
-    selectedEvent.value = 'corporate'
-    guestCount.value = 50
-    showSuccessModal.value = false
-  }
-  </script>
+const formSection = ref<HTMLElement>()
+const packages = ref<CateringPackage[]>([])
+const packagesStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const selection = ref<number | 'custom' | undefined>(undefined)
+const submitted = ref<CateringRequest | null>(null)
+
+const steps = [
+  { title: 'Choose', description: 'Pick a package, or describe the food you want in a custom request.' },
+  { title: 'Tell us about it', description: 'Event date, venue, number of guests and any dietary needs.' },
+  { title: 'Get a quote', description: 'We review your request and contact you with a price.' },
+  { title: 'Confirm', description: 'Once you accept, your booking is confirmed and we cater your event.' },
+]
+
+const naira = (amount: number) => `₦${amount.toLocaleString('en-NG')}`
+const serviceStyleName = (style: ServiceStyle) => SERVICE_STYLES.find((s) => s.id === style)?.name ?? style
+
+const scrollToForm = () => formSection.value?.scrollIntoView({ behavior: 'smooth' })
+
+const choose = (choice: number | 'custom') => {
+  selection.value = choice
+  scrollToForm()
+}
+
+const handleSubmitted = (request: CateringRequest) => {
+  submitted.value = request
+}
+
+onMounted(async () => {
+  loadBusinessSettings()
+  const loaded = await api.getCateringPackages()
+  packages.value = loaded ?? []
+  packagesStatus.value = loaded ? 'ready' : 'unavailable'
+})
+</script>
