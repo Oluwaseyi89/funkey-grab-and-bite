@@ -43,6 +43,25 @@ func NewUploadHandler(s storage.Storage) *UploadHandler {
 // @Success 201 {object} map[string]string
 // @Router /admin/uploads/menu-image [post]
 func (h *UploadHandler) UploadMenuImage(c *gin.Context) {
+	h.uploadImage(c, storage.MenuImagePrefix)
+}
+
+// UploadTeamPhoto stores a team member's photo and returns its key and public URL
+// @Summary Upload team photo
+// @Description Upload a JPEG, PNG or WebP photo (max 2 MB) for a team member. Save the returned key as the member's photoUrl.
+// @Tags admin
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Image file"
+// @Success 201 {object} map[string]string
+// @Router /admin/uploads/team-photo [post]
+func (h *UploadHandler) UploadTeamPhoto(c *gin.Context) {
+	h.uploadImage(c, storage.TeamPhotoPrefix)
+}
+
+// uploadImage validates an uploaded image and stores it under prefix.
+func (h *UploadHandler) uploadImage(c *gin.Context, prefix string) {
 	if h.storage == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Image storage is not configured"})
 		return
@@ -92,14 +111,14 @@ func (h *UploadHandler) UploadMenuImage(c *gin.Context) {
 		return
 	}
 
-	key, err := storage.NewMenuImageKey(extension)
+	key, err := storage.NewImageKey(prefix, extension)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store image"})
 		return
 	}
 
 	if err := h.storage.Put(c.Request.Context(), key, contentType, bytes.NewReader(data), int64(len(data))); err != nil {
-		log.Printf("menu image upload failed: %v", err)
+		log.Printf("image upload to %s failed: %v", prefix, err)
 		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to store image"})
 		return
 	}
