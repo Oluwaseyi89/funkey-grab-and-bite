@@ -19,7 +19,8 @@ import {
   Building,
   Info,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -46,6 +47,11 @@ const settingsSchema = z.object({
   isDeliveryOpen: z.boolean(),
   isPickupOpen: z.boolean(),
   payOnDeliveryEnabled: z.boolean(),
+  cateringTerms: z
+    .string()
+    .trim()
+    .min(1, 'Catering terms are required')
+    .max(5000, 'Catering terms must be 5,000 characters or fewer'),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -116,6 +122,7 @@ const toFormValues = (settings: BusinessSettings): SettingsFormData => ({
   isDeliveryOpen: settings.isDeliveryOpen,
   isPickupOpen: settings.isPickupOpen,
   payOnDeliveryEnabled: settings.payOnDeliveryEnabled,
+  cateringTerms: settings.cateringTerms ?? '',
 });
 
 const GeneralSettings: React.FC = () => {
@@ -150,6 +157,7 @@ const GeneralSettings: React.FC = () => {
       isDeliveryOpen: true,
       isPickupOpen: true,
       payOnDeliveryEnabled: true,
+      cateringTerms: '',
     },
   });
 
@@ -718,6 +726,26 @@ const GeneralSettings: React.FC = () => {
         </div>
 
         
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-3 mb-2">
+            <FileText className="h-5 w-5 text-primary-500" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Catering Terms</h2>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            The default terms on every catering quote. You can change them for a single quote when you send it; quotes already sent keep their terms.
+          </p>
+          <label htmlFor="cateringTerms" className="sr-only">Catering terms</label>
+          <textarea
+            id="cateringTerms"
+            rows={10}
+            {...register('cateringTerms')}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+          />
+          {errors.cateringTerms && (
+            <p className="mt-1 text-sm text-red-600">{errors.cateringTerms.message}</p>
+          )}
+        </div>
+
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3 mb-6">
             <Info className="h-5 w-5 text-primary-500" />
