@@ -43,7 +43,6 @@ type CateringService interface {
 	LookupRequest(reference, phone string) (*models.CateringRequest, error)
 	GetUserRequests(userID int) ([]models.CateringRequest, error)
 	GetAllRequests() ([]models.CateringRequest, error)
-	UpdateRequestStatus(id int, status string) error
 	UpdateRequest(id int, update *models.CateringRequestUpdate) (*models.CateringRequest, error)
 
 	ListPackages(activeOnly bool) ([]models.CateringPackage, error)
@@ -58,7 +57,6 @@ type cateringRequestStore interface {
 	GetByReference(reference string) (*models.CateringRequest, error)
 	GetByUserID(userID int) ([]models.CateringRequest, error)
 	GetAll() ([]models.CateringRequest, error)
-	UpdateStatus(id int, status string) error
 	ApplyUpdate(id int, update *models.CateringRequestUpdate) error
 }
 
@@ -362,26 +360,14 @@ func (s *cateringService) GetAllRequests() ([]models.CateringRequest, error) {
 	return requests, nil
 }
 
-func (s *cateringService) UpdateRequestStatus(id int, status string) error {
-	_, err := s.UpdateRequest(id, &models.CateringRequestUpdate{Status: &status})
-	return err
-}
-
-// UpdateRequest applies the admin's follow-up. A request can only be marked
-// quoted once it has a quoted amount.
+// UpdateRequest saves the admin's internal notes. Status changes, quotes and
+// payments go through the contract service so they are validated and logged.
 func (s *cateringService) UpdateRequest(id int, update *models.CateringRequestUpdate) (*models.CateringRequest, error) {
-	if update.Status != nil && !models.IsValidCateringStatus(*update.Status) {
-		return nil, invalid("Unknown status %q", *update.Status)
+	if update.Status != nil {
+		return nil, invalid("Change the status with the status actions")
 	}
-
-	current, err := s.GetRequestByID(id)
-	if err != nil {
+	if _, err := s.GetRequestByID(id); err != nil {
 		return nil, err
-	}
-
-	if update.Status != nil && *update.Status == string(models.CateringStatusQuoted) &&
-		update.QuotedAmount == nil && current.QuotedAmount == nil {
-		return nil, invalid("Enter the quoted amount before marking the request as quoted")
 	}
 	if update.AdminNotes != nil {
 		notes := strings.TrimSpace(*update.AdminNotes)
