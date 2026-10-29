@@ -3,7 +3,9 @@ package repository
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
@@ -220,11 +222,12 @@ func (r *AdminRepository) GetAllOrders(limit, offset int, filter models.OrderLis
 		WHERE ($1 = '' OR status = $1)
 		  AND ($2 = '' OR payment_status = $2)
 		  AND ($3 = '' OR payment_method = $3)
+		  AND ($4::int IS NULL OR user_id = $4)
 		ORDER BY created_at DESC
-		LIMIT $4 OFFSET $5
+		LIMIT $5 OFFSET $6
 	`
 
-	rows, err := r.db.Query(query, filter.Status, filter.PaymentStatus, filter.PaymentMethod, limit, offset)
+	rows, err := r.db.Query(query, filter.Status, filter.PaymentStatus, filter.PaymentMethod, filter.UserID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orders: %w", err)
 	}
@@ -328,72 +331,161 @@ func (r *AdminRepository) GetOrdersCount(filter models.OrderListFilter) (int, er
 		WHERE ($1 = '' OR status = $1)
 		  AND ($2 = '' OR payment_status = $2)
 		  AND ($3 = '' OR payment_method = $3)
+		  AND ($4::int IS NULL OR user_id = $4)
 	`
 	var count int
-	err := r.db.QueryRow(query, filter.Status, filter.PaymentStatus, filter.PaymentMethod).Scan(&count)
+	err := r.db.QueryRow(query, filter.Status, filter.PaymentStatus, filter.PaymentMethod, filter.UserID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get orders count: %w", err)
 	}
 	return count, nil
 }
 
-func (r *AdminRepository) GetAllUsers(limit, offset int) ([]models.User, error) {
-	query := `
-		SELECT id, phone, email, full_name, is_verified, is_active, 
-		       last_login, created_at, updated_at
-		FROM users
-		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
+// customerSelect lists customers with their order totals. Cancelled orders are
+// left out and only paid orders count towards what a customer has spent.
+const customerSelect = `
+	WITH order_stats AS (
+		SELECT user_id,
+		       COUNT(*) AS order_count,
+		       COALESCE(SUM(total_amount) FILTER (WHERE payment_status = 'paid'), 0) AS total_spent,
+		       MIN(created_at) AS first_order_at,
+		       MAX(created_at) AS last_order_at
+		FROM orders
+		WHERE user_id IS NOT NULL AND status <> 'cancelled'
+		GROUP BY user_id
+	)
+	SELECT u.id, u.phone, u.email, u.full_name, u.is_verified, u.is_active,
+	       u.last_login, u.created_at, u.updated_at,
+	       COALESCE(s.order_count, 0), COALESCE(s.total_spent, 0),
+	       s.first_order_at, s.last_order_at
+	FROM users u
+	LEFT JOIN order_stats s ON s.user_id = u.id
+`
+
+// customerWhere applies a CustomerListFilter given as $1 (search) and $2 (status).
+const customerWhere = `
+	WHERE ($1 = '' OR u.full_name ILIKE $1 OR u.phone ILIKE $1 OR u.email ILIKE $1)
+	  AND ($2 = ''
+	       OR ($2 = 'active' AND u.is_active)
+	       OR ($2 = 'inactive' AND NOT u.is_active)
+	       OR ($2 = 'verified' AND u.is_verified)
+	       OR ($2 = 'unverified' AND NOT u.is_verified))
+`
+
+// customerSearchPattern turns a search into an ILIKE pattern that matches it
+// anywhere, treating % and _ as plain characters.
+func customerSearchPattern(search string) string {
+	if search == "" {
+		return ""
+	}
+	escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(search)
+	return "%" + escaped + "%"
+}
+
+func scanCustomer(row interface{ Scan(...any) error }) (*models.AdminCustomer, error) {
+	var customer models.AdminCustomer
+	var email sql.NullString
+	var lastLogin, firstOrderAt, lastOrderAt sql.NullTime
+
+	err := row.Scan(
+		&customer.ID,
+		&customer.Phone,
+		&email,
+		&customer.FullName,
+		&customer.IsVerified,
+		&customer.IsActive,
+		&lastLogin,
+		&customer.CreatedAt,
+		&customer.UpdatedAt,
+		&customer.OrderCount,
+		&customer.TotalSpent,
+		&firstOrderAt,
+		&lastOrderAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if email.Valid {
+		customer.Email = &email.String
+	}
+	if lastLogin.Valid {
+		customer.LastLogin = &lastLogin.Time
+	}
+	if firstOrderAt.Valid {
+		customer.FirstOrderAt = &firstOrderAt.Time
+	}
+	if lastOrderAt.Valid {
+		customer.LastOrderAt = &lastOrderAt.Time
+	}
+	return &customer, nil
+}
+
+func (r *AdminRepository) GetAllUsers(limit, offset int, filter models.CustomerListFilter) ([]models.AdminCustomer, error) {
+	query := customerSelect + customerWhere + `
+		ORDER BY u.created_at DESC
+		LIMIT $3 OFFSET $4
 	`
 
-	rows, err := r.db.Query(query, limit, offset)
+	rows, err := r.db.Query(query, customerSearchPattern(filter.Search), filter.Status, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get users: %w", err)
 	}
 	defer rows.Close()
 
-	var users []models.User
+	var customers []models.AdminCustomer
 	for rows.Next() {
-		var user models.User
-		var email sql.NullString
-		var lastLogin sql.NullTime
-
-		err := rows.Scan(
-			&user.ID,
-			&user.Phone,
-			&email,
-			&user.FullName,
-			&user.IsVerified,
-			&user.IsActive,
-			&lastLogin,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-		)
+		customer, err := scanCustomer(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
-
-		if email.Valid {
-			user.Email = &email.String
-		}
-		if lastLogin.Valid {
-			user.LastLogin = &lastLogin.Time
-		}
-
-		users = append(users, user)
+		customers = append(customers, *customer)
 	}
 
-	return users, nil
+	return customers, rows.Err()
 }
 
-func (r *AdminRepository) GetUsersCount() (int, error) {
-	query := `SELECT COUNT(*) FROM users`
+func (r *AdminRepository) GetUsersCount(filter models.CustomerListFilter) (int, error) {
+	query := `SELECT COUNT(*) FROM users u` + customerWhere
 	var count int
-	err := r.db.QueryRow(query).Scan(&count)
+	err := r.db.QueryRow(query, customerSearchPattern(filter.Search), filter.Status).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get users count: %w", err)
 	}
 	return count, nil
+}
+
+// GetCustomer returns one customer with their order totals and the menu
+// category they order most. It returns sql.ErrNoRows for an unknown ID.
+func (r *AdminRepository) GetCustomer(userID int) (*models.AdminCustomer, error) {
+	customer, err := scanCustomer(r.db.QueryRow(customerSelect+` WHERE u.id = $1`, userID))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	var category string
+	err = r.db.QueryRow(`
+		SELECT c.name
+		FROM order_items oi
+		JOIN orders o ON o.id = oi.order_id
+		JOIN menu_items m ON m.id = oi.menu_item_id
+		JOIN menu_categories c ON c.id = m.category_id
+		WHERE o.user_id = $1 AND o.status <> 'cancelled'
+		GROUP BY c.name
+		ORDER BY SUM(oi.quantity) DESC, c.name
+		LIMIT 1
+	`, userID).Scan(&category)
+	switch {
+	case err == nil:
+		customer.FavoriteCategory = &category
+	case !errors.Is(err, sql.ErrNoRows):
+		return nil, fmt.Errorf("failed to get favorite category: %w", err)
+	}
+
+	return customer, nil
 }
 
 func (r *AdminRepository) UpdateUserStatus(userID int, isActive bool) error {

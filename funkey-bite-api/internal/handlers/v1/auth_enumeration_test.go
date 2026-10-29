@@ -27,6 +27,9 @@ func (f *fakeAuthCheckService) Login(phone, password string) (*models.AuthRespon
 func (f *fakeAuthCheckService) CheckUserExists(phone, email string) (*models.User, bool, error) {
 	return f.user, f.exists, f.err
 }
+func (f *fakeAuthCheckService) FindOrderCustomer(phone string) (*models.User, error) {
+	return nil, nil
+}
 func (f *fakeAuthCheckService) ResolveOrderCustomer(name, phone string, email *string) (*models.User, error) {
 	return nil, nil
 }

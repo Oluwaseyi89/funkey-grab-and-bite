@@ -34,7 +34,8 @@ type AdminService interface {
 	GetAllOrders(page, limit int, filter models.OrderListFilter) ([]models.Order, int, error)
 	UpdateOrderStatus(orderID int, status string) error
 
-	GetAllUsers(page, limit int) ([]models.User, int, error)
+	GetAllUsers(page, limit int, filter models.CustomerListFilter) ([]models.AdminCustomer, int, error)
+	GetCustomer(userID int) (*models.AdminCustomer, error)
 	UpdateUserStatus(userID int, isActive bool) error
 
 	CreateMenuItem(item *models.MenuItem) (*models.MenuItem, error)
@@ -268,7 +269,7 @@ func (s *adminService) UpdateOrderStatus(orderID int, status string) error {
 	return s.orderRepo.UpdateOrderStatus(orderID, status)
 }
 
-func (s *adminService) GetAllUsers(page, limit int) ([]models.User, int, error) {
+func (s *adminService) GetAllUsers(page, limit int, filter models.CustomerListFilter) ([]models.AdminCustomer, int, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -277,17 +278,21 @@ func (s *adminService) GetAllUsers(page, limit int) ([]models.User, int, error) 
 	}
 	offset := (page - 1) * limit
 
-	users, err := s.adminRepo.GetAllUsers(limit, offset)
+	customers, err := s.adminRepo.GetAllUsers(limit, offset, filter)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	totalCount, err := s.adminRepo.GetUsersCount()
+	totalCount, err := s.adminRepo.GetUsersCount(filter)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return users, totalCount, nil
+	return customers, totalCount, nil
+}
+
+func (s *adminService) GetCustomer(userID int) (*models.AdminCustomer, error) {
+	return s.adminRepo.GetCustomer(userID)
 }
 
 func (s *adminService) UpdateUserStatus(userID int, isActive bool) error {

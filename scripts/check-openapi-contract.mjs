@@ -24,6 +24,7 @@ const routeSets = {
     ['get', '/api/v1/admin/orders/{id}'],
     ['patch', '/api/v1/admin/orders/{id}/status'],
     ['get', '/api/v1/admin/users'],
+    ['get', '/api/v1/admin/users/{id}'],
     ['patch', '/api/v1/admin/users/{id}/status'],
     ['get', '/api/v1/admin/menu/items'],
     ['get', '/api/v1/admin/menu/items/{id}'],

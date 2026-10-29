@@ -11,6 +11,17 @@ export interface User {
     createdAt: string;
     updatedAt?: string;
   }
+
+  /** A customer as the admin sees them. Cancelled orders are left out; totalSpent counts paid orders only. */
+  export interface Customer extends User {
+    orderCount: number;
+    totalSpent: number;
+    firstOrderAt?: string;
+    lastOrderAt?: string;
+    favoriteCategory?: string;
+  }
+
+  export type CustomerStatusFilter = 'active' | 'inactive' | 'verified' | 'unverified';
   
   export interface AuthResponse {
     user: User;

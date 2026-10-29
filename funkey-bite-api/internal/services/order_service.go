@@ -20,6 +20,7 @@ type OrderService interface {
 	GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error)
 	CancelOrder(id int, userID int) error
 	MarkPaymentCollected(id int, via string) (*models.Order, error)
+	AssignCustomer(orderID, userID int) error
 }
 
 // ItemUnavailableError reports a menu item that can't be ordered in the
@@ -189,6 +190,12 @@ func (s *orderService) MarkPaymentCollected(id int, via string) (*models.Order, 
 
 func (s *orderService) GetOrderByID(id int) (*models.Order, error) {
 	return s.orderRepo.GetOrderWithItems(id)
+}
+
+// AssignCustomer links a guest order to its customer record once the order
+// has been placed.
+func (s *orderService) AssignCustomer(orderID, userID int) error {
+	return s.orderRepo.SetOrderCustomer(orderID, userID)
 }
 
 func (s *orderService) GetOrdersByUserID(userID int) ([]models.Order, error) {

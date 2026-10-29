@@ -8,19 +8,45 @@ type User struct {
 	ID           int        `json:"id" db:"id"`
 	Phone        string     `json:"phone" db:"phone"`
 	Email        *string    `json:"email,omitempty" db:"email"`
-	FullName     string     `json:"full_name" db:"full_name"`
+	FullName     string     `json:"fullName" db:"full_name"`
 	PasswordHash string     `json:"-" db:"password_hash"`
-	IsVerified   bool       `json:"is_verified" db:"is_verified"`
-	IsActive     bool       `json:"is_active" db:"is_active"`
-	LastLogin    *time.Time `json:"last_login,omitempty" db:"last_login"`
-	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+	IsVerified   bool       `json:"isVerified" db:"is_verified"`
+	IsActive     bool       `json:"isActive" db:"is_active"`
+	LastLogin    *time.Time `json:"lastLogin,omitempty" db:"last_login"`
+	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
+}
+
+// AdminCustomer is a customer as the admin sees them, with their order
+// totals. Cancelled orders are left out; totalSpent counts paid orders only.
+type AdminCustomer struct {
+	User
+	OrderCount       int        `json:"orderCount"`
+	TotalSpent       float64    `json:"totalSpent"`
+	FirstOrderAt     *time.Time `json:"firstOrderAt,omitempty"`
+	LastOrderAt      *time.Time `json:"lastOrderAt,omitempty"`
+	FavoriteCategory *string    `json:"favoriteCategory,omitempty"`
+}
+
+// Customer list status filters.
+const (
+	CustomerStatusActive     = "active"
+	CustomerStatusInactive   = "inactive"
+	CustomerStatusVerified   = "verified"
+	CustomerStatusUnverified = "unverified"
+)
+
+// CustomerListFilter narrows the admin customer list; empty fields match
+// everything. Search matches name, phone or email.
+type CustomerListFilter struct {
+	Search string
+	Status string
 }
 
 type UserRegistration struct {
 	Phone    string `json:"phone" validate:"required,min=10,max=20"`
 	Email    string `json:"email,omitempty" validate:"omitempty,email"`
-	FullName string `json:"full_name" validate:"required,min=2,max=100"`
+	FullName string `json:"fullName" validate:"required,min=2,max=100"`
 	Password string `json:"password" validate:"required,min=8"`
 }
 
@@ -31,13 +57,13 @@ type UserLogin struct {
 
 type AuthResponse struct {
 	User         *User  `json:"user"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	IsNewUser    bool   `json:"is_new_user,omitempty"`
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken,omitempty"`
+	IsNewUser    bool   `json:"isNewUser,omitempty"`
 }
 
 type ProfileUpdate struct {
-	FullName *string `json:"full_name,omitempty"`
+	FullName *string `json:"fullName,omitempty"`
 	Email    *string `json:"email,omitempty"`
 	Phone    *string `json:"phone,omitempty"`
 }

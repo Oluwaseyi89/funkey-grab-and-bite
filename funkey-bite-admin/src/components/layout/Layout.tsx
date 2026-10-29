@@ -1,17 +1,20 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import Breadcrumbs from './Breadcrumbs';
 import { useSocket } from '../../contexts/SocketContext';
 import { Bell, Wifi, WifiOff } from 'lucide-react';
 import { useBusinessSettings } from '../../hooks/useBusinessSettings';
+import ErrorBoundary from '../common/ErrorBoundary';
 
 const Layout: React.FC = () => {
   const { socket, isConnected, isRealtimeEnabled } = useSocket();
   const { settings } = useBusinessSettings();
   const queryClient = useQueryClient();
+  const location = useLocation();
 
   // New catering requests are announced on every page, not just Catering.
   useEffect(() => {
@@ -45,14 +48,15 @@ const Layout: React.FC = () => {
         <Topbar />
       </div>
 
-      <div className="flex pt-16 print:pt-0">
+      {/* The sidebar and top bar are fixed, so the content is offset by their size. */}
+      <div className="pt-16 lg:pl-64 print:p-0">
         
         <div className="print:hidden">
           <Sidebar />
         </div>
 
         
-        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden">
+        <main className="min-w-0 p-4 md:p-6 lg:p-8 overflow-x-hidden">
           
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
             
@@ -80,14 +84,14 @@ const Layout: React.FC = () => {
             </div>
 
             
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              Dashboard / Overview
-            </div>
+            <Breadcrumbs />
           </div>
 
           
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
-            <Outlet />
+            <ErrorBoundary resetKey={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </div>
 
           

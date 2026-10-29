@@ -30,8 +30,9 @@ type IAdminRepository interface {
 	GetAllOrders(limit, offset int, filter models.OrderListFilter) ([]models.Order, error)
 	GetOrdersCount(filter models.OrderListFilter) (int, error)
 
-	GetAllUsers(limit, offset int) ([]models.User, error)
-	GetUsersCount() (int, error)
+	GetAllUsers(limit, offset int, filter models.CustomerListFilter) ([]models.AdminCustomer, error)
+	GetUsersCount(filter models.CustomerListFilter) (int, error)
+	GetCustomer(userID int) (*models.AdminCustomer, error)
 	UpdateUserStatus(userID int, isActive bool) error
 }
 
@@ -44,6 +45,7 @@ type IOrderRepository interface {
 	GetOrderByOrderNumber(orderNumber string) (*models.Order, error)
 	GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error)
 	CancelOrder(id int) error
+	SetOrderCustomer(orderID, userID int) error
 
 	BeginTransaction() (*sql.Tx, error)
 	CreateOrderWithTransaction(tx *sql.Tx, order *models.Order) (*models.Order, error)

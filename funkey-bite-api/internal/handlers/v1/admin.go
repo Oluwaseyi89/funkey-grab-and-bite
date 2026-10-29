@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -96,6 +97,7 @@ func (h *AdminHandler) GetSalesReport(c *gin.Context) {
 // @Param status query string false "Filter by status"
 // @Param paymentStatus query string false "Filter by payment status (e.g. pending)"
 // @Param paymentMethod query string false "Filter by payment method (cash or transfer)"
+// @Param userId query int false "Only this customer's orders"
 // @Success 200 {object} map[string]interface{}
 // @Router /admin/orders [get]
 func (h *AdminHandler) GetAllOrders(c *gin.Context) {
@@ -105,6 +107,14 @@ func (h *AdminHandler) GetAllOrders(c *gin.Context) {
 		Status:        c.Query("status"),
 		PaymentStatus: c.Query("paymentStatus"),
 		PaymentMethod: c.Query("paymentMethod"),
+	}
+	if raw := c.Query("userId"); raw != "" {
+		userID, err := strconv.Atoi(raw)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			return
+		}
+		filter.UserID = &userID
 	}
 
 	orders, total, err := h.adminService.GetAllOrders(page, limit, filter)
@@ -194,22 +204,35 @@ func (h *AdminHandler) UpdateOrderStatus(c *gin.Context) {
 	})
 }
 
-// GetAllUsers returns all users with pagination
+// GetAllUsers returns customers with their order totals, with pagination
 // @Summary Get all users
-// @Description Get all users with pagination
+// @Description Get customers with their order totals, optionally searched and filtered
 // @Tags admin
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param page query int false "Page number" default(1)
 // @Param limit query int false "Items per page" default(20)
+// @Param search query string false "Name, phone or email"
+// @Param status query string false "active, inactive, verified or unverified"
 // @Success 200 {object} map[string]interface{}
 // @Router /admin/users [get]
 func (h *AdminHandler) GetAllUsers(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	filter := models.CustomerListFilter{
+		Search: strings.TrimSpace(c.Query("search")),
+		Status: c.Query("status"),
+	}
+	switch filter.Status {
+	case "", models.CustomerStatusActive, models.CustomerStatusInactive,
+		models.CustomerStatusVerified, models.CustomerStatusUnverified:
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status filter"})
+		return
+	}
 
-	users, total, err := h.adminService.GetAllUsers(page, limit)
+	users, total, err := h.adminService.GetAllUsers(page, limit, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get users",
@@ -217,7 +240,7 @@ func (h *AdminHandler) GetAllUsers(c *gin.Context) {
 		return
 	}
 	if users == nil {
-		users = []models.User{}
+		users = []models.AdminCustomer{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -229,6 +252,35 @@ func (h *AdminHandler) GetAllUsers(c *gin.Context) {
 			"totalPages": (total + limit - 1) / limit,
 		},
 	})
+}
+
+// GetUser returns one customer with their order totals
+// @Summary Get user
+// @Description Get a customer with their order totals and favourite menu category
+// @Tags admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Success 200 {object} models.AdminCustomer
+// @Router /admin/users/{id} [get]
+func (h *AdminHandler) GetUser(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	customer, err := h.adminService.GetCustomer(userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, customer)
 }
 
 // UpdateUserStatus updates user active status
@@ -251,8 +303,9 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
+	// A pointer, so that false (deactivate) still counts as given.
 	var req struct {
-		IsActive bool `json:"isActive" binding:"required"`
+		IsActive *bool `json:"isActive" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -262,7 +315,7 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	err = h.adminService.UpdateUserStatus(userID, req.IsActive)
+	err = h.adminService.UpdateUserStatus(userID, *req.IsActive)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -279,7 +332,7 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message":  "User status updated successfully",
 		"userId":   userID,
-		"isActive": req.IsActive,
+		"isActive": *req.IsActive,
 	})
 }
 
