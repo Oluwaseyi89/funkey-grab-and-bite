@@ -13,6 +13,7 @@ type AuthService interface {
 	Register(userData models.UserRegistration) (*models.AuthResponse, error)
 	Login(phone, password string) (*models.AuthResponse, error)
 	CheckUserExists(phone, email string) (*models.User, bool, error)
+	FindOrderCustomer(phone string) (*models.User, error)
 	ResolveOrderCustomer(name, phone string, email *string) (*models.User, error)
 }
 
@@ -104,6 +105,12 @@ func (s *authService) CheckUserExists(phone, email string) (*models.User, bool, 
 	}
 
 	return user, true, nil
+}
+
+// FindOrderCustomer returns the existing customer record for a phone number,
+// or nil when there is none. It never creates one.
+func (s *authService) FindOrderCustomer(phone string) (*models.User, error) {
+	return s.userRepo.FindByPhone(phone)
 }
 
 // ResolveOrderCustomer returns the customer record for a guest checkout,
