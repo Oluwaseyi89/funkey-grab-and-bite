@@ -22,6 +22,8 @@ type fakeAdminService struct {
 	updateAdminUserErr    error
 	updateAdminPassErr    error
 	updatedAdminLookupErr error
+	getCustomerErr        error
+	updatedUserActive     *bool
 }
 
 func (f *fakeAdminService) AdminLogin(email, password string) (*models.AdminUser, string, error) {
@@ -58,10 +60,14 @@ func (f *fakeAdminService) GetAllOrders(page, limit int, filter models.OrderList
 func (f *fakeAdminService) UpdateOrderStatus(orderID int, status string) error {
 	return f.updateOrderStatusErr
 }
-func (f *fakeAdminService) GetAllUsers(page, limit int) ([]models.User, int, error) {
+func (f *fakeAdminService) GetAllUsers(page, limit int, filter models.CustomerListFilter) ([]models.AdminCustomer, int, error) {
 	return nil, 0, nil
 }
+func (f *fakeAdminService) GetCustomer(userID int) (*models.AdminCustomer, error) {
+	return nil, f.getCustomerErr
+}
 func (f *fakeAdminService) UpdateUserStatus(userID int, isActive bool) error {
+	f.updatedUserActive = &isActive
 	return f.updateUserStatusErr
 }
 func (f *fakeAdminService) CreateMenuItem(item *models.MenuItem) (*models.MenuItem, error) {
@@ -381,5 +387,66 @@ func TestUpdateStockAcceptsSettingZero(t *testing.T) {
 
 	if res.Code != http.StatusOK {
 		t.Fatalf("setting stock to 0 must pass validation, got %d body=%s", res.Code, res.Body.String())
+	}
+}
+
+func TestUpdateUserStatusAcceptsDeactivation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := &fakeAdminService{}
+	handler := NewAdminHandler(service)
+
+	router := gin.New()
+	router.PATCH("/admin/users/:id/status", handler.UpdateUserStatus)
+
+	for body, wantCode := range map[string]int{`{"isActive":false}`: http.StatusOK, `{}`: http.StatusBadRequest} {
+		req := httptest.NewRequest(http.MethodPatch, "/admin/users/4/status", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+
+		if res.Code != wantCode {
+			t.Fatalf("%s: expected %d, got %d body=%s", body, wantCode, res.Code, res.Body.String())
+		}
+	}
+}
+
+func TestUpdateUserStatusPassesFalseToService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := &fakeAdminService{}
+	router := gin.New()
+	router.PATCH("/admin/users/:id/status", NewAdminHandler(service).UpdateUserStatus)
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/users/4/status", strings.NewReader(`{"isActive":false}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(httptest.NewRecorder(), req)
+
+	if service.updatedUserActive == nil || *service.updatedUserActive {
+		t.Fatalf("expected the customer to be deactivated, got %v", service.updatedUserActive)
+	}
+}
+
+func TestGetUserMissingUserReturnsNotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/admin/users/:id", NewAdminHandler(&fakeAdminService{getCustomerErr: sql.ErrNoRows}).GetUser)
+
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/admin/users/404", nil))
+
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d body=%s", res.Code, res.Body.String())
+	}
+}
+
+func TestGetAllUsersRejectsUnknownStatusFilter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/admin/users", NewAdminHandler(&fakeAdminService{}).GetAllUsers)
+
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/admin/users?status=banned", nil))
+
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", res.Code, res.Body.String())
 	}
 }
