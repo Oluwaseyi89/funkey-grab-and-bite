@@ -61,6 +61,7 @@ type fakeOrderService struct {
 	collected    *models.Order
 	collectErr   error
 	collectedVia string
+	assignedUser int
 }
 
 func (f *fakeOrderService) CreateOrder(order *models.Order, items []models.OrderItemRequest) (*models.Order, error) {
@@ -103,11 +104,17 @@ func (f *fakeOrderService) GetOrderByPhoneAndOrderNumber(phone, orderNumber stri
 	return f.trackByPhone, nil
 }
 func (f *fakeOrderService) CancelOrder(id int, userID int) error { return nil }
+func (f *fakeOrderService) AssignCustomer(orderID, userID int) error {
+	f.assignedUser = userID
+	return nil
+}
 
 type fakeAuthService struct {
 	authUser      *models.User
 	authErr       error
+	existing      *models.User
 	resolvedPhone string
+	resolveCalls  int
 }
 
 func (f *fakeAuthService) Register(userData models.UserRegistration) (*models.AuthResponse, error) {
@@ -119,8 +126,12 @@ func (f *fakeAuthService) Login(phone, password string) (*models.AuthResponse, e
 func (f *fakeAuthService) CheckUserExists(phone, email string) (*models.User, bool, error) {
 	return nil, false, nil
 }
+func (f *fakeAuthService) FindOrderCustomer(phone string) (*models.User, error) {
+	return f.existing, f.authErr
+}
 func (f *fakeAuthService) ResolveOrderCustomer(name, phone string, email *string) (*models.User, error) {
 	f.resolvedPhone = phone
+	f.resolveCalls++
 	if f.authErr != nil {
 		return nil, f.authErr
 	}
