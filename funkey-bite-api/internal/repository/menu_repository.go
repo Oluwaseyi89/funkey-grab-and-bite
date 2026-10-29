@@ -29,7 +29,7 @@ func (r *MenuRepository) GetByID(id int) (*models.MenuItem, error) {
 	query := `
 		SELECT id, category_id, name, description, price, image_url, 
 		       is_available, is_pre_order, preparation_time, tags, 
-		       nutritional_info, created_at,
+		       nutritional_info, created_at, updated_at,
 		       ` + stockQuantityColumn("menu_items") + `
 		FROM menu_items
 		WHERE id = $1
@@ -43,6 +43,7 @@ func (r *MenuRepository) GetByID(id int) (*models.MenuItem, error) {
 	var tagsJSON []byte
 	var nutritionalInfoJSON []byte
 	var tags []string
+	var updatedAt sql.NullTime
 
 	row := r.db.QueryRow(query, id)
 	err := row.Scan(
@@ -58,6 +59,7 @@ func (r *MenuRepository) GetByID(id int) (*models.MenuItem, error) {
 		&tagsJSON,
 		&nutritionalInfoJSON,
 		&item.CreatedAt,
+		&updatedAt,
 		&item.StockQuantity,
 	)
 
@@ -70,6 +72,9 @@ func (r *MenuRepository) GetByID(id int) (*models.MenuItem, error) {
 
 	if description.Valid {
 		item.Description = description.String
+	}
+	if updatedAt.Valid {
+		item.UpdatedAt = updatedAt.Time
 	}
 	if imageURL.Valid {
 		item.ImageURL = imageURL.String
