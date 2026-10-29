@@ -528,6 +528,16 @@ func (r *OrderRepository) GetOrderByPhoneAndOrderNumber(phone, orderNumber strin
 	return &order, nil
 }
 
+// SetOrderCustomer links an order placed as a guest to its customer record.
+// An order already linked to a customer is left as it is.
+func (r *OrderRepository) SetOrderCustomer(orderID, userID int) error {
+	_, err := r.db.Exec(`UPDATE orders SET user_id = $1 WHERE id = $2 AND user_id IS NULL`, userID, orderID)
+	if err != nil {
+		return fmt.Errorf("failed to link order to customer: %w", err)
+	}
+	return nil
+}
+
 func (r *OrderRepository) CancelOrder(id int) error {
 	query := `
         UPDATE orders 
