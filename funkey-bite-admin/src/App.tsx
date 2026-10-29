@@ -6,6 +6,7 @@ import { SocketProvider } from './contexts/SocketContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AppRoutes from './routes/AppRoutes';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import './styles/globals.css';
 
 const queryClient = new QueryClient({
@@ -34,7 +35,9 @@ function App() {
         <ThemeProvider>
           <AuthProvider>
             <SocketProvider>
-              <AppRoutes />
+              <ErrorBoundary fullScreen>
+                <AppRoutes />
+              </ErrorBoundary>
               <Toaster 
                 position="top-right"
                 toastOptions={{
