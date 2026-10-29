@@ -8,8 +8,9 @@ const Topbar: React.FC = () => {
   const { user } = useAuthStore();
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-30">
-      <div className="h-full px-4 lg:px-6 flex items-center justify-between">
+    <header className="fixed top-0 left-0 lg:left-64 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-30">
+      {/* On small screens the left padding leaves room for the menu button. */}
+      <div className="h-full pl-16 pr-4 lg:px-6 flex items-center justify-between">
         
         <div className="flex-1 max-w-xl">
           <div className="relative">
