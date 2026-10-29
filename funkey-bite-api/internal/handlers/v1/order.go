@@ -112,14 +112,15 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	deliveryFee, taxAmount, totalWithFees := h.settings.CalculateOrderFees(subtotal, string(req.OrderType))
 
+	// A returning guest is linked now so per-customer promotion limits apply.
+	// A first-time guest's record is only created once the order is placed,
+	// so a rejected checkout leaves no customer behind.
 	var userID *int
 	if authUserID, exists := c.Get("user_id"); exists {
 		id := authUserID.(int)
 		userID = &id
-	} else if customer, err := h.authService.ResolveOrderCustomer(req.CustomerName, req.CustomerPhone, req.CustomerEmail); err != nil {
-		// The customer record is for the admin's follow-up; failing to save it
-		// must never lose the order itself.
-		log.Printf("Failed to record customer for phone ending %s: %v", lastDigits(req.CustomerPhone), err)
+	} else if customer, err := h.authService.FindOrderCustomer(req.CustomerPhone); err != nil {
+		log.Printf("Failed to look up customer for phone ending %s: %v", lastDigits(req.CustomerPhone), err)
 	} else if customer != nil {
 		userID = &customer.ID
 	}
@@ -192,6 +193,10 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	if userID == nil {
+		userID = h.recordGuestCustomer(createdOrder, req)
+	}
+
 	if promotionCode != "" {
 		if _, err := h.promotions.ApplyPromotionByCode(promotionCode, createdOrder.ID, userID, totalWithFees); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to apply promotion: " + err.Error()})
@@ -222,6 +227,23 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	realtime.GlobalBroadcaster.Broadcast("new_order", createdOrder)
 
 	c.JSON(http.StatusCreated, createdOrder)
+}
+
+// recordGuestCustomer creates the customer record for a first-time guest and
+// links the placed order to it. The record is for the admin's follow-up;
+// failing to save it must never lose the order itself.
+func (h *OrderHandler) recordGuestCustomer(order *models.Order, req models.OrderWithAuth) *int {
+	customer, err := h.authService.ResolveOrderCustomer(req.CustomerName, req.CustomerPhone, req.CustomerEmail)
+	if err != nil || customer == nil {
+		log.Printf("Failed to record customer for phone ending %s: %v", lastDigits(req.CustomerPhone), err)
+		return nil
+	}
+	if err := h.orderService.AssignCustomer(order.ID, customer.ID); err != nil {
+		log.Printf("Failed to link order #%s to its customer: %v", order.OrderNumber, err)
+		return nil
+	}
+	order.UserID = &customer.ID
+	return &customer.ID
 }
 
 // lastDigits keeps phone numbers out of logs apart from a short suffix.
