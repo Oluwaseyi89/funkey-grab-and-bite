@@ -10,7 +10,8 @@ import type {
   BusinessSettings,
   CateringRequest,
   Promotion,
-  User,
+  Customer,
+  CustomerStatusFilter,
   AdminStats,
   PaginatedResponse,
   InventoryAlert,
@@ -141,11 +142,12 @@ export const getOrders = (params?: {
   userId?: number;
 }) => {
   const { page = 1, limit = 20, status, paymentStatus, paymentMethod, search, userId } = params || {};
-  const requiresClientFiltering = Boolean(search || userId);
+  const requiresClientFiltering = Boolean(search);
   const filters = {
     ...(status ? { status } : {}),
     ...(paymentStatus ? { paymentStatus } : {}),
     ...(paymentMethod ? { paymentMethod } : {}),
+    ...(typeof userId === 'number' ? { userId } : {}),
   };
   const requestParams = requiresClientFiltering
     ? { page: 1, limit: 1000, ...filters }
@@ -158,9 +160,6 @@ export const getOrders = (params?: {
     }
 
     let filteredOrders = normalized.data;
-    if (typeof userId === 'number') {
-      filteredOrders = filteredOrders.filter((order) => order.userId === userId);
-    }
     if (search?.trim()) {
       const query = search.toLowerCase().trim();
       filteredOrders = filteredOrders.filter((order) =>
@@ -190,10 +189,18 @@ export const updateOrderStatus = (id: number, data: { status: string }) =>
     data
   );
 
-export const getUsers = (params?: { page?: number; limit?: number }) =>
-  apiGet<KeyedListPayload<User, 'users'>>('/api/v1/admin/users', params).then((payload) =>
+export const getUsers = (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: CustomerStatusFilter;
+}) =>
+  apiGet<KeyedListPayload<Customer, 'users'>>('/api/v1/admin/users', params).then((payload) =>
     normalizeKeyedList(payload, 'users', params?.page, params?.limit),
   );
+
+export const getCustomer = (id: number) =>
+  apiGet<Customer>(`/api/v1/admin/users/${id}`);
 
 export const updateUserStatus = (id: number, data: { isActive: boolean }) =>
   apiPatch<{ message: string; userId: number; isActive: boolean }>(
