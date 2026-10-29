@@ -224,6 +224,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		admin.PATCH("/orders/:id/payment", orderHandler.MarkPaymentCollected)
 		admin.GET("/orders/:id/invoice", orderHandler.GetOrderInvoice)
 		admin.GET("/users", adminHandler.GetAllUsers)
+		admin.GET("/users/:id", adminHandler.GetUser)
 		admin.PATCH("/users/:id/status", adminHandler.UpdateUserStatus)
 		admin.GET("/menu/items", adminHandler.GetMenuItems)
 		admin.GET("/menu/items/:id", adminHandler.GetMenuItem)
