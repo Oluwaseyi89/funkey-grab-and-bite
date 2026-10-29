@@ -25,9 +25,14 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { getUsers, getOrders } from '../../api/adminApi';
+import { getCustomer, getOrders } from '../../api/adminApi';
 import { isBackendUnavailableError } from '../../api/apiHelpers';
-import type { User as Customer, Order } from '../../types';
+import type { Order } from '../../types';
+
+const formatNaira = (amount: number) =>
+  `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const DAY_MS = 1000 * 60 * 60 * 24;
 
 const CustomerDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,18 +44,10 @@ const CustomerDetails: React.FC = () => {
     queryFn: async () => {
       if (!id) throw new Error('No customer ID');
       try {
-        const data = await getUsers({ page: 1, limit: 1 });
-        const customers = data.data || [];
-        const foundCustomer = customers.find((c: Customer) => c.id === parseInt(id));
-        
-        if (!foundCustomer) {
-          toast.error('Customer not found');
-          navigate('/customers');
-          return null;
-        }
-        return foundCustomer;
+        return await getCustomer(parseInt(id));
       } catch (error) {
-        toast.error('Failed to load customer details');
+        const notFound = (error as { status?: number } | null)?.status === 404;
+        toast.error(notFound ? 'Customer not found' : 'Failed to load customer details');
         navigate('/customers');
         return null;
       }
@@ -81,38 +78,29 @@ const CustomerDetails: React.FC = () => {
   const orders = ordersData?.data || [];
   const totalOrders = ordersData?.pagination?.total || 0;
 
+  // Totals come from the API so they cover every order, not just the ones listed.
   const calculateCustomerStats = () => {
-    if (!orders.length) {
+    if (!customer || customer.orderCount === 0) {
       return {
-        totalSpent: 0,
+        totalSpent: customer?.totalSpent ?? 0,
         avgOrderValue: 0,
         favoriteCategory: 'N/A',
         lastOrderDate: 'Never',
-        orderFrequency: 0,
+        orderFrequency: '0.00',
       };
     }
 
-    const totalSpent = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const avgOrderValue = totalSpent / orders.length;
-    
-    const favoriteCategory = 'Shawarma'; // This would come from order items analysis
-    
-    const lastOrder = orders[0];
-    const lastOrderDate = new Date(lastOrder.createdAt).toLocaleDateString();
-    
-    const firstOrder = orders[orders.length - 1];
-    const daysBetween = Math.ceil(
-      (new Date(lastOrder.createdAt).getTime() - new Date(firstOrder.createdAt).getTime()) / 
-      (1000 * 60 * 60 * 24)
-    );
-    const orderFrequency = daysBetween > 0 ? orders.length / (daysBetween || 1) : orders.length;
+    // Weeks from the first order to the last, counting at least one.
+    const weeks = customer.firstOrderAt && customer.lastOrderAt
+      ? Math.max(1, (new Date(customer.lastOrderAt).getTime() - new Date(customer.firstOrderAt).getTime()) / (7 * DAY_MS))
+      : 1;
 
     return {
-      totalSpent,
-      avgOrderValue,
-      favoriteCategory,
-      lastOrderDate,
-      orderFrequency: orderFrequency.toFixed(2),
+      totalSpent: customer.totalSpent,
+      avgOrderValue: customer.totalSpent / customer.orderCount,
+      favoriteCategory: customer.favoriteCategory ?? 'N/A',
+      lastOrderDate: customer.lastOrderAt ? new Date(customer.lastOrderAt).toLocaleDateString() : 'Never',
+      orderFrequency: (customer.orderCount / weeks).toFixed(2),
     };
   };
 
@@ -307,7 +295,7 @@ const CustomerDetails: React.FC = () => {
                   <ShoppingBag className="h-5 w-5 text-primary-500" />
                   <div>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {totalOrders}
+                      {customer.orderCount}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Total Orders</p>
                   </div>
@@ -319,7 +307,7 @@ const CustomerDetails: React.FC = () => {
                   <Banknote className="h-5 w-5 text-green-500" />
                   <div>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      ₦{stats.totalSpent.toFixed(2)}
+                      {formatNaira(stats.totalSpent)}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Total Spent</p>
                   </div>
@@ -331,7 +319,7 @@ const CustomerDetails: React.FC = () => {
                   <BarChart3 className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      ₦{stats.avgOrderValue.toFixed(2)}
+                      {formatNaira(stats.avgOrderValue)}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Order Value</p>
                   </div>
