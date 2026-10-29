@@ -48,14 +48,15 @@ const Layout: React.FC = () => {
         <Topbar />
       </div>
 
-      <div className="flex pt-16 print:pt-0">
+      {/* The sidebar and top bar are fixed, so the content is offset by their size. */}
+      <div className="pt-16 lg:pl-64 print:p-0">
         
         <div className="print:hidden">
           <Sidebar />
         </div>
 
         
-        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden">
+        <main className="min-w-0 p-4 md:p-6 lg:p-8 overflow-x-hidden">
           
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
             
