@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import Breadcrumbs from './Breadcrumbs';
 import { useSocket } from '../../contexts/SocketContext';
 import { Bell, Wifi, WifiOff } from 'lucide-react';
 import { useBusinessSettings } from '../../hooks/useBusinessSettings';
@@ -82,9 +83,7 @@ const Layout: React.FC = () => {
             </div>
 
             
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              Dashboard / Overview
-            </div>
+            <Breadcrumbs />
           </div>
 
           
