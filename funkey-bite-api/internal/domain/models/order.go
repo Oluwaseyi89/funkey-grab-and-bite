@@ -141,6 +141,7 @@ type OrderListFilter struct {
 	Status        string
 	PaymentStatus string
 	PaymentMethod string
+	UserID        *int
 }
 
 // Invoice is raised for pay-on-delivery orders so the customer knows what to
