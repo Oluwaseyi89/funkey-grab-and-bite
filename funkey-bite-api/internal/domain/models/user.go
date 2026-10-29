@@ -20,7 +20,7 @@ type User struct {
 type UserRegistration struct {
 	Phone    string `json:"phone" validate:"required,min=10,max=20"`
 	Email    string `json:"email,omitempty" validate:"omitempty,email"`
-	FullName string `json:"full_name" validate:"required,min=2,max=100"`
+	FullName string `json:"fullName" validate:"required,min=2,max=100"`
 	Password string `json:"password" validate:"required,min=8"`
 }
 
@@ -31,13 +31,13 @@ type UserLogin struct {
 
 type AuthResponse struct {
 	User         *User  `json:"user"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	IsNewUser    bool   `json:"is_new_user,omitempty"`
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken,omitempty"`
+	IsNewUser    bool   `json:"isNewUser,omitempty"`
 }
 
 type ProfileUpdate struct {
-	FullName *string `json:"full_name,omitempty"`
+	FullName *string `json:"fullName,omitempty"`
 	Email    *string `json:"email,omitempty"`
 	Phone    *string `json:"phone,omitempty"`
 }
