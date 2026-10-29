@@ -9,6 +9,7 @@ const OrderList = lazy(() => import('../pages/Orders/OrderList'));
 const OrderDetails = lazy(() => import('../pages/Orders/OrderDetails'));
 const MenuList = lazy(() => import('../pages/Menu/MenuList'));
 const MenuForm = lazy(() => import('../pages/Menu/MenuForm'));
+const MenuDetails = lazy(() => import('../pages/Menu/MenuDetails'));
 const Categories = lazy(() => import('../pages/Menu/Categories'));
 const CustomerList = lazy(() => import('../pages/Customers/CustomerList'));
 const CustomerDetails = lazy(() => import('../pages/Customers/CustomerDetails'));
@@ -69,6 +70,7 @@ const AppRoutes: React.FC = () => {
           <Route path="menu" element={<MenuList />} />
           <Route path="menu/new" element={<MenuForm />} />
           <Route path="menu/:id/edit" element={<MenuForm />} />
+          <Route path="menu/:id" element={<MenuDetails />} />
           <Route path="menu/categories" element={<Categories />} />
           
           
