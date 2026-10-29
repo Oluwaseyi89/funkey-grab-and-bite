@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Search, 
@@ -19,23 +19,37 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { getUsers, updateUserStatus } from '../../api/adminApi';
-import type { User as CustomUser } from '../../types';
+import type { CustomerStatusFilter } from '../../types';
+
+const formatNaira = (amount: number) =>
+  `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const CustomerList: React.FC = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<CustomerStatusFilter | ''>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [search, setSearch] = useState('');
+
+  // Search once typing pauses, from the first page.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchQuery.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { data: customersData, isLoading, refetch } = useQuery({
-    queryKey: ['customers', page, limit, statusFilter, searchQuery],
+    queryKey: ['customers', page, limit, statusFilter, search],
     queryFn: async () => {
       try {
-        const params: any = { page, limit };
-        if (statusFilter) params.isActive = statusFilter === 'active';
-        if (searchQuery) params.search = searchQuery;
-        
-        const data = await getUsers(params);
+        const data = await getUsers({
+          page,
+          limit,
+          ...(statusFilter ? { status: statusFilter } : {}),
+          ...(search ? { search } : {}),
+        });
         return data;
       } catch (error) {
         toast.error('Failed to load customers');
@@ -63,14 +77,6 @@ const CustomerList: React.FC = () => {
       month: 'short',
       day: 'numeric'
     });
-  };
-
-  const getOrderCount = (customer: CustomUser) => {
-    return Math.floor(Math.random() * 20); // Mock data
-  };
-
-  const getTotalSpent = (customer: CustomUser) => {
-    return (Math.random() * 1000).toFixed(2); // Mock data
   };
 
   return (
@@ -118,7 +124,10 @@ const CustomerList: React.FC = () => {
             <Filter className="h-5 w-5 text-gray-400" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as CustomerStatusFilter | '');
+                setPage(1);
+              }}
               className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:text-white"
             >
               <option value="">All Status</option>
@@ -213,14 +222,14 @@ const CustomerList: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="text-center">
                           <span className="font-semibold text-gray-900 dark:text-white">
-                            {getOrderCount(customer)}
+                            {customer.orderCount}
                           </span>
                           <p className="text-xs text-gray-500 dark:text-gray-400">orders</p>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-semibold text-gray-900 dark:text-white">
-                          ₦{getTotalSpent(customer)}
+                          {formatNaira(customer.totalSpent)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -360,7 +369,7 @@ const CustomerList: React.FC = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="text-center">
               <p className="text-2xl font-bold text-purple-600">
-                {Math.round(customers.reduce((acc, c) => acc + getOrderCount(c), 0) / customers.length) || 0}
+                {(customers.reduce((acc, c) => acc + c.orderCount, 0) / customers.length).toFixed(1)}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">Avg Orders/Customer</p>
             </div>
