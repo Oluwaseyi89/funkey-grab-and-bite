@@ -71,8 +71,9 @@ func (f *fakePaymentOrderRepo) GetOrderByOrderNumber(orderNumber string) (*model
 func (f *fakePaymentOrderRepo) GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error) {
 	return nil, nil
 }
-func (f *fakePaymentOrderRepo) CancelOrder(id int) error           { return nil }
-func (f *fakePaymentOrderRepo) BeginTransaction() (*sql.Tx, error) { return nil, nil }
+func (f *fakePaymentOrderRepo) CancelOrder(id int) error                   { return nil }
+func (f *fakePaymentOrderRepo) SetOrderCustomer(orderID, userID int) error { return nil }
+func (f *fakePaymentOrderRepo) BeginTransaction() (*sql.Tx, error)         { return nil, nil }
 func (f *fakePaymentOrderRepo) CreateOrderWithTransaction(tx *sql.Tx, order *models.Order) (*models.Order, error) {
 	return order, nil
 }
