@@ -17,6 +17,32 @@ type User struct {
 	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
 }
 
+// AdminCustomer is a customer as the admin sees them, with their order
+// totals. Cancelled orders are left out; totalSpent counts paid orders only.
+type AdminCustomer struct {
+	User
+	OrderCount       int        `json:"orderCount"`
+	TotalSpent       float64    `json:"totalSpent"`
+	FirstOrderAt     *time.Time `json:"firstOrderAt,omitempty"`
+	LastOrderAt      *time.Time `json:"lastOrderAt,omitempty"`
+	FavoriteCategory *string    `json:"favoriteCategory,omitempty"`
+}
+
+// Customer list status filters.
+const (
+	CustomerStatusActive     = "active"
+	CustomerStatusInactive   = "inactive"
+	CustomerStatusVerified   = "verified"
+	CustomerStatusUnverified = "unverified"
+)
+
+// CustomerListFilter narrows the admin customer list; empty fields match
+// everything. Search matches name, phone or email.
+type CustomerListFilter struct {
+	Search string
+	Status string
+}
+
 type UserRegistration struct {
 	Phone    string `json:"phone" validate:"required,min=10,max=20"`
 	Email    string `json:"email,omitempty" validate:"omitempty,email"`
