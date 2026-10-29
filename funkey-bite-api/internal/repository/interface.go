@@ -45,6 +45,7 @@ type IOrderRepository interface {
 	GetOrderByOrderNumber(orderNumber string) (*models.Order, error)
 	GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error)
 	CancelOrder(id int) error
+	SetOrderCustomer(orderID, userID int) error
 
 	BeginTransaction() (*sql.Tx, error)
 	CreateOrderWithTransaction(tx *sql.Tx, order *models.Order) (*models.Order, error)
