@@ -8,13 +8,13 @@ type User struct {
 	ID           int        `json:"id" db:"id"`
 	Phone        string     `json:"phone" db:"phone"`
 	Email        *string    `json:"email,omitempty" db:"email"`
-	FullName     string     `json:"full_name" db:"full_name"`
+	FullName     string     `json:"fullName" db:"full_name"`
 	PasswordHash string     `json:"-" db:"password_hash"`
-	IsVerified   bool       `json:"is_verified" db:"is_verified"`
-	IsActive     bool       `json:"is_active" db:"is_active"`
-	LastLogin    *time.Time `json:"last_login,omitempty" db:"last_login"`
-	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+	IsVerified   bool       `json:"isVerified" db:"is_verified"`
+	IsActive     bool       `json:"isActive" db:"is_active"`
+	LastLogin    *time.Time `json:"lastLogin,omitempty" db:"last_login"`
+	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
 }
 
 type UserRegistration struct {
