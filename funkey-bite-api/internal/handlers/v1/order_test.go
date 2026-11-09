@@ -2,6 +2,7 @@ package v1
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -61,13 +62,15 @@ type fakeOrderService struct {
 	collected    *models.Order
 	collectErr   error
 	collectedVia string
-	assignedUser int
+	checkout     *models.Checkout
 }
 
-func (f *fakeOrderService) CreateOrder(order *models.Order, items []models.OrderItemRequest) (*models.Order, error) {
+func (f *fakeOrderService) CreateOrder(ctx context.Context, checkout *models.Checkout) (*models.Order, error) {
+	f.checkout = checkout
 	if f.createErr != nil {
 		return nil, f.createErr
 	}
+	order := checkout.Order
 	copyOrder := *order
 	f.captured = &copyOrder
 	if f.response != nil {
@@ -104,17 +107,12 @@ func (f *fakeOrderService) GetOrderByPhoneAndOrderNumber(phone, orderNumber stri
 	return f.trackByPhone, nil
 }
 func (f *fakeOrderService) CancelOrder(id int, userID int) error { return nil }
-func (f *fakeOrderService) AssignCustomer(orderID, userID int) error {
-	f.assignedUser = userID
-	return nil
-}
 
 type fakeAuthService struct {
 	authUser      *models.User
 	authErr       error
 	existing      *models.User
-	resolvedPhone string
-	resolveCalls  int
+	lookedUpPhone string
 }
 
 func (f *fakeAuthService) Register(userData models.UserRegistration) (*models.AuthResponse, error) {
@@ -127,19 +125,8 @@ func (f *fakeAuthService) CheckUserExists(phone, email string) (*models.User, bo
 	return nil, false, nil
 }
 func (f *fakeAuthService) FindOrderCustomer(phone string) (*models.User, error) {
+	f.lookedUpPhone = phone
 	return f.existing, f.authErr
-}
-func (f *fakeAuthService) ResolveOrderCustomer(name, phone string, email *string) (*models.User, error) {
-	f.resolvedPhone = phone
-	f.resolveCalls++
-	if f.authErr != nil {
-		return nil, f.authErr
-	}
-	if f.authUser != nil {
-		return f.authUser, nil
-	}
-	uid := 99
-	return &models.User{ID: uid}, nil
 }
 
 type fakeSettingsService struct {
@@ -454,8 +441,8 @@ func TestCreateOrderAppliesPromotionDiscountToPersistedTotal(t *testing.T) {
 	if orderSvc.captured.TotalAmount != 18.6 {
 		t.Fatalf("expected discounted total amount 18.6, got %v", orderSvc.captured.TotalAmount)
 	}
-	if promoSvc.appliedCode != "SAVE5" {
-		t.Fatalf("expected promotion code SAVE5 to be applied, got %q", promoSvc.appliedCode)
+	if use := orderSvc.checkout.Promotion; use == nil || use.PromotionID != 99 || use.DiscountApplied != 5 {
+		t.Fatalf("expected promotion 99 with a 5 discount to be saved with the order, got %+v", use)
 	}
 }
 
@@ -506,24 +493,14 @@ func TestCreateOrderRejectsInvalidPromotion(t *testing.T) {
 	}
 }
 
-func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
-	orderSvc := &fakeOrderService{
-		subtotal: 20,
-		response: &models.Order{ID: 77, OrderNumber: "FG-2026-04-0077", TotalAmount: 20.6},
-	}
-	settingsSvc := &fakeSettingsService{
-		minOrderOK:  true,
-		orderTimeOK: true,
-		acceptOK:    true,
-		total:       23.6,
-	}
+func TestCreateOrderReportsPromotionThatRanOutWhilePlacing(t *testing.T) {
+	orderSvc := &fakeOrderService{subtotal: 20, createErr: services.ErrPromotionUnavailable}
+	settingsSvc := &fakeSettingsService{minOrderOK: true, orderTimeOK: true, acceptOK: true, total: 23.6}
 	promoSvc := &fakePromotionService{
-		validation:    &models.PromotionValidation{IsValid: true, PromotionID: 199, Discount: 3},
-		applyErr:      fmt.Errorf("promotion usage limit reached"),
-		applyDiscount: 3,
+		validation: &models.PromotionValidation{IsValid: true, PromotionID: 199, Discount: 3},
 	}
 
-	code := "FLASH3"
+	code := "SAVE3"
 	req := models.OrderWithAuth{
 		CustomerName:    "Test User",
 		CustomerPhone:   "+15550001111",
@@ -532,12 +509,7 @@ func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
 		OrderType:       models.OrderTypeDelivery,
 		PaymentMethod:   models.PaymentMethodCash,
 		PromotionCode:   &code,
-		Items: []models.OrderItemRequest{{
-			MenuItemID: 1,
-			Name:       "Burger",
-			Quantity:   1,
-			UnitPrice:  8,
-		}},
+		Items:           []models.OrderItemRequest{{MenuItemID: 1, Name: "Burger", Quantity: 1, UnitPrice: 8}},
 	}
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -547,11 +519,8 @@ func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
 	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc, &fakePaymentService{}, &fakeInvoiceService{})
 	rec := runCreateOrder(t, handler, body)
 
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected status %d, got %d, body: %s", http.StatusInternalServerError, rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "Failed to apply promotion") {
-		t.Fatalf("expected apply promotion error, got body: %s", rec.Body.String())
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "no longer available") {
+		t.Fatalf("expected 409 saying the promotion is no longer available, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
