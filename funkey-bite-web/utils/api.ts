@@ -410,6 +410,25 @@ export class ApiService {
     }
   }
 
+  // Payment details for an unpaid online transfer order, when getting them at
+  // checkout failed or the payment window closed. Details still valid are
+  // returned as they are, so pressing twice is safe.
+  async getPaymentDetails(orderNumber: string, phone: string): Promise<Order> {
+    try {
+      const payload = await this.fetchJSON<BackendOrder>('/orders/payment-details', {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({ orderNumber, phone }),
+      })
+      return this.normalizeOrder(payload)
+    } catch (err) {
+      if (this.isBackendUnavailableError(err)) {
+        throw new Error("We couldn't reach our server. Check your connection and try again.")
+      }
+      throw err
+    }
+  }
+
   async getOrder(phone: string, orderNumber: string): Promise<Order | null> {
     const endpoint = `/order/track/${encodeURIComponent(phone)}/${encodeURIComponent(orderNumber)}`
     try {
