@@ -142,7 +142,7 @@ const PaymentList: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Payments</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Online transfers, and payments that need your decision.
+          Online payments (transfer and card), and payments that need your decision.
         </p>
       </div>
 
@@ -210,7 +210,9 @@ const PaymentList: React.FC = () => {
                       <Link to={`/orders/${payment.orderId}`} className="font-medium text-primary-600 dark:text-primary-400 hover:underline">
                         #{payment.orderNumber}
                       </Link>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">{payment.status}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                        {payment.status} · {payment.paymentMethod === 'card' ? 'Card' : 'Transfer'}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-gray-900 dark:text-white">{payment.customerName}</div>
