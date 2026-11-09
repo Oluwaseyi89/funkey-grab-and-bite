@@ -18,13 +18,13 @@ func NewAdminPaymentRepository(db *sql.DB) *AdminPaymentRepository {
 }
 
 const onlinePaymentWhere = `
-	WHERE o.payment_method = 'transfer'
+	WHERE o.payment_method IN ('transfer', 'card')
 	  AND ($1 = '' OR o.payment_status = $1)
 	  AND ($2 = '' OR o.order_number ILIKE $2 OR o.customer_name ILIKE $2 OR o.customer_phone ILIKE $2
 	       OR EXISTS (SELECT 1 FROM payment_references pr WHERE pr.order_id = o.id AND pr.reference ILIKE $2))
 `
 
-// List returns online transfer orders matching filter, newest first, and how
+// List returns online (transfer and card) orders matching filter, newest first, and how
 // many match.
 func (r *AdminPaymentRepository) List(ctx context.Context, filter models.OnlinePaymentFilter, limit, offset int) ([]models.OnlinePayment, int, error) {
 	search := customerSearchPattern(filter.Search)
@@ -37,7 +37,7 @@ func (r *AdminPaymentRepository) List(ctx context.Context, filter models.OnlineP
 
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT o.id, o.order_number, o.customer_name, o.customer_phone, o.total_amount, o.status,
-		       o.payment_status, o.payment_reference, o.payment_received_kobo, o.payment_review_reason,
+		       o.payment_method, o.payment_status, o.payment_reference, o.payment_received_kobo, o.payment_review_reason,
 		       (SELECT COUNT(*) FROM payment_references pr WHERE pr.order_id = o.id),
 		       o.payment_expires_at, o.payment_paid_at, o.created_at
 		FROM orders o`+onlinePaymentWhere+`
@@ -56,7 +56,7 @@ func (r *AdminPaymentRepository) List(ctx context.Context, filter models.OnlineP
 		var receivedKobo sql.NullInt64
 		var expiresAt, paidAt sql.NullTime
 		if err := rows.Scan(&p.OrderID, &p.OrderNumber, &p.CustomerName, &p.CustomerPhone, &p.TotalAmount, &p.Status,
-			&p.PaymentStatus, &reference, &receivedKobo, &reviewReason, &p.ReferenceCount,
+			&p.PaymentMethod, &p.PaymentStatus, &reference, &receivedKobo, &reviewReason, &p.ReferenceCount,
 			&expiresAt, &paidAt, &p.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("read online payment: %w", err)
 		}
@@ -80,7 +80,7 @@ func (r *AdminPaymentRepository) List(ctx context.Context, filter models.OnlineP
 // status, for the page's tabs.
 func (r *AdminPaymentRepository) CountByStatus(ctx context.Context) (map[string]int, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT payment_status, COUNT(*) FROM orders WHERE payment_method = 'transfer' GROUP BY payment_status
+		SELECT payment_status, COUNT(*) FROM orders WHERE payment_method IN ('transfer', 'card') GROUP BY payment_status
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("count online payments by status: %w", err)
