@@ -12,6 +12,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
+	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 	"funkey-grab-and-bite/funkey-bite-api/internal/realtime"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
@@ -113,8 +114,8 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	deliveryFee, taxAmount, totalWithFees := h.settings.CalculateOrderFees(subtotal, string(req.OrderType))
 
 	// A returning guest is linked now so per-customer promotion limits apply.
-	// A first-time guest's record is only created once the order is placed,
-	// so a rejected checkout leaves no customer behind.
+	// A first-time guest's record is created in the same transaction as the
+	// order, so a rejected checkout leaves no customer behind.
 	var userID *int
 	if authUserID, exists := c.Get("user_id"); exists {
 		id := authUserID.(int)
@@ -132,6 +133,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		promotionCode = strings.TrimSpace(*req.PromotionCode)
 	}
 
+	var promotionUse *models.PromotionUsage
 	if promotionCode != "" {
 		validation, err := h.promotions.ValidatePromotion(promotionCode, totalWithFees, userID)
 		if err != nil {
@@ -145,6 +147,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		}
 
 		discount = validation.Discount
+		promotionUse = &models.PromotionUsage{PromotionID: validation.PromotionID, DiscountApplied: discount}
 		finalTotal = totalWithFees - discount
 		if finalTotal < 0 {
 			finalTotal = 0
@@ -182,26 +185,24 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		DiscountAmount:  &discount,
 	}
 
-	createdOrder, err := h.orderService.CreateOrder(order, req.Items)
+	checkout := &models.Checkout{Order: order, Items: req.Items, Promotion: promotionUse}
+	if userID == nil {
+		checkout.Guest = &models.GuestCustomer{Name: req.CustomerName, Phone: req.CustomerPhone, Email: req.CustomerEmail}
+	}
+
+	createdOrder, err := h.orderService.CreateOrder(middleware.RequestContext(c), checkout)
 	var unavailable *services.ItemUnavailableError
-	if errors.As(err, &unavailable) {
+	switch {
+	case errors.As(err, &unavailable):
 		c.JSON(http.StatusConflict, gin.H{"error": unavailable.Message})
 		return
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order: " + err.Error()})
+	case errors.Is(err, services.ErrPromotionUnavailable):
+		c.JSON(http.StatusConflict, gin.H{"error": "This promotion is no longer available. Remove it and try again."})
 		return
-	}
-
-	if userID == nil {
-		userID = h.recordGuestCustomer(createdOrder, req)
-	}
-
-	if promotionCode != "" {
-		if _, err := h.promotions.ApplyPromotionByCode(promotionCode, createdOrder.ID, userID, totalWithFees); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to apply promotion: " + err.Error()})
-			return
-		}
+	case err != nil:
+		log.Printf("Failed to create order: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "We couldn't place your order. Please try again."})
+		return
 	}
 
 	if createdOrder.PaymentMethod == models.PaymentMethodTransfer {
@@ -229,21 +230,21 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	c.JSON(http.StatusCreated, createdOrder)
 }
 
-// recordGuestCustomer creates the customer record for a first-time guest and
-// links the placed order to it. The record is for the admin's follow-up;
-// failing to save it must never lose the order itself.
-func (h *OrderHandler) recordGuestCustomer(order *models.Order, req models.OrderWithAuth) *int {
-	customer, err := h.authService.ResolveOrderCustomer(req.CustomerName, req.CustomerPhone, req.CustomerEmail)
-	if err != nil || customer == nil {
-		log.Printf("Failed to record customer for phone ending %s: %v", lastDigits(req.CustomerPhone), err)
-		return nil
+// ReplayCreateOrder answers a retried checkout whose order was saved but whose
+// response was never stored (the API stopped right after committing), by
+// returning the saved order.
+func (h *OrderHandler) ReplayCreateOrder(c *gin.Context, record *models.IdempotencyRecord) {
+	orderID, err := strconv.Atoi(record.EntityID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "We couldn't load your order. Please contact us."})
+		return
 	}
-	if err := h.orderService.AssignCustomer(order.ID, customer.ID); err != nil {
-		log.Printf("Failed to link order #%s to its customer: %v", order.OrderNumber, err)
-		return nil
+	order, err := h.orderService.GetOrderByID(orderID)
+	if err != nil || order == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "We couldn't load your order. Please contact us."})
+		return
 	}
-	order.UserID = &customer.ID
-	return &customer.ID
+	c.JSON(http.StatusCreated, order)
 }
 
 // lastDigits keeps phone numbers out of logs apart from a short suffix.
