@@ -17,7 +17,8 @@ import (
 // These tests run against a real Postgres with the migrations applied, since
 // the idempotency and rate limit SQL depends on Postgres behaviour a mock
 // can't reproduce. Set TEST_DATABASE_URL to run them; they clean up after
-// themselves.
+// themselves. Stop any API using the same database first: its job worker
+// would claim the jobs these tests queue.
 func openIntegrationDB(t *testing.T) *sql.DB {
 	t.Helper()
 	url := os.Getenv("TEST_DATABASE_URL")
