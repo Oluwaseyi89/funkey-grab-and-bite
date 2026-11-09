@@ -1,27 +1,32 @@
 package v1
 
 import (
+	"errors"
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
+	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 )
 
 type AuthHandler struct {
-	authService services.AuthService
-	userService services.UserService
-	validate    *validator.Validate
+	authService    services.AuthService
+	userService    services.UserService
+	accountService services.AccountService
+	validate       *validator.Validate
 }
 
-func NewAuthHandler(authService services.AuthService, userService services.UserService) *AuthHandler {
+func NewAuthHandler(authService services.AuthService, userService services.UserService, accountService services.AccountService) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
-		userService: userService,
-		validate:    validator.New(),
+		authService:    authService,
+		userService:    userService,
+		accountService: accountService,
+		validate:       validator.New(),
 	}
 }
 
@@ -45,13 +50,107 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	authResponse, err := h.authService.Register(req)
+	result, err := h.accountService.Register(middleware.RequestContext(c), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondAccountError(c, err)
+		return
+	}
+	if result.VerificationSentTo != "" {
+		// The number has guest orders; they are linked once the emailed
+		// code is confirmed.
+		c.JSON(http.StatusAccepted, gin.H{"verificationRequired": true, "sentTo": result.VerificationSentTo})
 		return
 	}
 
-	c.JSON(http.StatusCreated, authResponse)
+	c.JSON(http.StatusCreated, result.Auth)
+}
+
+// respondAccountError explains a registration or password reset problem.
+func respondAccountError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, services.ErrAccountExists), errors.Is(err, services.ErrEmailTaken):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	case errors.Is(err, services.ErrInvalidCode), errors.Is(err, services.ErrCannotVerifyPhone):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	default:
+		log.Printf("Account request failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+	}
+}
+
+// ConfirmRegistration completes a registration for a number with guest
+// orders, linking them to the new account
+// @Summary Confirm registration with the emailed code
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param confirmation body models.RegistrationConfirmation true "Registration details and code"
+// @Router /auth/register/confirm [post]
+func (h *AuthHandler) ConfirmRegistration(c *gin.Context) {
+	var req models.RegistrationConfirmation
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Enter your details and the 6-digit code from the email"})
+		return
+	}
+	if !utils.ValidatePasswordStrength(req.Password) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters with uppercase, lowercase, and numbers"})
+		return
+	}
+
+	auth, err := h.accountService.ConfirmRegistration(middleware.RequestContext(c), req.UserRegistration, req.Code)
+	if err != nil {
+		respondAccountError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, auth)
+}
+
+// ForgotPassword emails a reset code to the account with this email. The
+// answer is the same whether or not one exists.
+// @Summary Request a password reset code
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body models.PasswordResetRequest true "Account email"
+// @Router /auth/password/forgot [post]
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req models.PasswordResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil || h.validate.Struct(req) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Enter a valid email"})
+		return
+	}
+	if err := h.accountService.RequestPasswordReset(middleware.RequestContext(c), req.Email); err != nil {
+		log.Printf("Password reset request failed: %v", err)
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "If an account uses that email, we've sent it a code."})
+}
+
+// ResetPassword sets a new password with an emailed code
+// @Summary Reset a password
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param reset body models.PasswordReset true "Email, code and new password"
+// @Router /auth/password/reset [post]
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req models.PasswordReset
+	if err := c.ShouldBindJSON(&req); err != nil || h.validate.Struct(req) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Enter your email, the 6-digit code and a new password"})
+		return
+	}
+	if !utils.ValidatePasswordStrength(req.Password) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters with uppercase, lowercase, and numbers"})
+		return
+	}
+	if err := h.accountService.ResetPassword(middleware.RequestContext(c), req.Email, req.Code, req.Password); err != nil {
+		respondAccountError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Your password has been changed. You can log in now."})
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
