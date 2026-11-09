@@ -48,6 +48,7 @@ func newCheckoutFixture(t *testing.T, stock, promotionLimit int) *checkoutFixtur
 		db.Exec(`DELETE FROM promotion_usage WHERE promotion_id = $1`, f.promotionID)
 		db.Exec(`DELETE FROM order_items WHERE menu_item_id = $1`, f.menuItemID)
 		db.Exec(`DELETE FROM audit_log WHERE entity_type = 'order' AND entity_id IN (SELECT id::text FROM orders WHERE order_number LIKE $1)`, "CHK-"+f.tag+"%")
+		db.Exec(`DELETE FROM jobs WHERE payload->>'orderId' IN (SELECT id::text FROM orders WHERE order_number LIKE $1)`, "CHK-"+f.tag+"%")
 		db.Exec(`DELETE FROM orders WHERE order_number LIKE $1`, "CHK-"+f.tag+"%")
 		db.Exec(`DELETE FROM users WHERE full_name LIKE $1`, "Checkout guest "+f.tag+"%")
 		db.Exec(`DELETE FROM inventory_alerts WHERE inventory_item_id IN (SELECT id FROM inventory_items WHERE menu_item_id = $1)`, f.menuItemID)
@@ -61,7 +62,7 @@ func newCheckoutFixture(t *testing.T, stock, promotionLimit int) *checkoutFixtur
 	orders := NewOrderRepository(db)
 	f.idempotency = NewIdempotencyRepository(db)
 	f.repo = NewCheckoutRepository(db, orders, NewUserRepository(db), NewInventoryRepository(db),
-		NewPromotionRepository(db), NewAuditRepository(db), f.idempotency)
+		NewPromotionRepository(db), NewAuditRepository(db), f.idempotency, NewJobRepository(db))
 	return f
 }
 
@@ -231,5 +232,91 @@ func TestPlaceOrderRecordsGuestWhoseEmailBelongsToAnotherCustomer(t *testing.T) 
 	}
 	if n := f.count(t, `SELECT COUNT(*) FROM users WHERE phone = $1`, first); n != 1 {
 		t.Fatalf("expected one record for the returning guest, got %d", n)
+	}
+}
+
+func TestPlaceOrderQueuesFollowUpJobs(t *testing.T) {
+	f := newCheckoutFixture(t, 5, 10)
+
+	cash := f.checkout(1, 1, "0803"+f.tag[len(f.tag)-7:], nil, false)
+	invoice := "INV-" + f.tag
+	cash.Order.InvoiceNumber = &invoice
+	cashID, err := f.repo.PlaceOrder(context.Background(), cash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transfer := f.checkout(2, 1, "0802"+f.tag[len(f.tag)-7:], nil, false)
+	transfer.Order.PaymentMethod = models.PaymentMethodTransfer
+	transferID, err := f.repo.PlaceOrder(context.Background(), transfer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jobsFor := func(orderID int) map[string]time.Time {
+		rows, err := f.db.Query(`SELECT kind, run_at FROM jobs WHERE payload->>'orderId' = $1`, fmt.Sprint(orderID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		kinds := map[string]time.Time{}
+		for rows.Next() {
+			var kind string
+			var runAt time.Time
+			_ = rows.Scan(&kind, &runAt)
+			kinds[kind] = runAt
+		}
+		return kinds
+	}
+
+	if got := jobsFor(cashID); len(got) != 1 || got["order.invoice"].IsZero() {
+		t.Fatalf("a pay-on-delivery order queues only its invoice email, got %v", got)
+	}
+	got := jobsFor(transferID)
+	if len(got) != 2 || got["order.confirmation"].IsZero() {
+		t.Fatalf("a transfer order queues its confirmation and a payment check, got %v", got)
+	}
+	if check := got["order.payment_check"]; time.Until(check) < PaymentCheckDelay-time.Minute {
+		t.Fatalf("the payment check must wait for the window to close, runs at %v", check)
+	}
+}
+
+func TestCancelUnpaidOrderReturnsStockOnce(t *testing.T) {
+	f := newCheckoutFixture(t, 5, 10)
+	transfer := f.checkout(1, 2, "0801"+f.tag[len(f.tag)-7:], nil, false)
+	transfer.Order.PaymentMethod = models.PaymentMethodTransfer
+	orderID, err := f.repo.PlaceOrder(context.Background(), transfer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.stock(t) != 3 {
+		t.Fatalf("expected stock 3 after the order, got %d", f.stock(t))
+	}
+
+	cancelled, err := f.repo.CancelUnpaidOrder(context.Background(), orderID)
+	if err != nil || !cancelled {
+		t.Fatalf("expected the unpaid order cancelled, got %v %v", cancelled, err)
+	}
+	if f.stock(t) != 5 {
+		t.Fatalf("expected the stock returned, got %d", f.stock(t))
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM orders WHERE id = $1 AND status = 'cancelled' AND payment_status = 'expired'`, orderID); n != 1 {
+		t.Fatal("expected the order cancelled with its payment expired")
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM audit_log WHERE action = 'order.payment_expired' AND entity_id = $1`, fmt.Sprint(orderID)); n != 1 {
+		t.Fatal("expected an audit entry for the expiry")
+	}
+
+	// Running the check again changes nothing.
+	if again, err := f.repo.CancelUnpaidOrder(context.Background(), orderID); err != nil || again || f.stock(t) != 5 {
+		t.Fatalf("a second cancellation must do nothing, got %v %v stock %d", again, err, f.stock(t))
+	}
+
+	// A paid order is never cancelled.
+	paid := f.checkout(2, 1, "0801"+f.tag[len(f.tag)-7:], nil, false)
+	paid.Order.PaymentMethod = models.PaymentMethodTransfer
+	paidID, _ := f.repo.PlaceOrder(context.Background(), paid)
+	_, _ = f.db.Exec(`UPDATE orders SET payment_status = 'paid' WHERE id = $1`, paidID)
+	if c, err := f.repo.CancelUnpaidOrder(context.Background(), paidID); err != nil || c {
+		t.Fatalf("a paid order must not be cancelled, got %v %v", c, err)
 	}
 }
