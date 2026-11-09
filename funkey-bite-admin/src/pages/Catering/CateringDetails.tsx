@@ -27,6 +27,7 @@ import {
   updateCateringRequest,
 } from '../../api/adminApi';
 import { useBusinessSettings } from '../../hooks/useBusinessSettings';
+import { useIdempotencyKey } from '../../hooks/useIdempotencyKey';
 import type { CateringContract, CateringRequest, CateringStatus } from '../../types';
 import {
   AccountSummary,
@@ -141,9 +142,15 @@ const CateringDetails: React.FC = () => {
     onSuccess: onContract('Quote sent to the customer'),
     onError,
   });
+  // One key per payment being recorded: a retry after a failure resends it,
+  // so the payment is never recorded twice; a new key once it succeeds.
+  const paymentKey = useIdempotencyKey();
   const paymentMutation = useMutation({
-    mutationFn: (input: Parameters<typeof recordCateringPayment>[1]) => recordCateringPayment(requestId, input),
-    onSuccess: onContract('Payment recorded'),
+    mutationFn: (input: Parameters<typeof recordCateringPayment>[1]) => recordCateringPayment(requestId, input, paymentKey.current()),
+    onSuccess: (contract: CateringContract) => {
+      paymentKey.reset();
+      onContract('Payment recorded')(contract);
+    },
     onError,
   });
   const statusMutation = useMutation({
