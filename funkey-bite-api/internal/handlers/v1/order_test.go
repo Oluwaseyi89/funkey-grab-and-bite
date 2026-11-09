@@ -134,16 +134,13 @@ type fakeAuthService struct {
 	lookedUpPhone string
 }
 
-func (f *fakeAuthService) Register(userData models.UserRegistration) (*models.AuthResponse, error) {
-	return nil, nil
-}
 func (f *fakeAuthService) Login(phone, password string) (*models.AuthResponse, error) {
 	return nil, nil
 }
 func (f *fakeAuthService) CheckUserExists(phone, email string) (*models.User, bool, error) {
 	return nil, false, nil
 }
-func (f *fakeAuthService) FindOrderCustomer(phone string) (*models.User, error) {
+func (f *fakeAuthService) FindOrderCustomer(phone, email string) (*models.User, error) {
 	f.lookedUpPhone = phone
 	return f.existing, f.authErr
 }
