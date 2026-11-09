@@ -49,8 +49,17 @@ export const apiGetResponse = async <T>(url: string, params?: any): Promise<ApiH
   };
 };
 
-export const apiPost = async <T>(url: string, data?: any): Promise<T> => {
-  const response = await api.post(url, data);
+// Options for a write. idempotencyKey makes a retry of the same action (after
+// a timeout, say) return the first result instead of repeating it.
+export interface WriteOptions {
+  idempotencyKey?: string;
+}
+
+const writeConfig = (options?: WriteOptions) =>
+  options?.idempotencyKey ? { headers: { 'Idempotency-Key': options.idempotencyKey } } : undefined;
+
+export const apiPost = async <T>(url: string, data?: any, options?: WriteOptions): Promise<T> => {
+  const response = await api.post(url, data, writeConfig(options));
   return response.data;
 };
 
@@ -59,8 +68,8 @@ export const apiPut = async <T>(url: string, data?: any): Promise<T> => {
   return response.data;
 };
 
-export const apiPatch = async <T>(url: string, data?: any): Promise<T> => {
-  const response = await api.patch(url, data);
+export const apiPatch = async <T>(url: string, data?: any, options?: WriteOptions): Promise<T> => {
+  const response = await api.patch(url, data, writeConfig(options));
   return response.data;
 };
 
