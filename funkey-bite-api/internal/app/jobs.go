@@ -74,7 +74,7 @@ func registerJobs(worker *jobs.Worker, orders services.OrderService, notificatio
 		if err != nil {
 			return err
 		}
-		return payments.CheckTransferPayment(ctx, orderID)
+		return payments.CheckOnlinePayment(ctx, orderID)
 	})
 }
 
