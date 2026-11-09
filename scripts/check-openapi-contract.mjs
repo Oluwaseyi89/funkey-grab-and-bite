@@ -94,6 +94,7 @@ const routeSets = {
     ['post', '/api/v1/catering/booking'],
     ['post', '/api/v1/catering/booking/accept'],
     ['post', '/api/v1/catering/booking/pay'],
+    ['post', '/api/v1/catering/booking/pay/verify'],
     ['get', '/api/v1/promotions/active'],
     ['get', '/api/v1/settings']
   ]
