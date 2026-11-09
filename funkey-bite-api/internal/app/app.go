@@ -106,7 +106,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	adminService := services.NewAdminService(adminRepo, *orderRepo, *userRepo, *cateringRepo, *menuRepo, imageStorage)
 	settingsService := services.NewSettingsService(*settingsRepo)
 	promotionService := services.NewPromotionService(promotionRepo)
-	paymentService := services.NewPaymentService(paymentGateway, orderRepo, notificationService, checkoutRepo)
+	paymentService := services.NewPaymentService(paymentGateway, orderRepo, checkoutRepo)
 	invoiceService := services.NewInvoiceService(settingsService, emailService)
 	teamService := services.NewTeamService(teamRepo, imageStorage)
 	cateringContractService := services.NewCateringContractService(cateringRepo, cateringContractRepo, settingsService, emailService, paymentGateway)
