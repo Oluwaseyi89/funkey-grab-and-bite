@@ -227,7 +227,8 @@
     ArrowRight,
     Loader2,
     Landmark,
-    Banknote
+    Banknote,
+    CreditCard
   } from 'lucide-vue-next'
   
   import PageHeader from '../../components/layout/PageHeader.vue'
@@ -238,10 +239,14 @@
   import OrderConfirmation from '../../components/order/OrderConfirmation.vue'
   import { useApi } from '../../utils/api'
   import { checkoutKeyFor, clearCheckoutKey } from '../../utils/checkoutKey'
+  import { usePaystack } from '../../composables/usePaystack'
+  import { useAuthStore } from '../../stores/auth'
   import { useBusinessSettings } from '../../composables/useBusinessSettings'
   
   const cart = useCartStore()
   const api = useApi()
+  const auth = useAuthStore()
+  const { cardPaymentsEnabled, payWithCard } = usePaystack()
   const { $toast } = useNuxtApp()
   const { settings: businessSettings, status: settingsStatus, load: loadBusinessSettings } = useBusinessSettings()
   
@@ -292,10 +297,19 @@
         iconClass: 'text-amber-500'
       })
     }
+    if (cardPaymentsEnabled) {
+      methods.push({
+        id: 'card',
+        name: 'Pay with Card',
+        description: "Pay instantly in Paystack's secure window. Your card details never reach us.",
+        icon: CreditCard,
+        iconClass: 'text-emerald-500'
+      })
+    }
     methods.push({
       id: 'transfer',
-      name: 'Pay Online Now',
-      description: 'Pay by bank transfer to a dedicated account number (Paystack)',
+      name: 'Bank Transfer',
+      description: 'Transfer to a dedicated account number (Paystack)',
       icon: Landmark,
       iconClass: 'text-blue-500'
     })
@@ -396,8 +410,23 @@
       }
 
       // Reused if this same order is submitted again, so it is placed once.
-      const createdOrder = await api.createOrder(orderPayload, checkoutKeyFor(orderPayload))
+      let createdOrder = await api.createOrder(orderPayload, checkoutKeyFor(orderPayload))
       clearCheckoutKey()
+
+      // A card order opens Paystack's window straight away; the server then
+      // confirms the payment. Closing it leaves a "Pay with card" button on
+      // the confirmation.
+      if (createdOrder.paymentMethod === 'card' && createdOrder.paymentAccessCode) {
+        try {
+          if ((await payWithCard(createdOrder.paymentAccessCode)) === 'paid') {
+            createdOrder = (await api.refreshPaymentStatus(createdOrder.orderNumber, details.customerPhone)).order
+          }
+        } catch (err) {
+          if ($toast && typeof $toast.error === 'function') {
+            $toast.error(err instanceof Error ? err.message : 'The card payment window could not open.')
+          }
+        }
+      }
 
       orderNumber.value = createdOrder.orderNumber
       lastOrder.value = createdOrder
@@ -444,5 +473,17 @@
   onMounted(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
     loadBusinessSettings()
+    // Signed-in customers start with their details filled in; they can still
+    // change them for this order. Done after mounting, where the saved
+    // session is available.
+    const user = auth.user
+    if (user && !customerInfo.value.customerName && !customerInfo.value.customerPhone) {
+      customerInfo.value = {
+        ...customerInfo.value,
+        customerName: user.fullName,
+        customerPhone: user.phone,
+        customerEmail: user.email ?? '',
+      }
+    }
   })
   </script>
