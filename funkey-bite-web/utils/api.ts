@@ -599,11 +599,25 @@ export class ApiService {
   }
 
   // A bank account to transfer the deposit or balance to.
-  async payCateringOnline(auth: CateringBookingAuth, portion: 'deposit' | 'balance'): Promise<CateringPaymentCharge> {
+  async payCateringOnline(
+    auth: CateringBookingAuth,
+    portion: 'deposit' | 'balance',
+    method: 'transfer' | 'card' = 'transfer',
+  ): Promise<CateringPaymentCharge> {
     return this.fetchJSON<CateringPaymentCharge>('/catering/booking/pay', {
       method: 'POST',
       headers: this.headers,
-      body: JSON.stringify({ ...auth, portion }),
+      body: JSON.stringify({ ...auth, portion, method }),
+    })
+  }
+
+  // Has the server confirm an online payment with Paystack (e.g. right after
+  // the card popup reports success) and returns the booking as it now stands.
+  async verifyCateringPayment(auth: CateringBookingAuth, reference: string): Promise<CateringBooking> {
+    return this.fetchJSON<CateringBooking>('/catering/booking/pay/verify', {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({ ...auth, paymentReference: reference }),
     })
   }
 
