@@ -48,7 +48,10 @@ func CORSMiddleware() gin.HandlerFunc {
 
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers",
-			"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+			"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Idempotency-Key, X-Request-ID")
+		// Lets the browser read when to retry, and whether a response was replayed.
+		c.Writer.Header().Set("Access-Control-Expose-Headers",
+			"Retry-After, Idempotent-Replayed, X-Request-ID, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset")
 		c.Writer.Header().Set("Access-Control-Allow-Methods",
 			"POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
