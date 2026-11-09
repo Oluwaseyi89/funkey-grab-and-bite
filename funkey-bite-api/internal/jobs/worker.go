@@ -25,6 +25,10 @@ const (
 	// is retried without sending the SMS again.
 	KindOrderPaidEmail = "order.paid_email"
 	KindOrderPaidSMS   = "order.paid_sms"
+	// KindEmail sends an email rendered when it was queued, e.g. a catering
+	// quote. Its payload can hold a private link, so it is queued as
+	// sensitive and wiped once sent.
+	KindEmail = "email.send"
 )
 
 // Store is where jobs are kept.
