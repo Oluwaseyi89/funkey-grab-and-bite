@@ -216,15 +216,6 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		}
 	}
 
-	if createdOrder.InvoiceNumber != nil {
-		invoiceOrder := createdOrder
-		go func() {
-			if err := h.invoices.SendInvoice(invoiceOrder); err != nil {
-				log.Printf("Failed to send invoice for order #%s: %v", invoiceOrder.OrderNumber, err)
-			}
-		}()
-	}
-
 	realtime.GlobalBroadcaster.Broadcast("new_order", createdOrder)
 
 	c.JSON(http.StatusCreated, createdOrder)
@@ -508,6 +499,47 @@ func (h *OrderHandler) LookupOrder(c *gin.Context) {
 		"order":   order,
 		"invoice": invoice,
 	})
+}
+
+// RenewPayment gives a customer payment details for their unpaid online
+// transfer order, when getting them at checkout failed or the payment window
+// closed. Details that are still valid are returned unchanged.
+// @Summary Get payment details for an order
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param lookup body models.OrderLookupRequest true "Order number and phone"
+// @Success 200 {object} models.Order
+// @Router /orders/payment-details [post]
+func (h *OrderHandler) RenewPayment(c *gin.Context) {
+	var req models.OrderLookupRequest
+	if err := c.ShouldBindJSON(&req); err != nil || h.validate.Struct(req) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order number and phone are required"})
+		return
+	}
+
+	order, err := h.orderService.GetOrderByOrderNumber(strings.TrimSpace(req.OrderNumber))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch order"})
+		return
+	}
+	if order == nil || !utils.SamePhone(order.CustomerPhone, req.Phone) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	renewed, err := h.paymentService.RenewTransferPayment(order)
+	switch {
+	case errors.Is(err, services.ErrPaymentNotRenewable):
+		c.JSON(http.StatusConflict, gin.H{"error": "This order is not waiting for a transfer. If it was cancelled because it wasn't paid in time, please place a new order."})
+		return
+	case err != nil:
+		log.Printf("Failed to renew payment for order #%s: %v", order.OrderNumber, err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "We couldn't get payment details right now. Please try again in a minute."})
+		return
+	}
+
+	c.JSON(http.StatusOK, renewed)
 }
 
 // GetOrderInvoice returns the invoice of an order for the admin
