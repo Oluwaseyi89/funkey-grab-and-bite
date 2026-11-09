@@ -35,16 +35,29 @@ type fakePaymentService struct {
 	renewResult *models.Order
 	renewErr    error
 	renewed     *models.Order
+
+	recheckResult repository.PaymentResult
+	recheckPaid   bool
+	rechecked     int
 }
 
-func (f *fakePaymentService) RenewTransferPayment(order *models.Order) (*models.Order, error) {
+func (f *fakePaymentService) RenewOnlinePayment(order *models.Order) (*models.Order, error) {
 	f.renewed = order
 	return f.renewResult, f.renewErr
 }
 
-func (f *fakePaymentService) CheckTransferPayment(ctx context.Context, orderID int) error { return nil }
-func (f *fakePaymentService) RecheckTransferPayment(ctx context.Context, orderID int) (repository.PaymentResult, bool, error) {
-	return repository.PaymentResult{}, false, nil
+func (f *fakePaymentService) CheckOnlinePayment(ctx context.Context, orderID int) error { return nil }
+func (f *fakePaymentService) RecheckOnlinePayment(ctx context.Context, orderID int) (repository.PaymentResult, bool, error) {
+	f.rechecked = orderID
+	return f.recheckResult, f.recheckPaid, nil
+}
+
+func (f *fakePaymentService) InitiateCardPayment(order *models.Order) (*models.Order, error) {
+	return f.InitiateTransferPayment(order)
+}
+
+func (f *fakePaymentService) InitiatePayment(order *models.Order) (*models.Order, error) {
+	return f.InitiateTransferPayment(order)
 }
 
 func (f *fakePaymentService) SetCateringHandler(services.CateringPaymentHandler) {}
@@ -82,6 +95,7 @@ type fakeOrderService struct {
 	collectErr   error
 	collectedVia string
 	checkout     *models.Checkout
+	byID         func(id int) *models.Order
 }
 
 func (f *fakeOrderService) CreateOrder(ctx context.Context, checkout *models.Checkout) (*models.Order, error) {
@@ -98,7 +112,12 @@ func (f *fakeOrderService) CreateOrder(ctx context.Context, checkout *models.Che
 	return order, nil
 }
 
-func (f *fakeOrderService) GetOrderByID(id int) (*models.Order, error) { return nil, nil }
+func (f *fakeOrderService) GetOrderByID(id int) (*models.Order, error) {
+	if f.byID != nil {
+		return f.byID(id), nil
+	}
+	return nil, nil
+}
 func (f *fakeOrderService) GetOrdersByUserID(userID int) ([]models.Order, error) {
 	if f.historyErr != nil {
 		return nil, f.historyErr
@@ -823,5 +842,61 @@ func TestRenewPaymentExplainsOrdersNoLongerAwaitingTransfer(t *testing.T) {
 
 	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "place a new order") {
 		t.Fatalf("expected 409 explaining what to do, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func refreshRouter(h *OrderHandler, userID int) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/orders/payment-status", h.RefreshPaymentStatus)
+	router.POST("/auth/orders/:id/payment-status", func(c *gin.Context) { c.Set("user_id", userID) }, h.RefreshMyPaymentStatus)
+	return router
+}
+
+func TestRefreshPaymentStatusChecksPaystackForPendingOnlineOrders(t *testing.T) {
+	ref := "PSK-FG-7-abc"
+	pending := &models.Order{ID: 7, OrderNumber: "FG-7", CustomerPhone: "08031112222", PaymentMethod: models.PaymentMethodCard,
+		PaymentStatus: models.PaymentStatusPending, PaymentReference: &ref}
+	paid := *pending
+	paid.PaymentStatus = models.PaymentStatusPaid
+	payments := &fakePaymentService{recheckPaid: true, recheckResult: repository.PaymentResult{Outcome: repository.PaymentApplied}}
+	calls := 0
+	orders := &fakeOrderService{byNumber: pending, byID: func(int) *models.Order { calls++; return &paid }}
+	router := refreshRouter(NewOrderHandler(orders, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, payments, &fakeInvoiceService{}), 0)
+
+	rec := call(router, http.MethodPost, "/orders/payment-status", `{"orderNumber":"FG-7","phone":"+234 803 111 2222"}`)
+	if rec.Code != http.StatusOK || payments.rechecked != 7 {
+		t.Fatalf("expected Paystack checked for order 7, got %d (checked %d)", rec.Code, payments.rechecked)
+	}
+	if !strings.Contains(rec.Body.String(), `"paymentStatus":"paid"`) || !strings.Contains(rec.Body.String(), "Payment received") {
+		t.Fatalf("expected the refreshed, paid order, got %s", rec.Body.String())
+	}
+
+	if rec := call(router, http.MethodPost, "/orders/payment-status", `{"orderNumber":"FG-7","phone":"08099999999"}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("a wrong phone must look like an unknown order, got %d", rec.Code)
+	}
+}
+
+func TestRefreshPaymentStatusLeavesOtherOrdersAlone(t *testing.T) {
+	cash := &models.Order{ID: 8, OrderNumber: "FG-8", CustomerPhone: "08031112222", PaymentMethod: models.PaymentMethodCash, PaymentStatus: models.PaymentStatusPending}
+	payments := &fakePaymentService{}
+	router := refreshRouter(NewOrderHandler(&fakeOrderService{byNumber: cash}, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, payments, &fakeInvoiceService{}), 0)
+
+	if rec := call(router, http.MethodPost, "/orders/payment-status", `{"orderNumber":"FG-8","phone":"08031112222"}`); rec.Code != http.StatusOK || payments.rechecked != 0 {
+		t.Fatalf("a pay-on-delivery order is returned without calling Paystack, got %d (checked %d)", rec.Code, payments.rechecked)
+	}
+}
+
+func TestRefreshMyPaymentStatusOnlyForOwnOrders(t *testing.T) {
+	owner := 4
+	order := &models.Order{ID: 9, OrderNumber: "FG-9", UserID: &owner, PaymentMethod: models.PaymentMethodCash}
+	orders := &fakeOrderService{byID: func(int) *models.Order { return order }}
+	handler := NewOrderHandler(orders, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
+
+	if rec := call(refreshRouter(handler, 4), http.MethodPost, "/auth/orders/9/payment-status", ""); rec.Code != http.StatusOK {
+		t.Fatalf("the owner can refresh their order, got %d", rec.Code)
+	}
+	if rec := call(refreshRouter(handler, 5), http.MethodPost, "/auth/orders/9/payment-status", ""); rec.Code != http.StatusNotFound {
+		t.Fatalf("another customer's order must look unknown, got %d", rec.Code)
 	}
 }
