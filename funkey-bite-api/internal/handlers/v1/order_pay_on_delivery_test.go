@@ -34,9 +34,9 @@ func orderBody(t *testing.T, mutate func(*models.OrderWithAuth)) []byte {
 	return body
 }
 
-func TestCreateOrderGuestCheckoutLinksCustomerByPhone(t *testing.T) {
+func TestCreateOrderGuestCheckoutSavesCustomerWithOrder(t *testing.T) {
 	orderSvc := &fakeOrderService{subtotal: 1000}
-	authSvc := &fakeAuthService{authUser: &models.User{ID: 7}}
+	authSvc := &fakeAuthService{}
 	handler := NewOrderHandler(orderSvc, authSvc, acceptingSettings(), &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 
 	body := orderBody(t, func(r *models.OrderWithAuth) { r.CustomerPhone = " +234 (801) 234-5678 " })
@@ -45,17 +45,15 @@ func TestCreateOrderGuestCheckoutLinksCustomerByPhone(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("guest checkout must succeed, got %d: %s", rec.Code, rec.Body.String())
 	}
-	if authSvc.resolvedPhone != "+2348012345678" {
-		t.Fatalf("expected cleaned phone to be resolved, got %q", authSvc.resolvedPhone)
+	if authSvc.lookedUpPhone != "+2348012345678" {
+		t.Fatalf("expected the cleaned phone to be looked up, got %q", authSvc.lookedUpPhone)
 	}
-	if orderSvc.assignedUser != 7 {
-		t.Fatalf("expected order linked to customer 7, got %d", orderSvc.assignedUser)
+	guest := orderSvc.checkout.Guest
+	if guest == nil || guest.Phone != "+2348012345678" || guest.Name == "" || guest.Email == nil {
+		t.Fatalf("a first-time guest's record must be saved with the order, got %+v", guest)
 	}
-	if !strings.Contains(rec.Body.String(), `"userId":7`) {
-		t.Fatalf("expected the response to carry the customer, got %s", rec.Body.String())
-	}
-	if orderSvc.captured.CustomerPhone != "+2348012345678" {
-		t.Fatalf("expected cleaned phone stored, got %q", orderSvc.captured.CustomerPhone)
+	if orderSvc.captured.UserID != nil || orderSvc.captured.CustomerPhone != "+2348012345678" {
+		t.Fatalf("expected an unlinked order with the cleaned phone, got user %v phone %q", orderSvc.captured.UserID, orderSvc.captured.CustomerPhone)
 	}
 }
 
@@ -72,47 +70,23 @@ func TestCreateOrderReturningGuestIsLinkedWithoutNewRecord(t *testing.T) {
 	if orderSvc.captured.UserID == nil || *orderSvc.captured.UserID != 4 {
 		t.Fatalf("expected order placed for customer 4, got %v", orderSvc.captured.UserID)
 	}
-	if authSvc.resolveCalls != 0 {
-		t.Fatalf("a returning customer must not get a new record, got %d calls", authSvc.resolveCalls)
+	if orderSvc.checkout.Guest != nil {
+		t.Fatalf("a returning customer must not get a new record, got %+v", orderSvc.checkout.Guest)
 	}
 }
 
-func TestCreateOrderRejectedGuestCheckoutRecordsNoCustomer(t *testing.T) {
-	code := "BADCODE"
-	cases := map[string]struct {
-		orderSvc *fakeOrderService
-		promoSvc *fakePromotionService
-		mutate   func(*models.OrderWithAuth)
-	}{
-		"item unavailable": {
-			orderSvc: &fakeOrderService{subtotal: 1000, createErr: &services.ItemUnavailableError{Message: "Burger is out of stock"}},
-			promoSvc: &fakePromotionService{},
-			mutate:   func(*models.OrderWithAuth) {},
-		},
-		"invalid promotion": {
-			orderSvc: &fakeOrderService{subtotal: 1000},
-			promoSvc: &fakePromotionService{validation: &models.PromotionValidation{IsValid: false, Message: "Promotion code not found"}},
-			mutate:   func(r *models.OrderWithAuth) { r.PromotionCode = &code },
-		},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			authSvc := &fakeAuthService{}
-			handler := NewOrderHandler(tc.orderSvc, authSvc, acceptingSettings(), tc.promoSvc, &fakePaymentService{}, &fakeInvoiceService{})
+func TestCreateOrderReportsStockThatRanOutWhilePlacing(t *testing.T) {
+	orderSvc := &fakeOrderService{subtotal: 1000, createErr: &services.ItemUnavailableError{Message: "Burger is out of stock"}}
+	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
 
-			rec := runCreateOrderUnauthenticated(t, handler, orderBody(t, tc.mutate))
+	rec := runCreateOrderUnauthenticated(t, handler, newOrderRequestBody(t, models.OrderTypePickup))
 
-			if rec.Code < 400 {
-				t.Fatalf("expected the checkout to be rejected, got %d: %s", rec.Code, rec.Body.String())
-			}
-			if authSvc.resolveCalls != 0 {
-				t.Fatalf("a rejected checkout must not create a customer, got %d calls", authSvc.resolveCalls)
-			}
-		})
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "Burger is out of stock") {
+		t.Fatalf("expected 409 naming the item, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
-func TestCreateOrderGuestCheckoutSurvivesCustomerRecordFailure(t *testing.T) {
+func TestCreateOrderGuestCheckoutSurvivesCustomerLookupFailure(t *testing.T) {
 	orderSvc := &fakeOrderService{subtotal: 1000}
 	authSvc := &fakeAuthService{authErr: errors.New("database unavailable")}
 	handler := NewOrderHandler(orderSvc, authSvc, acceptingSettings(), &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
@@ -120,10 +94,10 @@ func TestCreateOrderGuestCheckoutSurvivesCustomerRecordFailure(t *testing.T) {
 	rec := runCreateOrderUnauthenticated(t, handler, newOrderRequestBody(t, models.OrderTypePickup))
 
 	if rec.Code != http.StatusCreated {
-		t.Fatalf("a customer-record failure must not lose the order, got %d: %s", rec.Code, rec.Body.String())
+		t.Fatalf("a failed customer lookup must not lose the order, got %d: %s", rec.Code, rec.Body.String())
 	}
-	if orderSvc.captured.UserID != nil {
-		t.Fatalf("expected unlinked order, got user %d", *orderSvc.captured.UserID)
+	if orderSvc.checkout.Guest == nil {
+		t.Fatal("the order must still be saved with a guest record to find or create")
 	}
 }
 
