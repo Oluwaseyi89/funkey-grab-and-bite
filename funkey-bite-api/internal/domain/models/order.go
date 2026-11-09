@@ -44,6 +44,9 @@ const (
 	PaymentStatusPending     PaymentStatus = "pending"
 	PaymentStatusPaid        PaymentStatus = "paid"
 	PaymentStatusFailed      PaymentStatus = "failed"
+	// PaymentStatusExpired: an online transfer that was never made before its
+	// payment window closed; the order was cancelled and its stock returned.
+	PaymentStatusExpired PaymentStatus = "expired"
 )
 
 type Order struct {
