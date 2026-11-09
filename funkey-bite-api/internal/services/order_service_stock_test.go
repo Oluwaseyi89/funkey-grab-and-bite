@@ -71,7 +71,10 @@ func (f *fakeCheckoutStore) PlaceOrder(ctx context.Context, checkout *models.Che
 type noopNotificationService struct{}
 
 func (n *noopNotificationService) SendOrderConfirmation(order *models.Order) error { return nil }
-func (n *noopNotificationService) SendOrderStatusUpdate(orderID int, newStatus string) error {
+func (n *noopNotificationService) SendOrderStatusEmail(orderID int, newStatus string) error {
+	return nil
+}
+func (n *noopNotificationService) SendOrderStatusSMS(orderID int, newStatus string) error {
 	return nil
 }
 func (n *noopNotificationService) SendCateringConfirmation(request *models.CateringRequest) error {
