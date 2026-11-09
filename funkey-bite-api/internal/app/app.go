@@ -242,6 +242,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.TrackOrder)
 		orderGroup.POST("/lookup", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.LookupOrder)
 		orderGroup.POST("/payment-details", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.RenewPayment)
+		orderGroup.POST("/payment-status", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.RefreshPaymentStatus)
 		orderGroup.PATCH("/:id/cancel", limitOrdersByPhone, orderHandler.CancelOrder)
 	}
 
@@ -253,6 +254,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		userRoutes.PATCH("/password", limitAccountByUser, authHandler.ChangePassword)
 		userRoutes.GET("/orders", orderHandler.GetUserOrders)
 		userRoutes.GET("/orders/:id", orderHandler.GetUserOrder)
+		userRoutes.POST("/orders/:id/payment-status", middleware.TrackingRateLimitMiddleware(), limitAccountByUser, orderHandler.RefreshMyPaymentStatus)
 		userRoutes.GET("/catering-requests", cateringHandler.GetUserRequests)
 	}
 
