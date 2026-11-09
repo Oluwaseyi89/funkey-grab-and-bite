@@ -68,9 +68,12 @@ func (s *notificationService) SendOrderConfirmation(order *models.Order) error {
 	// Email-only: a confirmation/receipt isn't time-critical enough to justify SMS cost.
 	// SMS is reserved for SendOrderStatusUpdate, where real-time delivery actually matters.
 	// Pay-on-delivery orders get the invoice email instead, which covers the same details.
+	// A failed email is returned so the confirmation job retries it; the
+	// in-app notification is only created once the email has gone, so a
+	// retry doesn't add a second one.
 	if email != "" && order.InvoiceNumber == nil {
 		if err := s.emailService.SendOrderConfirmation(email, name, order.OrderNumber, order.TotalAmount); err != nil {
-			log.Printf("Failed to send order confirmation email: %v", err)
+			return fmt.Errorf("failed to send order confirmation email: %w", err)
 		}
 	}
 
