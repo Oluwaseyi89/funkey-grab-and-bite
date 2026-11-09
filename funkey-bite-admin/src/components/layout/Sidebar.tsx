@@ -17,6 +17,7 @@ import {
   PieChart,
   Package2,
   UserSquare,
+  CreditCard,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -33,6 +34,7 @@ const Sidebar: React.FC = () => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Orders', href: '/orders', icon: Package },
+    { name: 'Payments', href: '/payments', icon: CreditCard },
     { name: 'Menu', href: '/menu', icon: ChefHat },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Catering', href: '/catering', icon: ShoppingCart },
@@ -89,7 +91,7 @@ const Sidebar: React.FC = () => {
         </div>
 
         
-        <nav className="flex-1 min-h-0 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 min-h-0 p-3 space-y-0.5 overflow-y-auto">
           {navigation.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.href || 
