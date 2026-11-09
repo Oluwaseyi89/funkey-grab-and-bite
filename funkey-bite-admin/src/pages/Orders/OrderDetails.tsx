@@ -145,7 +145,7 @@ const OrderDetails: React.FC = () => {
       case 'pending':
         return {
           badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-          text: paymentMethod === 'cash' ? 'Awaiting payment' : 'Awaiting transfer',
+          text: paymentMethod === 'cash' ? 'Awaiting payment' : paymentMethod === 'card' ? 'Awaiting card payment' : 'Awaiting transfer',
         };
       case 'paid':
         return { badge: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200', text: 'Paid' };
@@ -221,7 +221,9 @@ const OrderDetails: React.FC = () => {
   const statusInfo = getStatusInfo(order.status);
   const paymentMethodLabel = order.paymentMethod === 'transfer'
     ? 'Online (Paystack transfer)'
-    : order.orderType === 'delivery' ? 'Pay on delivery' : 'Pay at pickup';
+    : order.paymentMethod === 'card'
+      ? 'Online (Paystack card)'
+      : order.orderType === 'delivery' ? 'Pay on delivery' : 'Pay at pickup';
   const awaitingCollection = order.paymentMethod === 'cash' && order.paymentStatus === 'pending';
   const itemsSubtotal = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
@@ -563,7 +565,7 @@ const OrderDetails: React.FC = () => {
                   )}
                 </div>
               )}
-              {order.paymentMethod === 'transfer' && order.paymentStatus === 'paid' && order.paymentPaidAt && (
+              {(order.paymentMethod === 'transfer' || order.paymentMethod === 'card') && order.paymentStatus === 'paid' && order.paymentPaidAt && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Paid At</span>
                   <span className="font-medium">{new Date(order.paymentPaidAt).toLocaleString()}</span>
