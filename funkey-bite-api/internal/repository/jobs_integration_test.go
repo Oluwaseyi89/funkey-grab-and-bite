@@ -125,3 +125,49 @@ func TestJobRepositoryQueueAndClaim(t *testing.T) {
 		t.Fatalf("expected the finished job removed, got %d %v", removed, err)
 	}
 }
+
+func TestSensitiveJobsAreWipedAndDeadJobsRetried(t *testing.T) {
+	db := openIntegrationDB(t)
+	ctx := context.Background()
+	repo := NewJobRepository(db)
+	kind := "test." + fmt.Sprint(time.Now().UnixNano())
+	t.Cleanup(func() { db.Exec(`DELETE FROM jobs WHERE kind = $1`, kind) })
+
+	_ = repo.Enqueue(ctx, nil, models.NewJob{Kind: kind, Payload: models.EmailJobPayload{To: "a@b.c", HTML: "link?token=secret"}, Sensitive: true})
+	_ = repo.Enqueue(ctx, nil, models.NewJob{Kind: kind, Payload: models.OrderJobPayload{OrderID: 9}})
+	claimed, _ := repo.Claim(ctx, 10, time.Minute)
+	var ids []int64
+	for _, job := range claimed {
+		if job.Kind == kind {
+			ids = append(ids, job.ID)
+		}
+	}
+	if len(ids) != 2 {
+		t.Fatalf("expected both jobs claimed, got %d", len(ids))
+	}
+	_ = repo.Succeed(ctx, ids[0])
+	_ = repo.Kill(ctx, ids[1], "smtp down")
+
+	var payload string
+	_ = db.QueryRow(`SELECT payload::text FROM jobs WHERE id = $1`, ids[0]).Scan(&payload)
+	if payload != "{}" {
+		t.Fatalf("a sensitive job's payload must be wiped once sent, got %s", payload)
+	}
+
+	_, total, err := repo.List(ctx, "dead", 50, 0)
+	if err != nil || total < 1 {
+		t.Fatalf("expected the dead job listed, got %d %v", total, err)
+	}
+	if ok, _ := repo.RetryDead(ctx, ids[0]); ok {
+		t.Fatal("a succeeded job must not be retried")
+	}
+	if ok, err := repo.RetryDead(ctx, ids[1]); err != nil || !ok {
+		t.Fatalf("expected the dead job retried, got %v %v", ok, err)
+	}
+	var status string
+	var attempts int
+	_ = db.QueryRow(`SELECT status, attempts FROM jobs WHERE id = $1`, ids[1]).Scan(&status, &attempts)
+	if status != "pending" || attempts != 0 {
+		t.Fatalf("expected a fresh pending job, got %s with %d attempts", status, attempts)
+	}
+}
