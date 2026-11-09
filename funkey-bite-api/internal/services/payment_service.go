@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
@@ -26,8 +25,9 @@ type PaymentService interface {
 	InitiateTransferPayment(order *models.Order) (*models.Order, error)
 	// HandleWebhook verifies and processes a Paystack webhook payload. rawBody
 	// must be the exact, unparsed request body — the signature is computed over
-	// those exact bytes.
-	HandleWebhook(rawBody []byte, signature string) error
+	// those exact bytes. It reports what an order payment did; an error means
+	// Paystack should deliver the event again.
+	HandleWebhook(ctx context.Context, rawBody []byte, signature string) (repository.PaymentResult, error)
 	// SetCateringHandler routes catering payments, which share the webhook,
 	// to the catering contract service.
 	SetCateringHandler(handler CateringPaymentHandler)
@@ -45,9 +45,10 @@ type PaymentService interface {
 // transfers, e.g. ones already paid or cancelled.
 var ErrPaymentNotRenewable = errors.New("this order is not awaiting an online transfer")
 
-// unpaidOrderCanceller cancels unpaid orders and returns their stock (see
+// orderPaymentStore changes an order's payment in single transactions (see
 // repository.CheckoutRepository).
-type unpaidOrderCanceller interface {
+type orderPaymentStore interface {
+	ApplyTransferPayment(ctx context.Context, payment repository.TransferPayment) (repository.PaymentResult, error)
 	CancelUnpaidOrder(ctx context.Context, orderID int) (bool, error)
 }
 
@@ -65,23 +66,21 @@ const (
 type CateringPaymentHandler func(reference string, amountKobo int64) (handled bool, err error)
 
 type paymentService struct {
-	gateway             utils.PaymentGateway
-	orderRepo           repository.IOrderRepository
-	notificationService NotificationService
-	catering            CateringPaymentHandler
-	unpaid              unpaidOrderCanceller
-	sleep               func(time.Duration)
-	now                 func() time.Time
+	gateway   utils.PaymentGateway
+	orderRepo repository.IOrderRepository
+	payments  orderPaymentStore
+	catering  CateringPaymentHandler
+	sleep     func(time.Duration)
+	now       func() time.Time
 }
 
-func NewPaymentService(gateway utils.PaymentGateway, orderRepo repository.IOrderRepository, notificationService NotificationService, unpaid unpaidOrderCanceller) PaymentService {
+func NewPaymentService(gateway utils.PaymentGateway, orderRepo repository.IOrderRepository, payments orderPaymentStore) PaymentService {
 	return &paymentService{
-		gateway:             gateway,
-		orderRepo:           orderRepo,
-		notificationService: notificationService,
-		unpaid:              unpaid,
-		sleep:               time.Sleep,
-		now:                 time.Now,
+		gateway:   gateway,
+		orderRepo: orderRepo,
+		payments:  payments,
+		sleep:     time.Sleep,
+		now:       time.Now,
 	}
 }
 
@@ -136,75 +135,59 @@ type paystackWebhookEvent struct {
 	} `json:"data"`
 }
 
-func (s *paymentService) HandleWebhook(rawBody []byte, signature string) error {
+func (s *paymentService) HandleWebhook(ctx context.Context, rawBody []byte, signature string) (repository.PaymentResult, error) {
 	if !s.gateway.VerifyWebhookSignature(rawBody, signature) {
-		return ErrInvalidWebhookSignature
+		return repository.PaymentResult{}, ErrInvalidWebhookSignature
 	}
 
 	var event paystackWebhookEvent
 	if err := json.Unmarshal(rawBody, &event); err != nil {
-		return fmt.Errorf("failed to parse webhook payload: %w", err)
+		return repository.PaymentResult{}, fmt.Errorf("failed to parse webhook payload: %w", err)
 	}
 
 	if event.Event != "charge.success" {
 		log.Printf("[Paystack webhook] ignoring event type %q", event.Event)
-		return nil
+		return repository.PaymentResult{}, nil
 	}
 
 	if event.Data.Reference == "" {
-		return fmt.Errorf("webhook charge.success event carried no reference")
+		return repository.PaymentResult{}, fmt.Errorf("webhook charge.success event carried no reference")
 	}
 
 	if s.catering != nil {
 		handled, err := s.catering(event.Data.Reference, event.Data.Amount)
 		if handled {
-			return err
+			return repository.PaymentResult{}, err
 		}
 	}
 
-	order, err := s.orderRepo.GetOrderByPaymentReference(event.Data.Reference)
+	result, err := s.payments.ApplyTransferPayment(ctx, repository.TransferPayment{
+		Event:      event.Event,
+		Reference:  event.Data.Reference,
+		AmountKobo: event.Data.Amount,
+		Currency:   event.Data.Currency,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to look up order for payment reference %q: %w", event.Data.Reference, err)
+		return result, fmt.Errorf("failed to record payment %q: %w", event.Data.Reference, err)
 	}
-	if order == nil {
-		return fmt.Errorf("no order found for payment reference %q", event.Data.Reference)
-	}
-
-	// Idempotent: Paystack may retry webhook delivery for the same event.
-	if order.PaymentStatus == models.PaymentStatusPaid {
-		log.Printf("[Paystack webhook] order #%s already marked paid, ignoring duplicate delivery", order.OrderNumber)
-		return nil
-	}
-
-	expectedKobo := int64(math.Round(order.TotalAmount * 100))
-	if event.Data.Amount != expectedKobo {
-		// Don't silently mark this paid — a mismatch here means either a partial
-		// transfer or a reference collision, both of which need a human to look at.
-		log.Printf(
-			"[Paystack webhook] CRITICAL: amount mismatch for order #%s (reference %s): expected %d kobo, got %d kobo — payment left pending for manual review",
-			order.OrderNumber, event.Data.Reference, expectedKobo, event.Data.Amount,
-		)
-		return nil
-	}
-
-	return s.markOrderPaid(order)
+	logPaymentResult("[Paystack webhook]", event.Data.Reference, result)
+	return result, nil
 }
 
-// markOrderPaid records a confirmed transfer and confirms the order.
-func (s *paymentService) markOrderPaid(order *models.Order) error {
-	if err := s.orderRepo.MarkOrderPaymentPaid(order.ID, time.Now()); err != nil {
-		return fmt.Errorf("failed to mark order #%s as paid: %w", order.OrderNumber, err)
+// logPaymentResult notes what a confirmed transfer did. An unknown reference
+// is acknowledged rather than failed, so Paystack doesn't retry it forever,
+// and logged so it can be looked into.
+func logPaymentResult(prefix, reference string, result repository.PaymentResult) {
+	switch result.Outcome {
+	case repository.PaymentApplied:
+		log.Printf("%s order #%s paid", prefix, result.OrderNumber)
+	case repository.PaymentAlreadyApplied, repository.PaymentDuplicateEvent:
+		log.Printf("%s payment %s already recorded, ignoring duplicate delivery", prefix, reference)
+	case repository.PaymentNeedsReview:
+		log.Printf("%s CRITICAL: payment for order #%s needs review (%s)", prefix, result.OrderNumber, result.Reason)
+	case repository.PaymentUnmatched:
+		log.Printf("%s WARNING: payment %s matches no order; recorded for review", prefix, reference)
 	}
-
-	if err := s.orderRepo.UpdateOrderStatus(order.ID, string(models.OrderStatusConfirmed)); err != nil {
-		return fmt.Errorf("failed to auto-confirm order #%s after payment: %w", order.OrderNumber, err)
-	}
-
-	if err := s.notificationService.SendOrderStatusUpdate(order.ID, string(models.OrderStatusConfirmed)); err != nil {
-		log.Printf("Failed to send payment-confirmed notification for order #%s: %v", order.OrderNumber, err)
-	}
-
-	return nil
 }
 
 // awaitingTransfer reports an online transfer order that is still unpaid and
@@ -254,18 +237,23 @@ func (s *paymentService) CheckTransferPayment(ctx context.Context, orderID int) 
 			return fmt.Errorf("failed to verify payment for order #%s: %w", order.OrderNumber, err)
 		}
 		if status.Paid() {
-			expectedKobo := int64(math.Round(order.TotalAmount * 100))
-			if status.AmountKobo != expectedKobo {
-				log.Printf("[payment check] CRITICAL: order #%s was paid %d kobo, expected %d; left pending for review",
-					order.OrderNumber, status.AmountKobo, expectedKobo)
-				return nil
+			// Paid, but its webhook never arrived: record it exactly as the
+			// webhook would have.
+			result, err := s.payments.ApplyTransferPayment(ctx, repository.TransferPayment{
+				Event:      "transaction.verify",
+				Reference:  *order.PaymentReference,
+				AmountKobo: status.AmountKobo,
+				Currency:   status.Currency,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to record payment for order #%s: %w", order.OrderNumber, err)
 			}
-			log.Printf("[payment check] order #%s was paid but its webhook never arrived; marking it paid", order.OrderNumber)
-			return s.markOrderPaid(order)
+			logPaymentResult("[payment check]", *order.PaymentReference, result)
+			return nil
 		}
 	}
 
-	cancelled, err := s.unpaid.CancelUnpaidOrder(ctx, orderID)
+	cancelled, err := s.payments.CancelUnpaidOrder(ctx, orderID)
 	if err != nil {
 		return fmt.Errorf("failed to cancel unpaid order #%s: %w", order.OrderNumber, err)
 	}
