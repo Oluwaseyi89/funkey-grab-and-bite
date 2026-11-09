@@ -8,6 +8,7 @@ export interface OnlinePayment {
   customerPhone: string;
   totalAmount: number;
   status: string;
+  paymentMethod: 'transfer' | 'card';
   paymentStatus: PaymentStatus;
   paymentReference?: string;
   receivedAmount?: number;

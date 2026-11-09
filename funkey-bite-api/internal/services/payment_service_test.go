@@ -28,6 +28,7 @@ type fakePaymentGateway struct {
 
 	verifyResult *utils.TransactionStatus
 	verifyErr    error
+	cardCalls    int
 }
 
 func (f *fakePaymentGateway) InitiateTransfer(email string, amountNaira float64, reference string) (*utils.TransferChargeResult, error) {
@@ -46,6 +47,15 @@ func (f *fakePaymentGateway) InitiateTransfer(email string, amountNaira float64,
 
 func (f *fakePaymentGateway) VerifyTransaction(reference string) (*utils.TransactionStatus, error) {
 	return f.verifyResult, f.verifyErr
+}
+
+func (f *fakePaymentGateway) InitializeCardPayment(email string, amountNaira float64, reference string) (*utils.CardPayment, error) {
+	f.cardCalls++
+	f.capturedRef = reference
+	if f.cardCalls <= f.failFirst {
+		return nil, errors.New("paystack timeout")
+	}
+	return &utils.CardPayment{Reference: reference, AccessCode: "access-" + reference}, nil
 }
 
 // fakePaymentStore stands in for the transactions that change an order's payment.
@@ -325,13 +335,13 @@ func awaitingOrder(expiresAt time.Time) *models.Order {
 	}
 }
 
-func TestCheckTransferPaymentWaitsUntilWindowCloses(t *testing.T) {
+func TestCheckOnlinePaymentWaitsUntilWindowCloses(t *testing.T) {
 	now := time.Now()
 	expires := now.Add(10 * time.Minute)
 	store := &fakePaymentStore{}
 	svc := newTestPaymentService(&fakePaymentGateway{}, &fakePaymentOrderRepo{getWithItemsResult: awaitingOrder(expires)}, store, now)
 
-	err := svc.CheckTransferPayment(context.Background(), 7)
+	err := svc.CheckOnlinePayment(context.Background(), 7)
 	if err == nil || store.cancels != 0 {
 		t.Fatalf("expected the check to wait, got %v and %d cancellations", err, store.cancels)
 	}
@@ -340,14 +350,14 @@ func TestCheckTransferPaymentWaitsUntilWindowCloses(t *testing.T) {
 	}
 }
 
-func TestCheckTransferPaymentMarksPaidWhenWebhookWasMissed(t *testing.T) {
+func TestCheckOnlinePaymentMarksPaidWhenWebhookWasMissed(t *testing.T) {
 	now := time.Now()
 	gateway := &fakePaymentGateway{verifyResult: &utils.TransactionStatus{Status: "success", AmountKobo: 250000}}
 	repo := &fakePaymentOrderRepo{getWithItemsResult: awaitingOrder(now.Add(-time.Hour))}
 	store := &fakePaymentStore{}
 	svc := newTestPaymentService(gateway, repo, store, now)
 
-	if err := svc.CheckTransferPayment(context.Background(), 7); err != nil {
+	if err := svc.CheckOnlinePayment(context.Background(), 7); err != nil {
 		t.Fatal(err)
 	}
 	if len(store.applied) != 1 || store.applied[0].Event != "transaction.verify" || store.applied[0].AmountKobo != 250000 || store.cancels != 0 {
@@ -355,14 +365,14 @@ func TestCheckTransferPaymentMarksPaidWhenWebhookWasMissed(t *testing.T) {
 	}
 }
 
-func TestCheckTransferPaymentCancelsUnpaidOrder(t *testing.T) {
+func TestCheckOnlinePaymentCancelsUnpaidOrder(t *testing.T) {
 	now := time.Now()
 	gateway := &fakePaymentGateway{verifyResult: &utils.TransactionStatus{Status: "abandoned"}}
 	repo := &fakePaymentOrderRepo{getWithItemsResult: awaitingOrder(now.Add(-time.Hour))}
 	store := &fakePaymentStore{}
 	svc := newTestPaymentService(gateway, repo, store, now)
 
-	if err := svc.CheckTransferPayment(context.Background(), 7); err != nil {
+	if err := svc.CheckOnlinePayment(context.Background(), 7); err != nil {
 		t.Fatal(err)
 	}
 	if store.cancels != 1 || len(store.applied) != 0 {
@@ -370,30 +380,30 @@ func TestCheckTransferPaymentCancelsUnpaidOrder(t *testing.T) {
 	}
 }
 
-func TestCheckTransferPaymentRetriesWhenPaystackCantBeReached(t *testing.T) {
+func TestCheckOnlinePaymentRetriesWhenPaystackCantBeReached(t *testing.T) {
 	now := time.Now()
 	gateway := &fakePaymentGateway{verifyErr: errors.New("paystack unreachable")}
 	store := &fakePaymentStore{}
 	svc := newTestPaymentService(gateway, &fakePaymentOrderRepo{getWithItemsResult: awaitingOrder(now.Add(-time.Hour))}, store, now)
 
-	if err := svc.CheckTransferPayment(context.Background(), 7); err == nil || store.cancels != 0 {
+	if err := svc.CheckOnlinePayment(context.Background(), 7); err == nil || store.cancels != 0 {
 		t.Fatalf("an unknown payment state must be retried, never cancelled; got %v and %d cancellations", err, store.cancels)
 	}
 }
 
-func TestCheckTransferPaymentLeavesSettledOrdersAlone(t *testing.T) {
+func TestCheckOnlinePaymentLeavesSettledOrdersAlone(t *testing.T) {
 	now := time.Now()
 	paid := awaitingOrder(now.Add(-time.Hour))
 	paid.PaymentStatus = models.PaymentStatusPaid
 	store := &fakePaymentStore{}
 	svc := newTestPaymentService(&fakePaymentGateway{}, &fakePaymentOrderRepo{getWithItemsResult: paid}, store, now)
 
-	if err := svc.CheckTransferPayment(context.Background(), 7); err != nil || store.cancels != 0 {
+	if err := svc.CheckOnlinePayment(context.Background(), 7); err != nil || store.cancels != 0 {
 		t.Fatalf("a paid order needs no check, got %v and %d cancellations", err, store.cancels)
 	}
 }
 
-func TestRenewTransferPayment(t *testing.T) {
+func TestRenewOnlinePayment(t *testing.T) {
 	now := time.Now()
 	newAccount := &utils.TransferChargeResult{Reference: "PSK-2", AccountNumber: "9876543210"}
 
@@ -401,7 +411,7 @@ func TestRenewTransferPayment(t *testing.T) {
 		gateway := &fakePaymentGateway{initiateResult: newAccount}
 		svc := newTestPaymentService(gateway, &fakePaymentOrderRepo{}, nil, now)
 		order := awaitingOrder(now.Add(5 * time.Minute))
-		got, err := svc.RenewTransferPayment(order)
+		got, err := svc.RenewOnlinePayment(order)
 		if err != nil || got != order || gateway.initiateCalls != 0 {
 			t.Fatalf("expected the current details back without a new charge, got %v, %d charges", err, gateway.initiateCalls)
 		}
@@ -410,7 +420,7 @@ func TestRenewTransferPayment(t *testing.T) {
 		gateway := &fakePaymentGateway{initiateResult: newAccount}
 		repo := &fakePaymentOrderRepo{getWithItemsResult: &models.Order{ID: 7}}
 		svc := newTestPaymentService(gateway, repo, nil, now)
-		if _, err := svc.RenewTransferPayment(awaitingOrder(now.Add(-time.Minute))); err != nil || gateway.initiateCalls != 1 || repo.setInitiatedCalls != 1 {
+		if _, err := svc.RenewOnlinePayment(awaitingOrder(now.Add(-time.Minute))); err != nil || gateway.initiateCalls != 1 || repo.setInitiatedCalls != 1 {
 			t.Fatalf("expected new details, got %v, %d charges, %d saves", err, gateway.initiateCalls, repo.setInitiatedCalls)
 		}
 	})
@@ -418,8 +428,51 @@ func TestRenewTransferPayment(t *testing.T) {
 		order := awaitingOrder(now.Add(-time.Minute))
 		order.Status = models.OrderStatusCancelled
 		svc := newTestPaymentService(&fakePaymentGateway{}, &fakePaymentOrderRepo{}, nil, now)
-		if _, err := svc.RenewTransferPayment(order); !errors.Is(err, ErrPaymentNotRenewable) {
+		if _, err := svc.RenewOnlinePayment(order); !errors.Is(err, ErrPaymentNotRenewable) {
 			t.Fatalf("expected ErrPaymentNotRenewable, got %v", err)
 		}
 	})
+}
+
+func TestInitiateCardPaymentReturnsPopupAccessCode(t *testing.T) {
+	now := time.Now()
+	gateway := &fakePaymentGateway{failFirst: 1}
+	repo := &fakePaymentOrderRepo{getWithItemsResult: &models.Order{ID: 1, OrderNumber: "FG-1"}}
+	svc := newTestPaymentService(gateway, repo, nil, now)
+
+	order, err := svc.InitiateCardPayment(&models.Order{ID: 1, OrderNumber: "FG-1", TotalAmount: 2500, CustomerEmail: emailPtr("a@b.c")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gateway.cardCalls != 2 || repo.setInitiatedCalls != 1 {
+		t.Fatalf("expected a retried start and one save, got %d calls and %d saves", gateway.cardCalls, repo.setInitiatedCalls)
+	}
+	if order.PaymentAccessCode == nil || *order.PaymentAccessCode != "access-"+gateway.capturedRef {
+		t.Fatalf("expected the popup access code returned, got %v", order.PaymentAccessCode)
+	}
+}
+
+func TestRenewCardPaymentStartsANewOne(t *testing.T) {
+	now := time.Now()
+	gateway := &fakePaymentGateway{}
+	repo := &fakePaymentOrderRepo{getWithItemsResult: &models.Order{ID: 7}}
+	svc := newTestPaymentService(gateway, repo, nil, now)
+	order := awaitingOrder(now.Add(10 * time.Minute))
+	order.PaymentMethod = models.PaymentMethodCard
+
+	if _, err := svc.RenewOnlinePayment(order); err != nil || gateway.cardCalls != 1 {
+		t.Fatalf("expected a new card payment, got %v and %d starts", err, gateway.cardCalls)
+	}
+}
+
+func TestCheckOnlinePaymentCancelsUnpaidCardOrder(t *testing.T) {
+	now := time.Now()
+	order := awaitingOrder(now.Add(-time.Hour))
+	order.PaymentMethod = models.PaymentMethodCard
+	store := &fakePaymentStore{}
+	svc := newTestPaymentService(&fakePaymentGateway{verifyResult: &utils.TransactionStatus{Status: "abandoned"}}, &fakePaymentOrderRepo{getWithItemsResult: order}, store, now)
+
+	if err := svc.CheckOnlinePayment(context.Background(), 7); err != nil || store.cancels != 1 {
+		t.Fatalf("an unpaid card order must be cancelled like a transfer, got %v and %d", err, store.cancels)
+	}
 }

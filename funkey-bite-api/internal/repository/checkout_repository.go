@@ -60,7 +60,11 @@ func (r *CheckoutRepository) PlaceOrder(ctx context.Context, checkout *models.Ch
 			if err != nil {
 				return err
 			}
-			order.UserID = &customerID
+			// 0: the number belongs to someone else's account; leave the
+			// order unlinked rather than show it to them.
+			if customerID != 0 {
+				order.UserID = &customerID
+			}
 		}
 
 		created, err := r.orders.CreateOrderWithTransaction(tx, &order)
@@ -151,7 +155,7 @@ func (r *CheckoutRepository) queueFollowUps(ctx context.Context, tx *sql.Tx, ord
 		return err
 	}
 
-	if order.PaymentMethod == models.PaymentMethodTransfer {
+	if order.PaymentMethod.IsOnline() {
 		return r.jobs.Enqueue(ctx, tx, models.NewJob{
 			Kind:      jobs.KindOrderPaymentCheck,
 			Payload:   payload,
@@ -162,7 +166,7 @@ func (r *CheckoutRepository) queueFollowUps(ctx context.Context, tx *sql.Tx, ord
 	return nil
 }
 
-// CancelUnpaidOrder cancels an online transfer order that was never paid and
+// CancelUnpaidOrder cancels an online (transfer or card) order that was never paid and
 // returns its stock, in one transaction with its audit entry. It returns false
 // without changing anything when the order no longer qualifies, e.g. it was
 // paid or cancelled in the meantime.
@@ -181,7 +185,7 @@ func (r *CheckoutRepository) CancelUnpaidOrder(ctx context.Context, orderID int)
 		if err != nil {
 			return fmt.Errorf("lock order %d: %w", orderID, err)
 		}
-		if paymentMethod != string(models.PaymentMethodTransfer) ||
+		if !models.PaymentMethod(paymentMethod).IsOnline() ||
 			paymentStatus != string(models.PaymentStatusPending) ||
 			status == string(models.OrderStatusCancelled) {
 			return nil

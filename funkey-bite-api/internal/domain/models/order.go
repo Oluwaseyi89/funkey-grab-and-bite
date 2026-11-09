@@ -28,6 +28,9 @@ const (
 	// when they receive the order, and the admin records the payment.
 	PaymentMethodCash     PaymentMethod = "cash"
 	PaymentMethodTransfer PaymentMethod = "transfer"
+	// PaymentMethodCard is paid in Paystack's checkout popup; card details
+	// never reach this app.
+	PaymentMethodCard PaymentMethod = "card"
 )
 
 // How a pay-on-delivery payment was collected, recorded by the admin.
@@ -78,15 +81,18 @@ type Order struct {
 	PaymentAccountName   *string       `json:"paymentAccountName,omitempty" db:"payment_account_name"`
 	PaymentBankName      *string       `json:"paymentBankName,omitempty" db:"payment_bank_name"`
 	PaymentExpiresAt     *time.Time    `json:"paymentExpiresAt,omitempty" db:"payment_expires_at"`
-	PaymentPaidAt        *time.Time    `json:"paymentPaidAt,omitempty" db:"payment_paid_at"`
-	PaymentCollectedVia  *string       `json:"paymentCollectedVia,omitempty" db:"payment_collected_via"`
-	DeliveryAddress      *string       `json:"deliveryAddress,omitempty" db:"delivery_address"`
-	InvoiceNumber        *string       `json:"invoiceNumber,omitempty" db:"invoice_number"`
-	SubtotalAmount       *float64      `json:"subtotalAmount,omitempty" db:"subtotal_amount"`
-	DeliveryFee          *float64      `json:"deliveryFee,omitempty" db:"delivery_fee"`
-	TaxAmount            *float64      `json:"taxAmount,omitempty" db:"tax_amount"`
-	DiscountAmount       *float64      `json:"discountAmount,omitempty" db:"discount_amount"`
-	Items                []OrderItem   `json:"items"`
+	// PaymentAccessCode opens Paystack's card popup for this order. It is
+	// returned when a card payment is started and isn't stored.
+	PaymentAccessCode   *string     `json:"paymentAccessCode,omitempty" db:"-"`
+	PaymentPaidAt       *time.Time  `json:"paymentPaidAt,omitempty" db:"payment_paid_at"`
+	PaymentCollectedVia *string     `json:"paymentCollectedVia,omitempty" db:"payment_collected_via"`
+	DeliveryAddress     *string     `json:"deliveryAddress,omitempty" db:"delivery_address"`
+	InvoiceNumber       *string     `json:"invoiceNumber,omitempty" db:"invoice_number"`
+	SubtotalAmount      *float64    `json:"subtotalAmount,omitempty" db:"subtotal_amount"`
+	DeliveryFee         *float64    `json:"deliveryFee,omitempty" db:"delivery_fee"`
+	TaxAmount           *float64    `json:"taxAmount,omitempty" db:"tax_amount"`
+	DiscountAmount      *float64    `json:"discountAmount,omitempty" db:"discount_amount"`
+	Items               []OrderItem `json:"items"`
 }
 
 type OrderItem struct {
@@ -112,7 +118,7 @@ type OrderRequest struct {
 	CustomerPhone string             `json:"customerPhone" validate:"required" db:"customer_phone"`
 	CustomerEmail *string            `json:"customerEmail,omitempty" validate:"omitempty,email" db:"customer_email"`
 	OrderType     OrderType          `json:"orderType" validate:"required,oneof=pickup delivery catering" db:"order_type"`
-	PaymentMethod PaymentMethod      `json:"paymentMethod" validate:"required,oneof=cash transfer" db:"payment_method"`
+	PaymentMethod PaymentMethod      `json:"paymentMethod" validate:"required,oneof=cash transfer card" db:"payment_method"`
 	PromotionCode *string            `json:"promotionCode,omitempty" validate:"omitempty,min=3,max=50"`
 	Notes         *string            `json:"notes,omitempty" db:"notes"`
 	PickupTime    *time.Time         `json:"pickupTime,omitempty" db:"pickup_time"`
@@ -127,7 +133,7 @@ type OrderWithAuth struct {
 	CustomerPhone   string             `json:"customerPhone" validate:"required,max=30"`
 	CustomerEmail   *string            `json:"customerEmail" validate:"required,email,max=200"`
 	OrderType       OrderType          `json:"orderType" validate:"required,oneof=pickup delivery catering"`
-	PaymentMethod   PaymentMethod      `json:"paymentMethod" validate:"required,oneof=cash transfer"`
+	PaymentMethod   PaymentMethod      `json:"paymentMethod" validate:"required,oneof=cash transfer card"`
 	DeliveryAddress *string            `json:"deliveryAddress,omitempty" validate:"omitempty,max=500"`
 	PromotionCode   *string            `json:"promotionCode,omitempty" validate:"omitempty,min=3,max=50"`
 	Notes           *string            `json:"notes,omitempty" validate:"omitempty,max=1000"`
@@ -232,4 +238,10 @@ func ParseOrderType(orderType string) OrderType {
 	default:
 		return OrderTypePickup
 	}
+}
+
+// IsOnline reports a method paid through Paystack (transfer or card), as
+// opposed to cash on delivery or collection.
+func (m PaymentMethod) IsOnline() bool {
+	return m == PaymentMethodTransfer || m == PaymentMethodCard
 }

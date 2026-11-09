@@ -23,6 +23,11 @@ type PaymentService interface {
 	// was created with payment_method = "transfer", and persists the returned
 	// account details on the order.
 	InitiateTransferPayment(order *models.Order) (*models.Order, error)
+	// InitiateCardPayment starts a card payment and returns the order with
+	// the access code that opens Paystack's popup in the customer's browser.
+	InitiateCardPayment(order *models.Order) (*models.Order, error)
+	// InitiatePayment starts whichever online payment the order uses.
+	InitiatePayment(order *models.Order) (*models.Order, error)
 	// HandleWebhook verifies and processes a Paystack webhook payload. rawBody
 	// must be the exact, unparsed request body — the signature is computed over
 	// those exact bytes. It reports what an order payment did; an error means
@@ -31,23 +36,23 @@ type PaymentService interface {
 	// SetCateringHandler routes catering payments, which share the webhook,
 	// to the catering contract service.
 	SetCateringHandler(handler CateringPaymentHandler)
-	// RenewTransferPayment gives a customer payment details for an unpaid
-	// online transfer order whose first attempt failed or whose window
-	// closed, and returns the order as it now stands.
-	RenewTransferPayment(order *models.Order) (*models.Order, error)
-	// CheckTransferPayment is the payment check job: once an online transfer
-	// order's payment window has closed it confirms the payment with
+	// RenewOnlinePayment lets a customer pay an unpaid online order whose
+	// first attempt failed or whose window closed: new transfer details (or
+	// the current ones, while still valid), or a new card payment.
+	RenewOnlinePayment(order *models.Order) (*models.Order, error)
+	// CheckOnlinePayment is the payment check job: once an online order's
+	// payment window has closed it confirms the payment with
 	// Paystack, or cancels the unpaid order and returns its stock.
-	CheckTransferPayment(ctx context.Context, orderID int) error
-	// RecheckTransferPayment asks Paystack whether an online transfer order
-	// was paid, for the admin, and records a payment found exactly as its
+	CheckOnlinePayment(ctx context.Context, orderID int) error
+	// RecheckOnlinePayment asks Paystack whether an online order was paid
+	// (for the admin, or the customer's refresh button), and records a payment found exactly as its
 	// webhook would have. paid is false when Paystack has no payment.
-	RecheckTransferPayment(ctx context.Context, orderID int) (result repository.PaymentResult, paid bool, err error)
+	RecheckOnlinePayment(ctx context.Context, orderID int) (result repository.PaymentResult, paid bool, err error)
 }
 
-// ErrNotTransferOrder is returned when re-checking an order that wasn't
+// ErrNotOnlinePayment is returned when re-checking an order that wasn't
 // paid by online transfer or has no payment reference yet.
-var ErrNotTransferOrder = errors.New("this order has no online transfer to check")
+var ErrNotOnlinePayment = errors.New("this order has no online payment to check")
 
 // ErrPaymentNotRenewable is returned for orders that aren't unpaid online
 // transfers, e.g. ones already paid or cancelled.
@@ -64,6 +69,9 @@ const (
 	// initiateAttempts bounds how often a checkout asks Paystack for an
 	// account before telling the customer to try again.
 	initiateAttempts = 3
+	// cardPaymentWindow is how long a card payment stays open, matching how
+	// long the payment check waits before cancelling an unpaid order.
+	cardPaymentWindow = 15 * time.Minute
 	// paymentGrace leaves time after the window closes for a transfer made
 	// at the last minute to be confirmed.
 	paymentGrace = 5 * time.Minute
@@ -198,17 +206,22 @@ func logPaymentResult(prefix, reference string, result repository.PaymentResult)
 	}
 }
 
-// awaitingTransfer reports an online transfer order that is still unpaid and
-// open.
-func awaitingTransfer(order *models.Order) bool {
-	return order.PaymentMethod == models.PaymentMethodTransfer &&
+// awaitingOnlinePayment reports an online (transfer or card) order that is
+// still unpaid and open.
+func awaitingOnlinePayment(order *models.Order) bool {
+	return order.PaymentMethod.IsOnline() &&
 		order.PaymentStatus == models.PaymentStatusPending &&
 		order.Status != models.OrderStatusCancelled
 }
 
-func (s *paymentService) RenewTransferPayment(order *models.Order) (*models.Order, error) {
-	if order == nil || !awaitingTransfer(order) {
+func (s *paymentService) RenewOnlinePayment(order *models.Order) (*models.Order, error) {
+	if order == nil || !awaitingOnlinePayment(order) {
 		return nil, ErrPaymentNotRenewable
+	}
+	if order.PaymentMethod == models.PaymentMethodCard {
+		// The popup's access code isn't kept, so a new card payment is
+		// started; the earlier one was never completed.
+		return s.InitiateCardPayment(order)
 	}
 	// Details that are still valid are returned as they are, so pressing the
 	// button twice doesn't replace an account the customer may be paying into.
@@ -219,7 +232,50 @@ func (s *paymentService) RenewTransferPayment(order *models.Order) (*models.Orde
 	return s.InitiateTransferPayment(order)
 }
 
-func (s *paymentService) CheckTransferPayment(ctx context.Context, orderID int) error {
+func (s *paymentService) InitiatePayment(order *models.Order) (*models.Order, error) {
+	if order.PaymentMethod == models.PaymentMethodCard {
+		return s.InitiateCardPayment(order)
+	}
+	return s.InitiateTransferPayment(order)
+}
+
+func (s *paymentService) InitiateCardPayment(order *models.Order) (*models.Order, error) {
+	if order.CustomerEmail == nil || *order.CustomerEmail == "" {
+		return nil, fmt.Errorf("a card payment requires a customer email")
+	}
+
+	// As for transfers, each attempt has a new reference so a lost response
+	// can't block the retry.
+	var card *utils.CardPayment
+	var err error
+	for attempt := 1; attempt <= initiateAttempts; attempt++ {
+		card, err = s.gateway.InitializeCardPayment(*order.CustomerEmail, order.TotalAmount, utils.GeneratePaymentReference(order.OrderNumber))
+		if err == nil {
+			break
+		}
+		if attempt < initiateAttempts {
+			s.sleep(time.Duration(attempt) * 500 * time.Millisecond)
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to start card payment after %d attempts: %w", initiateAttempts, err)
+	}
+
+	expiresAt := s.now().UTC().Add(cardPaymentWindow)
+	if err := s.orderRepo.SetOrderPaymentInitiated(order.ID, card.Reference, "", "", "", &expiresAt); err != nil {
+		return nil, fmt.Errorf("failed to persist card payment: %w", err)
+	}
+	updated, err := s.orderRepo.GetOrderWithItems(order.ID)
+	if err != nil {
+		return nil, err
+	}
+	if updated != nil {
+		updated.PaymentAccessCode = &card.AccessCode
+	}
+	return updated, nil
+}
+
+func (s *paymentService) CheckOnlinePayment(ctx context.Context, orderID int) error {
 	order, err := s.orderRepo.GetOrderWithItems(orderID)
 	if err != nil {
 		return fmt.Errorf("failed to load order %d: %w", orderID, err)
@@ -227,7 +283,7 @@ func (s *paymentService) CheckTransferPayment(ctx context.Context, orderID int) 
 	if order == nil {
 		return jobs.Permanent(fmt.Errorf("order %d not found", orderID))
 	}
-	if !awaitingTransfer(order) {
+	if !awaitingOnlinePayment(order) {
 		return nil
 	}
 
@@ -271,7 +327,7 @@ func (s *paymentService) CheckTransferPayment(ctx context.Context, orderID int) 
 	return nil
 }
 
-func (s *paymentService) RecheckTransferPayment(ctx context.Context, orderID int) (repository.PaymentResult, bool, error) {
+func (s *paymentService) RecheckOnlinePayment(ctx context.Context, orderID int) (repository.PaymentResult, bool, error) {
 	order, err := s.orderRepo.GetOrderWithItems(orderID)
 	if err != nil {
 		return repository.PaymentResult{}, false, fmt.Errorf("failed to load order %d: %w", orderID, err)
@@ -279,8 +335,8 @@ func (s *paymentService) RecheckTransferPayment(ctx context.Context, orderID int
 	if order == nil {
 		return repository.PaymentResult{}, false, ErrOrderNotFound
 	}
-	if order.PaymentMethod != models.PaymentMethodTransfer || order.PaymentReference == nil || *order.PaymentReference == "" {
-		return repository.PaymentResult{}, false, ErrNotTransferOrder
+	if !order.PaymentMethod.IsOnline() || order.PaymentReference == nil || *order.PaymentReference == "" {
+		return repository.PaymentResult{}, false, ErrNotOnlinePayment
 	}
 
 	status, err := s.gateway.VerifyTransaction(*order.PaymentReference)

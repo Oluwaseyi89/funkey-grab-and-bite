@@ -112,7 +112,8 @@ func SetupEngine() (*gin.Engine, func()) {
 	cateringContractService := services.NewCateringContractService(cateringRepo, cateringContractRepo, settingsService, emailService, paymentGateway)
 
 	// Initialize handlers
-	authHandler := v1.NewAuthHandler(authService, userService)
+	accountService := services.NewAccountService(userRepo, repository.NewAccountCodeRepository(db), jobEmailQueue{jobs: jobRepo, worker: worker}, auditRepo)
+	authHandler := v1.NewAuthHandler(authService, userService, accountService)
 	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService, paymentService, invoiceService)
 	paymentHandler := v1.NewPaymentHandler(paymentService)
 	adminPaymentsHandler := v1.NewAdminPaymentsHandler(repository.NewAdminPaymentRepository(db), checkoutRepo, paymentService, jobRepo, auditRepo)
@@ -193,6 +194,9 @@ func SetupEngine() (*gin.Engine, func()) {
 
 	{
 		public.POST("/auth/register", limitAuthByPhone, authHandler.Register)
+		public.POST("/auth/register/confirm", middleware.TrackingRateLimitMiddleware(), limitAuthByPhone, authHandler.ConfirmRegistration)
+		public.POST("/auth/password/forgot", middleware.TrackingRateLimitMiddleware(), limitAuthByPhone, authHandler.ForgotPassword)
+		public.POST("/auth/password/reset", middleware.TrackingRateLimitMiddleware(), limitAuthByPhone, authHandler.ResetPassword)
 		public.POST("/auth/login", limitAuthByPhone, authHandler.Login)
 		public.GET("/auth/check", authHandler.CheckUser)
 
@@ -206,6 +210,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		public.POST("/catering/booking", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.ViewBooking)
 		public.POST("/catering/booking/accept", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.AcceptQuote)
 		public.POST("/catering/booking/pay", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.PayOnline)
+		public.POST("/catering/booking/pay/verify", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.VerifyPayment)
 		public.GET("/promotions/validate", promotionHandler.ValidatePromotion)
 		public.GET("/promotions/active", promotionHandler.GetActivePromotions)
 		public.POST("/admin/auth/login", adminHandler.AdminLogin)
@@ -238,6 +243,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.TrackOrder)
 		orderGroup.POST("/lookup", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.LookupOrder)
 		orderGroup.POST("/payment-details", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.RenewPayment)
+		orderGroup.POST("/payment-status", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.RefreshPaymentStatus)
 		orderGroup.PATCH("/:id/cancel", limitOrdersByPhone, orderHandler.CancelOrder)
 	}
 
@@ -249,6 +255,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		userRoutes.PATCH("/password", limitAccountByUser, authHandler.ChangePassword)
 		userRoutes.GET("/orders", orderHandler.GetUserOrders)
 		userRoutes.GET("/orders/:id", orderHandler.GetUserOrder)
+		userRoutes.POST("/orders/:id/payment-status", middleware.TrackingRateLimitMiddleware(), limitAccountByUser, orderHandler.RefreshMyPaymentStatus)
 		userRoutes.GET("/catering-requests", cateringHandler.GetUserRequests)
 	}
 

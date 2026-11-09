@@ -44,9 +44,29 @@ type CustomerListFilter struct {
 }
 
 type UserRegistration struct {
-	Phone    string `json:"phone" validate:"required,min=10,max=20"`
-	Email    string `json:"email,omitempty" validate:"omitempty,email"`
+	Phone string `json:"phone" validate:"required,min=10,max=20"`
+	// Email is needed to confirm the account and to reset its password.
+	Email    string `json:"email" validate:"required,email,max=200"`
 	FullName string `json:"fullName" validate:"required,min=2,max=100"`
+	Password string `json:"password" validate:"required,min=8"`
+}
+
+// RegistrationConfirmation completes a registration for a number with guest
+// orders, with the code emailed to the address on those orders.
+type RegistrationConfirmation struct {
+	UserRegistration
+	Code string `json:"code" validate:"required,len=6,numeric"`
+}
+
+// PasswordResetRequest asks for a reset code by email.
+type PasswordResetRequest struct {
+	Email string `json:"email" validate:"required,email,max=200"`
+}
+
+// PasswordReset sets a new password with an emailed code.
+type PasswordReset struct {
+	Email    string `json:"email" validate:"required,email,max=200"`
+	Code     string `json:"code" validate:"required,len=6,numeric"`
 	Password string `json:"password" validate:"required,min=8"`
 }
 

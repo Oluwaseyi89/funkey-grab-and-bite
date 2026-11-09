@@ -55,6 +55,16 @@
             </ClientOnly>
           </button>
 
+           <!-- Accounts are optional; this links to sign in or to the dashboard. -->
+           <NuxtLink
+             :to="isMounted && auth.isSignedIn ? '/account' : '/account/login'"
+             class="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-700/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 transition-all duration-200 hover:scale-105 hover:shadow-lg inline-flex items-center justify-center"
+             :aria-label="isMounted && auth.isSignedIn ? 'My account' : 'Sign in'"
+             :title="isMounted && auth.isSignedIn ? 'My account' : 'Sign in'"
+           >
+             <CircleUser class="w-5 h-5 text-gray-700 dark:text-gray-300" />
+           </NuxtLink>
+
            <NuxtLink
              to="/order"
              class="relative p-2.5 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 hover:from-brand-600 hover:to-accent-600 transition-all duration-200 hover:scale-105 hover:shadow-lg shadow-brand-500/30 inline-flex items-center justify-center"
@@ -301,11 +311,12 @@
 
 <script setup lang="ts">
     import { 
-      Menu, ShoppingCart, Sun, Moon, Home, 
+      Menu, ShoppingCart, CircleUser, Sun, Moon, Home, 
       UtensilsCrossed, ShoppingBag, CalendarRange, Phone, X 
     } from 'lucide-vue-next'
     import { useColorMode } from '@vueuse/core'
     import { useCartStore } from '../../stores/cart'
+    import { useAuthStore } from '../../stores/auth'
     import { ref, onMounted, watch } from 'vue'
     import { useRoute } from 'vue-router'
     import { storeToRefs } from 'pinia'
@@ -317,6 +328,7 @@
     // 1. State & Logic
     const colorMode = useColorMode()
     const cart = useCartStore()
+    const auth = useAuthStore()
     const { totalItems } = storeToRefs(cart)
     const route = useRoute()
 

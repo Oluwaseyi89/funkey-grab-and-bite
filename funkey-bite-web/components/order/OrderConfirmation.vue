@@ -10,9 +10,13 @@
           <CheckCircle class="w-10 h-10 text-green-600 dark:text-green-400" />
         </div>
         
-        <h2 id="order-confirmation-title" class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Order Confirmed!</h2>
+        <h2 id="order-confirmation-title" class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          {{ awaitingOnline ? 'Order received' : 'Order Confirmed!' }}
+        </h2>
         <p class="text-gray-600 dark:text-gray-400 mb-6">
-          Thank you for your order. We're preparing it now.
+          {{ awaitingOnline
+            ? "Thank you. We'll start preparing it as soon as your payment comes through."
+            : "Thank you for your order. We're preparing it now." }}
         </p>
         
         <div class="bg-gray-50 dark:bg-slate-700 rounded-xl p-6 mb-6">
@@ -95,6 +99,35 @@
         </div>
 
         <div
+          v-else-if="awaitingCard"
+          class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-5 mb-6 text-left"
+        >
+          <p class="font-bold text-blue-900 dark:text-blue-300 mb-2">Complete your card payment</p>
+          <p class="text-sm text-blue-800 dark:text-blue-400 mb-4">
+            Your order is saved. Pay securely in Paystack's window; your card details never reach us.
+          </p>
+          <p v-if="renewError" class="text-sm text-red-600 dark:text-red-400 mb-3" role="alert">{{ renewError }}</p>
+          <button
+            v-if="cardPaymentsEnabled"
+            type="button"
+            class="btn-primary w-full flex items-center justify-center gap-2"
+            :disabled="isRenewing"
+            @click="payByCard"
+          >
+            <Loader2 v-if="isRenewing" class="w-4 h-4 animate-spin" />
+            <span>Pay with card</span>
+          </button>
+        </div>
+
+        <div
+          v-else-if="isOnline && currentPaymentStatus === 'paid'"
+          class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-6 text-sm text-green-800 dark:text-green-300 text-left"
+          role="status"
+        >
+          Payment received. Thank you!
+        </div>
+
+        <div
           v-else-if="paymentMethod === 'cash'"
           class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6 text-sm text-amber-800 dark:text-amber-400 text-left"
         >
@@ -116,8 +149,9 @@
             class="w-full btn-primary flex items-center justify-center gap-2"
           >
             <Loader2 v-if="isTracking" class="w-4 h-4 animate-spin" />
-            <span>{{ liveStatus ? 'Refresh Status' : 'Track Order' }}</span>
+            <span>{{ awaitingOnline ? 'Refresh payment status' : liveStatus ? 'Refresh Status' : 'Track Order' }}</span>
           </button>
+          <p v-if="refreshMessage" class="text-sm text-gray-600 dark:text-gray-400" role="status">{{ refreshMessage }}</p>
           <button @click="$emit('close')" class="w-full btn-secondary">
             Back to Menu
           </button>
@@ -134,6 +168,7 @@
   import { ref, computed, onMounted, onUnmounted } from 'vue'
   import { CheckCircle, Clock, Loader2, Copy, Check } from 'lucide-vue-next'
   import { useApi } from '../../utils/api'
+  import { usePaystack } from '../../composables/usePaystack'
   import type { Order, OrderType, PaymentMethod, PaymentStatus } from '../../types/order'
 
   const props = defineProps<{
@@ -168,8 +203,33 @@
   const accountName = computed(() => renewed.value?.paymentAccountName ?? props.paymentAccountName)
   const bankName = computed(() => renewed.value?.paymentBankName ?? props.paymentBankName)
   const expiresAt = computed(() => renewed.value?.paymentExpiresAt ?? props.paymentExpiresAt)
-  const awaitingTransfer = computed(() =>
-    props.paymentMethod === 'transfer' && (renewed.value?.paymentStatus ?? props.paymentStatus) === 'pending')
+  const currentPaymentStatus = computed(() => renewed.value?.paymentStatus ?? props.paymentStatus)
+  const isOnline = computed(() => props.paymentMethod === 'transfer' || props.paymentMethod === 'card')
+  const awaitingOnline = computed(() => isOnline.value && currentPaymentStatus.value === 'pending')
+  const awaitingTransfer = computed(() => props.paymentMethod === 'transfer' && awaitingOnline.value)
+  const awaitingCard = computed(() => props.paymentMethod === 'card' && awaitingOnline.value)
+  const { cardPaymentsEnabled, payWithCard } = usePaystack()
+
+  // Opens Paystack's popup with a fresh card payment, then has the server
+  // confirm it.
+  const payByCard = async () => {
+    if (!props.customerPhone || !props.orderNumber) return
+    isRenewing.value = true
+    renewError.value = ''
+    try {
+      const started = await api.getPaymentDetails(props.orderNumber, props.customerPhone)
+      if (!started.paymentAccessCode) throw new Error("We couldn't start the card payment. Please try again.")
+      if ((await payWithCard(started.paymentAccessCode)) === 'paid') {
+        await refreshStatus()
+      } else {
+        renewError.value = 'Payment cancelled. You can pay whenever you’re ready.'
+      }
+    } catch (err) {
+      renewError.value = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+    } finally {
+      isRenewing.value = false
+    }
+  }
 
   // Re-checked every half minute so the screen notices the window closing.
   const now = ref(Date.now())
@@ -221,16 +281,31 @@
     }
   })
 
+  // While an online payment is outstanding, the server checks it with
+  // Paystack, so the customer sees a payment as soon as it lands.
+  const refreshMessage = ref('')
+  const refreshStatus = async () => {
+    const result = await api.refreshPaymentStatus(props.orderNumber, props.customerPhone)
+    renewed.value = result.order
+    liveStatus.value = result.order.status
+    refreshMessage.value = result.message
+  }
+
   const trackOrder = async () => {
     if (!props.customerPhone || !props.orderNumber) return
     isTracking.value = true
+    refreshMessage.value = ''
     try {
-      const order = await api.getOrder(props.customerPhone, props.orderNumber)
-      if (order) {
-        liveStatus.value = order.status
+      if (awaitingOnline.value) {
+        await refreshStatus()
+      } else {
+        const order = await api.getOrder(props.customerPhone, props.orderNumber)
+        if (order) {
+          liveStatus.value = order.status
+        }
       }
-    } catch {
-      // silent — status badge simply won't appear on error
+    } catch (err) {
+      refreshMessage.value = err instanceof Error ? err.message : ''
     } finally {
       isTracking.value = false
     }

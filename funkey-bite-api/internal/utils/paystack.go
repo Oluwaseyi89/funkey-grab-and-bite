@@ -29,6 +29,16 @@ type PaymentGateway interface {
 	// VerifyTransaction asks Paystack how a charge stands, for when its
 	// webhook may never have arrived.
 	VerifyTransaction(reference string) (*TransactionStatus, error)
+	// InitializeCardPayment starts a card payment and returns the access
+	// code the customer's browser opens Paystack's popup with. Card details
+	// are entered in that popup and never reach this app.
+	InitializeCardPayment(email string, amountNaira float64, reference string) (*CardPayment, error)
+}
+
+// CardPayment is a card payment Paystack is ready to take.
+type CardPayment struct {
+	Reference  string
+	AccessCode string
 }
 
 // TransactionStatus is a charge as Paystack reports it. Status is "success"
@@ -218,6 +228,50 @@ func (g *PaystackGateway) VerifyTransaction(reference string) (*TransactionStatu
 	}, nil
 }
 
+type paystackInitializeResponse struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		AccessCode string `json:"access_code"`
+		Reference  string `json:"reference"`
+	} `json:"data"`
+}
+
+func (g *PaystackGateway) InitializeCardPayment(email string, amountNaira float64, reference string) (*CardPayment, error) {
+	data, err := json.Marshal(map[string]any{
+		"email":     email,
+		"amount":    int64(math.Round(amountNaira * 100)),
+		"currency":  "NGN",
+		"reference": reference,
+		"channels":  []string{"card"},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode Paystack initialize request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", g.baseURL+"/transaction/initialize", bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+g.secretKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := g.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reach Paystack: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result paystackInitializeResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode Paystack initialize response (status %d): %w", resp.StatusCode, err)
+	}
+	if resp.StatusCode >= 300 || !result.Status || result.Data.AccessCode == "" {
+		return nil, fmt.Errorf("Paystack initialize failed (status %d): %s", resp.StatusCode, result.Message)
+	}
+	return &CardPayment{Reference: result.Data.Reference, AccessCode: result.Data.AccessCode}, nil
+}
+
 // MockPaymentGateway simulates a Paystack transfer charge without any network
 // call, used in development the same way MockEmailService/MockSMSService are.
 type MockPaymentGateway struct{}
@@ -243,4 +297,9 @@ func (m *MockPaymentGateway) VerifyWebhookSignature(rawBody []byte, signature st
 func (m *MockPaymentGateway) VerifyTransaction(reference string) (*TransactionStatus, error) {
 	log.Printf("[MOCK PAYSTACK] Verify %s: reporting it unpaid", reference)
 	return &TransactionStatus{Reference: reference, Status: "abandoned"}, nil
+}
+
+func (m *MockPaymentGateway) InitializeCardPayment(email string, amountNaira float64, reference string) (*CardPayment, error) {
+	log.Printf("[MOCK PAYSTACK] Card payment started: ref=%s amount=NGN %.2f", reference, amountNaira)
+	return &CardPayment{Reference: reference, AccessCode: "mock_access_code"}, nil
 }

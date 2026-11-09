@@ -181,12 +181,12 @@ func (h *AdminPaymentsHandler) RecheckPayment(c *gin.Context) {
 		return
 	}
 
-	result, paid, err := h.checker.RecheckTransferPayment(middleware.RequestContext(c), orderID)
+	result, paid, err := h.checker.RecheckOnlinePayment(middleware.RequestContext(c), orderID)
 	switch {
 	case errors.Is(err, services.ErrOrderNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
 		return
-	case errors.Is(err, services.ErrNotTransferOrder):
+	case errors.Is(err, services.ErrNotOnlinePayment):
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	case err != nil:

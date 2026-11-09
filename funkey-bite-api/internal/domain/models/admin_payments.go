@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// OnlinePayment is an online transfer order as the admin's payments page
-// shows it.
+// OnlinePayment is an online (transfer or card) order as the admin's
+// payments page shows it.
 type OnlinePayment struct {
 	OrderID          int        `json:"orderId"`
 	OrderNumber      string     `json:"orderNumber"`
@@ -14,6 +14,7 @@ type OnlinePayment struct {
 	CustomerPhone    string     `json:"customerPhone"`
 	TotalAmount      float64    `json:"totalAmount"`
 	Status           string     `json:"status"`
+	PaymentMethod    string     `json:"paymentMethod"`
 	PaymentStatus    string     `json:"paymentStatus"`
 	PaymentReference *string    `json:"paymentReference,omitempty"`
 	ReceivedAmount   *float64   `json:"receivedAmount,omitempty"`

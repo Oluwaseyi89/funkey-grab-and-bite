@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 import type { MenuCategory, MenuItem } from '~/types/menu'
 import type { Order, OrderCreatePayload, OrderLookupResult } from '~/types/order'
+import type { AuthSession, Customer, PaymentRefresh, RegistrationDetails, RegistrationResult } from '~/types/account'
 import type {
   CateringBooking,
   CateringBookingAuth,
@@ -98,6 +99,7 @@ type BackendOrder = {
   payment_bank_name?: string
   paymentExpiresAt?: string
   payment_expires_at?: string
+  paymentAccessCode?: string
   paymentPaidAt?: string
   payment_paid_at?: string
   paymentCollectedVia?: Order['paymentCollectedVia']
@@ -135,8 +137,18 @@ export class ApiService {
   private baseURL: string
   private notifyMockUsage?: ToastNotify
   private notifiedFallbacks = new Set<string>()
-  private headers = {
-    'Content-Type': 'application/json',
+  private authToken: string | null = null
+
+  // Requests carry the signed-in customer's token, so orders placed while
+  // signed in are linked to their account.
+  private get headers(): Record<string, string> {
+    return this.authToken
+      ? { 'Content-Type': 'application/json', Authorization: `Bearer ${this.authToken}` }
+      : { 'Content-Type': 'application/json' }
+  }
+
+  setAuthToken(token: string | null) {
+    this.authToken = token
   }
 
   constructor(baseURL: string = '', notifyMockUsage?: ToastNotify) {
@@ -216,10 +228,12 @@ export class ApiService {
       paymentMethod: order.paymentMethod ?? order.payment_method,
       paymentStatus: order.paymentStatus ?? order.payment_status,
       paymentReference: order.paymentReference ?? order.payment_reference,
-      paymentAccountNumber: order.paymentAccountNumber ?? order.payment_account_number,
+      // Card orders have no account; an empty value means none.
+      paymentAccountNumber: (order.paymentAccountNumber ?? order.payment_account_number) || undefined,
       paymentAccountName: order.paymentAccountName ?? order.payment_account_name,
       paymentBankName: order.paymentBankName ?? order.payment_bank_name,
       paymentExpiresAt: order.paymentExpiresAt ?? order.payment_expires_at,
+      paymentAccessCode: order.paymentAccessCode,
       paymentPaidAt: order.paymentPaidAt ?? order.payment_paid_at,
       paymentCollectedVia: order.paymentCollectedVia,
       deliveryAddress: order.deliveryAddress,
@@ -429,6 +443,66 @@ export class ApiService {
     }
   }
 
+  // ---- Customer accounts ----
+
+  private post<T>(endpoint: string, body: unknown): Promise<T> {
+    return this.fetchJSON<T>(endpoint, { method: 'POST', headers: this.headers, body: JSON.stringify(body) })
+  }
+
+  async register(details: RegistrationDetails): Promise<RegistrationResult> {
+    const payload = await this.post<AuthSession | { verificationRequired: true; sentTo: string }>('/auth/register', details)
+    if ('verificationRequired' in payload) return { kind: 'verify', sentTo: payload.sentTo }
+    return { kind: 'signedIn', session: payload }
+  }
+
+  // Completes a registration for a number with guest orders, linking them.
+  confirmRegistration(details: RegistrationDetails, code: string): Promise<AuthSession> {
+    return this.post<AuthSession>('/auth/register/confirm', { ...details, code })
+  }
+
+  login(phone: string, password: string): Promise<AuthSession> {
+    return this.post<AuthSession>('/auth/login', { phone, password })
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    await this.post('/auth/password/forgot', { email })
+  }
+
+  async resetPassword(email: string, code: string, password: string): Promise<void> {
+    await this.post('/auth/password/reset', { email, code, password })
+  }
+
+  async getProfile(): Promise<Customer> {
+    const payload = await this.fetchJSON<{ user: Customer }>('/auth/profile', { headers: this.headers })
+    return payload.user
+  }
+
+  async getMyOrders(page = 1, limit = 10): Promise<{ orders: Order[]; totalPages: number }> {
+    const payload = await this.fetchJSON<{ orders: BackendOrder[]; pagination: { totalPages: number } }>(
+      `/auth/orders?page=${page}&limit=${limit}`,
+      { headers: this.headers },
+    )
+    return { orders: (payload.orders || []).map((o) => this.normalizeOrder(o)), totalPages: payload.pagination?.totalPages ?? 0 }
+  }
+
+  // ---- Payment status ----
+
+  // Asks our server to check an unpaid online order with Paystack, by order
+  // number and phone; returns the order as it now stands.
+  async refreshPaymentStatus(orderNumber: string, phone: string): Promise<{ order: Order } & PaymentRefresh> {
+    const payload = await this.post<{ order: BackendOrder } & PaymentRefresh>('/orders/payment-status', { orderNumber, phone })
+    return { ...payload, order: this.normalizeOrder(payload.order) }
+  }
+
+  // The same for a signed-in customer's own order.
+  async refreshMyPaymentStatus(orderId: string): Promise<{ order: Order } & PaymentRefresh> {
+    const payload = await this.fetchJSON<{ order: BackendOrder } & PaymentRefresh>(`/auth/orders/${orderId}/payment-status`, {
+      method: 'POST',
+      headers: this.headers,
+    })
+    return { ...payload, order: this.normalizeOrder(payload.order) }
+  }
+
   async getOrder(phone: string, orderNumber: string): Promise<Order | null> {
     const endpoint = `/order/track/${encodeURIComponent(phone)}/${encodeURIComponent(orderNumber)}`
     try {
@@ -525,11 +599,25 @@ export class ApiService {
   }
 
   // A bank account to transfer the deposit or balance to.
-  async payCateringOnline(auth: CateringBookingAuth, portion: 'deposit' | 'balance'): Promise<CateringPaymentCharge> {
+  async payCateringOnline(
+    auth: CateringBookingAuth,
+    portion: 'deposit' | 'balance',
+    method: 'transfer' | 'card' = 'transfer',
+  ): Promise<CateringPaymentCharge> {
     return this.fetchJSON<CateringPaymentCharge>('/catering/booking/pay', {
       method: 'POST',
       headers: this.headers,
-      body: JSON.stringify({ ...auth, portion }),
+      body: JSON.stringify({ ...auth, portion, method }),
+    })
+  }
+
+  // Has the server confirm an online payment with Paystack (e.g. right after
+  // the card popup reports success) and returns the booking as it now stands.
+  async verifyCateringPayment(auth: CateringBookingAuth, reference: string): Promise<CateringBooking> {
+    return this.fetchJSON<CateringBooking>('/catering/booking/pay/verify', {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({ ...auth, paymentReference: reference }),
     })
   }
 

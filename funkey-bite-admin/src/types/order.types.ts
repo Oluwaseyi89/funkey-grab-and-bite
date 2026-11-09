@@ -1,7 +1,8 @@
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
 export type OrderType = 'pickup' | 'delivery' | 'catering';
 // 'cash' is pay on delivery (or at pickup); 'transfer' is online payment.
-export type PaymentMethod = 'cash' | 'transfer';
+// card is paid in Paystack's popup on the customer site.
+export type PaymentMethod = 'cash' | 'transfer' | 'card';
 // 'not_required' only appears on cash orders from before payments on delivery were tracked.
 // expired: an online transfer never made in time (the order was cancelled).
 // needs_review: money arrived that can't simply be accepted, e.g. the wrong
