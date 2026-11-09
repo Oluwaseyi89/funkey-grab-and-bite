@@ -1,9 +1,11 @@
 package services
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,16 +21,40 @@ type fakePaymentGateway struct {
 	capturedEmail  string
 	capturedAmount float64
 	capturedRef    string
+	initiateCalls  int
+	// failFirst fails this many initiate attempts before succeeding.
+	failFirst int
+
+	verifyResult *utils.TransactionStatus
+	verifyErr    error
 }
 
 func (f *fakePaymentGateway) InitiateTransfer(email string, amountNaira float64, reference string) (*utils.TransferChargeResult, error) {
 	f.capturedEmail = email
 	f.capturedAmount = amountNaira
 	f.capturedRef = reference
+	f.initiateCalls++
+	if f.initiateCalls <= f.failFirst {
+		return nil, errors.New("paystack timeout")
+	}
 	if f.initiateErr != nil {
 		return nil, f.initiateErr
 	}
 	return f.initiateResult, nil
+}
+
+func (f *fakePaymentGateway) VerifyTransaction(reference string) (*utils.TransactionStatus, error) {
+	return f.verifyResult, f.verifyErr
+}
+
+// fakeUnpaidCanceller stands in for cancelling an unpaid order in one transaction.
+type fakeUnpaidCanceller struct {
+	calls int
+}
+
+func (f *fakeUnpaidCanceller) CancelUnpaidOrder(ctx context.Context, orderID int) (bool, error) {
+	f.calls++
+	return true, nil
 }
 
 func (f *fakePaymentGateway) VerifyWebhookSignature(rawBody []byte, signature string) bool {
@@ -127,7 +153,7 @@ func emailPtr(s string) *string { return &s }
 func TestInitiateTransferPaymentRequiresEmail(t *testing.T) {
 	gateway := &fakePaymentGateway{}
 	repo := &fakePaymentOrderRepo{}
-	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{})
+	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{}, nil)
 
 	order := &models.Order{ID: 1, OrderNumber: "FG-1", TotalAmount: 100}
 	_, err := svc.InitiateTransferPayment(order)
@@ -153,7 +179,7 @@ func TestInitiateTransferPaymentPersistsChargeDetails(t *testing.T) {
 	}
 	finalOrder := &models.Order{ID: 1, OrderNumber: "FG-1", PaymentStatus: models.PaymentStatusPending}
 	repo := &fakePaymentOrderRepo{getWithItemsResult: finalOrder}
-	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{})
+	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{}, nil)
 
 	order := &models.Order{ID: 1, OrderNumber: "FG-1", TotalAmount: 5000, CustomerEmail: emailPtr("customer@example.com")}
 	result, err := svc.InitiateTransferPayment(order)
@@ -178,7 +204,7 @@ func TestInitiateTransferPaymentPersistsChargeDetails(t *testing.T) {
 func TestHandleWebhookRejectsInvalidSignature(t *testing.T) {
 	gateway := &fakePaymentGateway{verifySig: false}
 	repo := &fakePaymentOrderRepo{}
-	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{})
+	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{}, nil)
 
 	err := svc.HandleWebhook([]byte(`{}`), "bad-signature")
 	if !errors.Is(err, ErrInvalidWebhookSignature) {
@@ -207,7 +233,7 @@ func webhookPayload(t *testing.T, event, reference string, amountKobo int64) []b
 func TestHandleWebhookIgnoresNonChargeSuccessEvents(t *testing.T) {
 	gateway := &fakePaymentGateway{verifySig: true}
 	repo := &fakePaymentOrderRepo{}
-	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{})
+	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{}, nil)
 
 	body := webhookPayload(t, "charge.failed", "PSK-FG-1-abc", 500000)
 	if err := svc.HandleWebhook(body, "sig"); err != nil {
@@ -228,7 +254,7 @@ func TestHandleWebhookMarksOrderPaidAndConfirmed(t *testing.T) {
 	}
 	repo := &fakePaymentOrderRepo{byReference: order}
 	notifier := &fakePaymentNotificationService{}
-	svc := NewPaymentService(gateway, repo, notifier)
+	svc := NewPaymentService(gateway, repo, notifier, nil)
 
 	body := webhookPayload(t, "charge.success", "PSK-FG-7-abc", 500000)
 	if err := svc.HandleWebhook(body, "sig"); err != nil {
@@ -255,7 +281,7 @@ func TestHandleWebhookIsIdempotentWhenAlreadyPaid(t *testing.T) {
 		PaymentStatus: models.PaymentStatusPaid,
 	}
 	repo := &fakePaymentOrderRepo{byReference: order}
-	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{})
+	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{}, nil)
 
 	body := webhookPayload(t, "charge.success", "PSK-FG-7-abc", 500000)
 	if err := svc.HandleWebhook(body, "sig"); err != nil {
@@ -279,7 +305,7 @@ func TestHandleWebhookRejectsAmountMismatch(t *testing.T) {
 		PaymentStatus: models.PaymentStatusPending,
 	}
 	repo := &fakePaymentOrderRepo{byReference: order}
-	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{})
+	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{}, nil)
 
 	body := webhookPayload(t, "charge.success", "PSK-FG-7-abc", 100000) // wrong amount
 	if err := svc.HandleWebhook(body, "sig"); err != nil {
@@ -289,4 +315,146 @@ func TestHandleWebhookRejectsAmountMismatch(t *testing.T) {
 	if repo.markPaidCalls != 0 {
 		t.Errorf("expected an amount mismatch not to mark the order paid, got %d calls", repo.markPaidCalls)
 	}
+}
+
+func newTestPaymentService(gateway *fakePaymentGateway, repo *fakePaymentOrderRepo, unpaid *fakeUnpaidCanceller, now time.Time) *paymentService {
+	svc := NewPaymentService(gateway, repo, &fakePaymentNotificationService{}, unpaid).(*paymentService)
+	svc.sleep = func(time.Duration) {}
+	svc.now = func() time.Time { return now }
+	return svc
+}
+
+func TestInitiateTransferPaymentRetriesWithFreshReferences(t *testing.T) {
+	gateway := &fakePaymentGateway{failFirst: 2, initiateResult: &utils.TransferChargeResult{Reference: "PSK-3", AccountNumber: "0123456789"}}
+	repo := &fakePaymentOrderRepo{getWithItemsResult: &models.Order{ID: 1}}
+	svc := newTestPaymentService(gateway, repo, nil, time.Now())
+
+	if _, err := svc.InitiateTransferPayment(&models.Order{ID: 1, OrderNumber: "FG-1", CustomerEmail: emailPtr("a@b.c")}); err != nil {
+		t.Fatalf("expected success on the third attempt, got %v", err)
+	}
+	if gateway.initiateCalls != 3 || repo.setInitiatedCalls != 1 {
+		t.Fatalf("expected 3 attempts and one save, got %d and %d", gateway.initiateCalls, repo.setInitiatedCalls)
+	}
+}
+
+func TestInitiateTransferPaymentGivesUpAfterThreeAttempts(t *testing.T) {
+	gateway := &fakePaymentGateway{failFirst: 10}
+	repo := &fakePaymentOrderRepo{}
+	svc := newTestPaymentService(gateway, repo, nil, time.Now())
+
+	if _, err := svc.InitiateTransferPayment(&models.Order{ID: 1, OrderNumber: "FG-1", CustomerEmail: emailPtr("a@b.c")}); err == nil {
+		t.Fatal("expected an error after the attempts ran out")
+	}
+	if gateway.initiateCalls != initiateAttempts || repo.setInitiatedCalls != 0 {
+		t.Fatalf("expected %d attempts and no save, got %d and %d", initiateAttempts, gateway.initiateCalls, repo.setInitiatedCalls)
+	}
+}
+
+func awaitingOrder(expiresAt time.Time) *models.Order {
+	ref, account := "PSK-1", "0123456789"
+	return &models.Order{
+		ID: 7, OrderNumber: "FG-7", TotalAmount: 2500, Status: models.OrderStatusPending,
+		PaymentMethod: models.PaymentMethodTransfer, PaymentStatus: models.PaymentStatusPending,
+		PaymentReference: &ref, PaymentAccountNumber: &account, PaymentExpiresAt: &expiresAt,
+		CustomerEmail: emailPtr("a@b.c"),
+	}
+}
+
+func TestCheckTransferPaymentWaitsUntilWindowCloses(t *testing.T) {
+	now := time.Now()
+	expires := now.Add(10 * time.Minute)
+	unpaid := &fakeUnpaidCanceller{}
+	svc := newTestPaymentService(&fakePaymentGateway{}, &fakePaymentOrderRepo{getWithItemsResult: awaitingOrder(expires)}, unpaid, now)
+
+	err := svc.CheckTransferPayment(context.Background(), 7)
+	if err == nil || unpaid.calls != 0 {
+		t.Fatalf("expected the check to wait, got %v and %d cancellations", err, unpaid.calls)
+	}
+	if !strings.Contains(err.Error(), expires.Add(paymentGrace).Format(time.RFC3339)) {
+		t.Fatalf("expected to run again when the window plus grace ends, got %v", err)
+	}
+}
+
+func TestCheckTransferPaymentMarksPaidWhenWebhookWasMissed(t *testing.T) {
+	now := time.Now()
+	gateway := &fakePaymentGateway{verifyResult: &utils.TransactionStatus{Status: "success", AmountKobo: 250000}}
+	repo := &fakePaymentOrderRepo{getWithItemsResult: awaitingOrder(now.Add(-time.Hour))}
+	unpaid := &fakeUnpaidCanceller{}
+	svc := newTestPaymentService(gateway, repo, unpaid, now)
+
+	if err := svc.CheckTransferPayment(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	if repo.markPaidCalls != 1 || repo.lastStatus != string(models.OrderStatusConfirmed) || unpaid.calls != 0 {
+		t.Fatalf("expected the order marked paid and confirmed, not cancelled; got %d paid, status %q, %d cancelled", repo.markPaidCalls, repo.lastStatus, unpaid.calls)
+	}
+}
+
+func TestCheckTransferPaymentCancelsUnpaidOrder(t *testing.T) {
+	now := time.Now()
+	gateway := &fakePaymentGateway{verifyResult: &utils.TransactionStatus{Status: "abandoned"}}
+	repo := &fakePaymentOrderRepo{getWithItemsResult: awaitingOrder(now.Add(-time.Hour))}
+	unpaid := &fakeUnpaidCanceller{}
+	svc := newTestPaymentService(gateway, repo, unpaid, now)
+
+	if err := svc.CheckTransferPayment(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	if unpaid.calls != 1 || repo.markPaidCalls != 0 {
+		t.Fatalf("expected the unpaid order cancelled, got %d cancellations and %d paid", unpaid.calls, repo.markPaidCalls)
+	}
+}
+
+func TestCheckTransferPaymentRetriesWhenPaystackCantBeReached(t *testing.T) {
+	now := time.Now()
+	gateway := &fakePaymentGateway{verifyErr: errors.New("paystack unreachable")}
+	unpaid := &fakeUnpaidCanceller{}
+	svc := newTestPaymentService(gateway, &fakePaymentOrderRepo{getWithItemsResult: awaitingOrder(now.Add(-time.Hour))}, unpaid, now)
+
+	if err := svc.CheckTransferPayment(context.Background(), 7); err == nil || unpaid.calls != 0 {
+		t.Fatalf("an unknown payment state must be retried, never cancelled; got %v and %d cancellations", err, unpaid.calls)
+	}
+}
+
+func TestCheckTransferPaymentLeavesSettledOrdersAlone(t *testing.T) {
+	now := time.Now()
+	paid := awaitingOrder(now.Add(-time.Hour))
+	paid.PaymentStatus = models.PaymentStatusPaid
+	unpaid := &fakeUnpaidCanceller{}
+	svc := newTestPaymentService(&fakePaymentGateway{}, &fakePaymentOrderRepo{getWithItemsResult: paid}, unpaid, now)
+
+	if err := svc.CheckTransferPayment(context.Background(), 7); err != nil || unpaid.calls != 0 {
+		t.Fatalf("a paid order needs no check, got %v and %d cancellations", err, unpaid.calls)
+	}
+}
+
+func TestRenewTransferPayment(t *testing.T) {
+	now := time.Now()
+	newAccount := &utils.TransferChargeResult{Reference: "PSK-2", AccountNumber: "9876543210"}
+
+	t.Run("valid details are kept", func(t *testing.T) {
+		gateway := &fakePaymentGateway{initiateResult: newAccount}
+		svc := newTestPaymentService(gateway, &fakePaymentOrderRepo{}, nil, now)
+		order := awaitingOrder(now.Add(5 * time.Minute))
+		got, err := svc.RenewTransferPayment(order)
+		if err != nil || got != order || gateway.initiateCalls != 0 {
+			t.Fatalf("expected the current details back without a new charge, got %v, %d charges", err, gateway.initiateCalls)
+		}
+	})
+	t.Run("expired details are replaced", func(t *testing.T) {
+		gateway := &fakePaymentGateway{initiateResult: newAccount}
+		repo := &fakePaymentOrderRepo{getWithItemsResult: &models.Order{ID: 7}}
+		svc := newTestPaymentService(gateway, repo, nil, now)
+		if _, err := svc.RenewTransferPayment(awaitingOrder(now.Add(-time.Minute))); err != nil || gateway.initiateCalls != 1 || repo.setInitiatedCalls != 1 {
+			t.Fatalf("expected new details, got %v, %d charges, %d saves", err, gateway.initiateCalls, repo.setInitiatedCalls)
+		}
+	})
+	t.Run("settled orders are refused", func(t *testing.T) {
+		order := awaitingOrder(now.Add(-time.Minute))
+		order.Status = models.OrderStatusCancelled
+		svc := newTestPaymentService(&fakePaymentGateway{}, &fakePaymentOrderRepo{}, nil, now)
+		if _, err := svc.RenewTransferPayment(order); !errors.Is(err, ErrPaymentNotRenewable) {
+			t.Fatalf("expected ErrPaymentNotRenewable, got %v", err)
+		}
+	})
 }
