@@ -108,10 +108,20 @@
             Pay {{ naira(booking.account.depositRemaining) }} more to confirm your booking.
           </template>
           <template v-else>Your booking is confirmed. Please pay the balance before your event.</template>
-          You can pay by transfer online, or pay us in cash or by direct transfer and we'll record it.
+          You can pay online by card or transfer, or pay us in cash or by direct transfer and we'll record it.
         </p>
 
-        <div v-if="charge" class="p-4 rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50 text-sm space-y-1">
+        <fieldset v-if="cardPaymentsEnabled" class="flex flex-wrap gap-4 text-sm">
+          <legend class="sr-only">How would you like to pay?</legend>
+          <label class="inline-flex items-center gap-2">
+            <input v-model="payMethod" type="radio" value="card" /> Card (instant)
+          </label>
+          <label class="inline-flex items-center gap-2">
+            <input v-model="payMethod" type="radio" value="transfer" /> Bank transfer
+          </label>
+        </fieldset>
+
+        <div v-if="charge && charge.accountNumber" class="p-4 rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50 text-sm space-y-1">
           <p class="font-medium text-gray-900 dark:text-white">Transfer exactly {{ naira(charge.amount) }} to:</p>
           <p v-if="charge.bankName" class="text-gray-700 dark:text-gray-300">Bank: {{ charge.bankName }}</p>
           <p class="text-gray-700 dark:text-gray-300">Account number: <span class="font-mono font-semibold">{{ charge.accountNumber }}</span></p>
@@ -120,6 +130,7 @@
           <p class="text-xs text-gray-500">Your payment is recorded automatically once it arrives; refresh this page to see it.</p>
         </div>
 
+        <p v-if="actionMessage" class="text-sm text-gray-700 dark:text-gray-300" role="status">{{ actionMessage }}</p>
         <p v-if="actionError" class="text-sm text-red-600" role="alert">{{ actionError }}</p>
         <div class="flex flex-wrap gap-3">
           <button v-if="booking.account.depositRemaining > 0" class="btn-primary dark:text-white" :disabled="busy" @click="pay('deposit')">
@@ -147,6 +158,7 @@ import type { CateringBooking, CateringBookingAuth, CateringPaymentCharge } from
 import { CATERING_STATUS_LABELS, EVENT_TYPES, PAYMENT_METHOD_LABELS } from '../../types/catering'
 import { useApi } from '../../utils/api'
 import { useBusinessSettings } from '../../composables/useBusinessSettings'
+import { usePaystack } from '../../composables/usePaystack'
 
 const props = defineProps<{ booking: CateringBooking; auth: CateringBookingAuth }>()
 const emit = defineEmits<{ updated: [booking: CateringBooking] }>()
@@ -157,6 +169,9 @@ const agreed = ref(false)
 const busy = ref(false)
 const actionError = ref('')
 const charge = ref<CateringPaymentCharge | null>(props.booking.pendingCharge ?? null)
+const actionMessage = ref('')
+const { cardPaymentsEnabled, payWithCard } = usePaystack()
+const payMethod = ref<'card' | 'transfer'>(cardPaymentsEnabled ? 'card' : 'transfer')
 
 const request = computed(() => props.booking.request)
 const quote = computed(() => props.booking.quote)
@@ -218,7 +233,26 @@ const accept = () =>
 
 const pay = (portion: 'deposit' | 'balance') =>
   run(async () => {
-    charge.value = await useApi().payCateringOnline(props.auth, portion)
+    actionMessage.value = ''
+    const api = useApi()
+    if (payMethod.value !== 'card') {
+      charge.value = await api.payCateringOnline(props.auth, portion, 'transfer')
+      return
+    }
+    // Card: pay in Paystack's window, then have the server confirm it so the
+    // booking updates straight away.
+    const started = await api.payCateringOnline(props.auth, portion, 'card')
+    if (!started.accessCode) throw new Error("We couldn't start the card payment. Please try again.")
+    if ((await payWithCard(started.accessCode)) !== 'paid') {
+      actionMessage.value = 'Payment cancelled. You can pay whenever you’re ready.'
+      return
+    }
+    const updated = await api.verifyCateringPayment(props.auth, started.reference)
+    charge.value = null
+    actionMessage.value = updated.payments.length > props.booking.payments.length
+      ? 'Payment received. Thank you!'
+      : "We're confirming your payment; refresh in a minute if it doesn't show."
+    emit('updated', updated)
   })
 
 const print = () => window.print()
