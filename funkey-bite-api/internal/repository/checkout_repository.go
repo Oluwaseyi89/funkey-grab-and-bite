@@ -60,7 +60,11 @@ func (r *CheckoutRepository) PlaceOrder(ctx context.Context, checkout *models.Ch
 			if err != nil {
 				return err
 			}
-			order.UserID = &customerID
+			// 0: the number belongs to someone else's account; leave the
+			// order unlinked rather than show it to them.
+			if customerID != 0 {
+				order.UserID = &customerID
+			}
 		}
 
 		created, err := r.orders.CreateOrderWithTransaction(tx, &order)
