@@ -210,6 +210,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		public.POST("/catering/booking", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.ViewBooking)
 		public.POST("/catering/booking/accept", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.AcceptQuote)
 		public.POST("/catering/booking/pay", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.PayOnline)
+		public.POST("/catering/booking/pay/verify", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.VerifyPayment)
 		public.GET("/promotions/validate", promotionHandler.ValidatePromotion)
 		public.GET("/promotions/active", promotionHandler.GetActivePromotions)
 		public.POST("/admin/auth/login", adminHandler.AdminLogin)
