@@ -89,3 +89,35 @@ func TestTermiiSendSMSErrorOnHTTPFailureStatus(t *testing.T) {
 		t.Fatal("expected an error on HTTP 401, got nil")
 	}
 }
+
+func TestTermiiNumberUsesInternationalForm(t *testing.T) {
+	for in, want := range map[string]string{
+		"0803 111 2222":       "2348031112222",
+		"+234 (803) 111-2222": "2348031112222",
+		"2348031112222":       "2348031112222",
+	} {
+		if got := termiiNumber(in); got != want {
+			t.Errorf("termiiNumber(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestTermiiStatusMessagesAreClean(t *testing.T) {
+	var sent termiiSendRequest
+	svc := newTestTermiiService(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&sent)
+		_, _ = w.Write([]byte(`{"code":"ok","message_id":"1"}`))
+	})
+
+	for status, want := range map[string]string{
+		"confirmed": "Your order #FG-1 has been confirmed and is being prepared.",
+		"delayed":   "Your order #FG-1 status has been updated to: delayed",
+	} {
+		if err := svc.SendOrderStatusUpdate("0803 111 2222", "FG-1", status); err != nil {
+			t.Fatal(err)
+		}
+		if sent.SMS != want || sent.To != "2348031112222" {
+			t.Errorf("%s: sent %q to %q, want %q to 2348031112222", status, sent.SMS, sent.To, want)
+		}
+	}
+}
