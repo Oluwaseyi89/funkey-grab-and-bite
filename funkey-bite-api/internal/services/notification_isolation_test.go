@@ -31,7 +31,10 @@ func (f *failingNotificationService) SendOrderConfirmation(order *models.Order) 
 	return f.orderErr
 }
 
-func (f *failingNotificationService) SendOrderStatusUpdate(orderID int, newStatus string) error {
+func (f *failingNotificationService) SendOrderStatusEmail(orderID int, newStatus string) error {
+	return nil
+}
+func (f *failingNotificationService) SendOrderStatusSMS(orderID int, newStatus string) error {
 	return nil
 }
 
