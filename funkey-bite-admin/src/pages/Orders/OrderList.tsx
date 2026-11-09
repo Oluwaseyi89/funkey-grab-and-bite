@@ -88,15 +88,16 @@ const OrderList: React.FC = () => {
         default: return 'On delivery';
       }
     }
+    const method = order.paymentMethod === 'card' ? 'Card' : 'Transfer';
     switch (order.paymentStatus) {
-      case 'paid': return 'Transfer · Paid';
-      case 'pending': return 'Transfer · Pending';
-      case 'failed': return 'Transfer · Failed';
-      case 'expired': return 'Transfer · Expired';
-      case 'needs_review': return 'Transfer · Needs review';
-      case 'refund_due': return 'Transfer · Refund due';
-      case 'refunded': return 'Transfer · Refunded';
-      default: return 'Transfer';
+      case 'paid': return `${method} · Paid`;
+      case 'pending': return `${method} · Pending`;
+      case 'failed': return `${method} · Failed`;
+      case 'expired': return `${method} · Expired`;
+      case 'needs_review': return `${method} · Needs review`;
+      case 'refund_due': return `${method} · Refund due`;
+      case 'refunded': return `${method} · Refunded`;
+      default: return method;
     }
   };
 
