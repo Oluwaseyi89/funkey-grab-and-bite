@@ -73,6 +73,8 @@ func SetupEngine() (*gin.Engine, func()) {
 	notificationRepo := repository.NewNotificationRepository(db)
 	idempotencyRepo := repository.NewIdempotencyRepository(db)
 	rateLimitRepo := repository.NewRateLimitRepository(db)
+	auditRepo := repository.NewAuditRepository(db)
+	checkoutRepo := repository.NewCheckoutRepository(db, orderRepo, userRepo, inventoryRepo, promotionRepo, auditRepo, idempotencyRepo)
 
 	emailService := utils.NewEmailService()
 	smsService := utils.NewSMSService()
@@ -90,7 +92,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	// Initialize services
 	authService := services.NewAuthService(*userRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo, menuRepo)
-	orderService := services.NewOrderService(orderRepo, menuRepo, inventoryService, notificationService)
+	orderService := services.NewOrderService(orderRepo, menuRepo, inventoryService, notificationService, checkoutRepo)
 	userService := services.NewUserService(*userRepo, *orderRepo)
 	menuService := services.NewMenuService(*menuRepo)
 	cateringService := services.NewCateringService(cateringRepo, cateringPackageRepo, menuRepo, notificationService)
@@ -217,7 +219,11 @@ func SetupEngine() (*gin.Engine, func()) {
 	orderGroup := public.Group("/orders")
 	orderGroup.Use(middleware.OptionalAuthMiddleware())
 	{
-		orderGroup.POST("", middleware.OrderRateLimitMiddleware(rateLimitRepo), limitOrdersByPhone, orderHandler.CreateOrder)
+		// Idempotency runs first so a retried checkout replays its result
+		// without counting against the rate limits again.
+		orderGroup.POST("",
+			middleware.Idempotency(idempotencyRepo, middleware.IdempotencyOptions{Replay: orderHandler.ReplayCreateOrder}),
+			middleware.OrderRateLimitMiddleware(rateLimitRepo), limitOrdersByPhone, orderHandler.CreateOrder)
 		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.TrackOrder)
 		orderGroup.POST("/lookup", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.LookupOrder)
 		orderGroup.PATCH("/:id/cancel", limitOrdersByPhone, orderHandler.CancelOrder)
