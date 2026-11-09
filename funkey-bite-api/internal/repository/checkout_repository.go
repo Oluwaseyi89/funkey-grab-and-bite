@@ -187,39 +187,14 @@ func (r *CheckoutRepository) CancelUnpaidOrder(ctx context.Context, orderID int)
 			return nil
 		}
 
-		rows, err := tx.QueryContext(ctx, `
-			SELECT menu_item_id, quantity FROM order_items WHERE order_id = $1 ORDER BY menu_item_id
-		`, orderID)
-		if err != nil {
-			return fmt.Errorf("read order %d items: %w", orderID, err)
-		}
-		type line struct{ menuItemID, quantity int }
-		var lines []line
-		for rows.Next() {
-			var l line
-			if err := rows.Scan(&l.menuItemID, &l.quantity); err != nil {
-				rows.Close()
-				return fmt.Errorf("read order %d items: %w", orderID, err)
-			}
-			lines = append(lines, l)
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
-		}
-
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE orders SET status = $2, payment_status = $3, updated_at = NOW() WHERE id = $1
 		`, orderID, models.OrderStatusCancelled, models.PaymentStatusExpired); err != nil {
 			return fmt.Errorf("cancel order %d: %w", orderID, err)
 		}
 
-		reason := "Unpaid order #" + orderNumber + " expired"
-		for _, l := range lines {
-			// An item no longer tracked in stock has nothing to return.
-			if _, err := r.inventory.AdjustStockTx(tx, l.menuItemID, l.quantity, "add", reason); err != nil {
-				return err
-			}
+		if err := r.adjustOrderStock(ctx, tx, orderID, "add", "Unpaid order #"+orderNumber+" expired"); err != nil {
+			return err
 		}
 
 		if err := r.audit.Record(ctx, tx, models.AuditEntry{
@@ -228,7 +203,6 @@ func (r *CheckoutRepository) CancelUnpaidOrder(ctx context.Context, orderID int)
 			EntityID:   strconv.Itoa(orderID),
 			Before:     map[string]any{"status": status, "paymentStatus": paymentStatus},
 			After:      map[string]any{"status": models.OrderStatusCancelled, "paymentStatus": models.PaymentStatusExpired},
-			Metadata:   map[string]any{"stockReturned": len(lines) > 0},
 		}); err != nil {
 			return err
 		}
@@ -401,6 +375,147 @@ func (r *CheckoutRepository) finishPaymentEvent(ctx context.Context, tx *sql.Tx,
 	if _, err := tx.ExecContext(ctx, `UPDATE payment_events SET outcome = $2, order_id = $3 WHERE id = $1`,
 		eventID, string(result.Outcome), orderID); err != nil {
 		return fmt.Errorf("record payment event outcome: %w", err)
+	}
+	return nil
+}
+
+// ErrNotUnderReview is returned for a review decision on an order whose
+// payment isn't waiting for one (or, for "refunded", isn't due a refund).
+var ErrNotUnderReview = errors.New("this order's payment is not waiting for that decision")
+
+// ErrCannotReopen is returned when accepting a payment for a cancelled order
+// whose items are no longer in stock; refund it instead.
+var ErrCannotReopen = errors.New("there isn't enough stock to reopen this order; refund the payment instead")
+
+// ResolvePaymentReview applies the admin's decision on a payment, in one
+// transaction with its audit entry:
+//   - accept: the payment is taken. A cancelled order is reopened and its
+//     stock taken again (ErrCannotReopen if it ran out). The order is marked
+//     paid and confirmed and the customer is told.
+//   - refund: the money must go back. An open order is cancelled and its
+//     stock returned; the payment is marked refund_due.
+//   - refunded: the refund was made; the payment is marked refunded.
+func (r *CheckoutRepository) ResolvePaymentReview(ctx context.Context, orderID int, decision, note string) (string, error) {
+	var resultStatus string
+	err := database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		var orderNumber, status, paymentStatus string
+		err := tx.QueryRowContext(ctx, `
+			SELECT order_number, status, payment_status FROM orders WHERE id = $1 FOR UPDATE
+		`, orderID).Scan(&orderNumber, &status, &paymentStatus)
+		if errors.Is(err, sql.ErrNoRows) {
+			return sql.ErrNoRows
+		}
+		if err != nil {
+			return fmt.Errorf("lock order %d: %w", orderID, err)
+		}
+
+		wanted := string(models.PaymentStatusNeedsReview)
+		if decision == models.ReviewDecisionRefunded {
+			wanted = string(models.PaymentStatusRefundDue)
+		}
+		if paymentStatus != wanted {
+			return ErrNotUnderReview
+		}
+
+		newStatus, newPaymentStatus := status, paymentStatus
+		reason := "Order #" + orderNumber
+		switch decision {
+		case models.ReviewDecisionAccept:
+			if status == string(models.OrderStatusCancelled) {
+				if err := r.adjustOrderStock(ctx, tx, orderID, "subtract", reason+" reopened after payment"); err != nil {
+					var shortage *InsufficientStockError
+					if errors.As(err, &shortage) {
+						return ErrCannotReopen
+					}
+					return err
+				}
+			}
+			if status == string(models.OrderStatusPending) || status == string(models.OrderStatusCancelled) {
+				newStatus = string(models.OrderStatusConfirmed)
+			}
+			newPaymentStatus = string(models.PaymentStatusPaid)
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE orders SET status = $2, payment_status = $3, payment_paid_at = COALESCE(payment_paid_at, $4), updated_at = NOW()
+				WHERE id = $1
+			`, orderID, newStatus, newPaymentStatus, time.Now()); err != nil {
+				return fmt.Errorf("accept payment for order %d: %w", orderID, err)
+			}
+			jobPayload := models.OrderJobPayload{OrderID: orderID}
+			for _, kind := range []string{jobs.KindOrderPaidEmail, jobs.KindOrderPaidSMS} {
+				if err := r.jobs.Enqueue(ctx, tx, models.NewJob{Kind: kind, Payload: jobPayload, DedupeKey: kind + ":" + strconv.Itoa(orderID)}); err != nil {
+					return err
+				}
+			}
+
+		case models.ReviewDecisionRefund:
+			if status != string(models.OrderStatusCancelled) {
+				if err := r.adjustOrderStock(ctx, tx, orderID, "add", reason+" cancelled for refund"); err != nil {
+					return err
+				}
+				newStatus = string(models.OrderStatusCancelled)
+			}
+			newPaymentStatus = string(models.PaymentStatusRefundDue)
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE orders SET status = $2, payment_status = $3, updated_at = NOW() WHERE id = $1
+			`, orderID, newStatus, newPaymentStatus); err != nil {
+				return fmt.Errorf("mark order %d for refund: %w", orderID, err)
+			}
+
+		case models.ReviewDecisionRefunded:
+			newPaymentStatus = string(models.PaymentStatusRefunded)
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE orders SET payment_status = $2, updated_at = NOW() WHERE id = $1
+			`, orderID, newPaymentStatus); err != nil {
+				return fmt.Errorf("mark order %d refunded: %w", orderID, err)
+			}
+
+		default:
+			return fmt.Errorf("unknown review decision %q", decision)
+		}
+
+		if err := r.audit.Record(ctx, tx, models.AuditEntry{
+			Action:     "order.payment_review_" + decision,
+			EntityType: "order",
+			EntityID:   strconv.Itoa(orderID),
+			Before:     map[string]any{"status": status, "paymentStatus": paymentStatus},
+			After:      map[string]any{"status": newStatus, "paymentStatus": newPaymentStatus},
+			Metadata:   map[string]any{"note": note},
+		}); err != nil {
+			return err
+		}
+		resultStatus = newPaymentStatus
+		return nil
+	})
+	return resultStatus, err
+}
+
+// adjustOrderStock adds or takes the stock of every item in an order inside
+// tx, in menu item order. Items no longer tracked in stock are skipped.
+func (r *CheckoutRepository) adjustOrderStock(ctx context.Context, tx *sql.Tx, orderID int, operation, reason string) error {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT menu_item_id, quantity FROM order_items WHERE order_id = $1 ORDER BY menu_item_id
+	`, orderID)
+	if err != nil {
+		return fmt.Errorf("read order %d items: %w", orderID, err)
+	}
+	type line struct{ menuItemID, quantity int }
+	var lines []line
+	for rows.Next() {
+		var l line
+		if err := rows.Scan(&l.menuItemID, &l.quantity); err != nil {
+			rows.Close()
+			return fmt.Errorf("read order %d items: %w", orderID, err)
+		}
+		lines = append(lines, l)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, l := range lines {
+		if _, err := r.inventory.AdjustStockTx(tx, l.menuItemID, l.quantity, operation, reason); err != nil {
+			return err
+		}
 	}
 	return nil
 }
