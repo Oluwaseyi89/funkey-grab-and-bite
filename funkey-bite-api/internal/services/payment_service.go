@@ -39,7 +39,15 @@ type PaymentService interface {
 	// order's payment window has closed it confirms the payment with
 	// Paystack, or cancels the unpaid order and returns its stock.
 	CheckTransferPayment(ctx context.Context, orderID int) error
+	// RecheckTransferPayment asks Paystack whether an online transfer order
+	// was paid, for the admin, and records a payment found exactly as its
+	// webhook would have. paid is false when Paystack has no payment.
+	RecheckTransferPayment(ctx context.Context, orderID int) (result repository.PaymentResult, paid bool, err error)
 }
+
+// ErrNotTransferOrder is returned when re-checking an order that wasn't
+// paid by online transfer or has no payment reference yet.
+var ErrNotTransferOrder = errors.New("this order has no online transfer to check")
 
 // ErrPaymentNotRenewable is returned for orders that aren't unpaid online
 // transfers, e.g. ones already paid or cancelled.
@@ -261,4 +269,41 @@ func (s *paymentService) CheckTransferPayment(ctx context.Context, orderID int) 
 		log.Printf("[payment check] order #%s was not paid in time; cancelled and its stock returned", order.OrderNumber)
 	}
 	return nil
+}
+
+func (s *paymentService) RecheckTransferPayment(ctx context.Context, orderID int) (repository.PaymentResult, bool, error) {
+	order, err := s.orderRepo.GetOrderWithItems(orderID)
+	if err != nil {
+		return repository.PaymentResult{}, false, fmt.Errorf("failed to load order %d: %w", orderID, err)
+	}
+	if order == nil {
+		return repository.PaymentResult{}, false, ErrOrderNotFound
+	}
+	if order.PaymentMethod != models.PaymentMethodTransfer || order.PaymentReference == nil || *order.PaymentReference == "" {
+		return repository.PaymentResult{}, false, ErrNotTransferOrder
+	}
+
+	status, err := s.gateway.VerifyTransaction(*order.PaymentReference)
+	if err != nil {
+		return repository.PaymentResult{}, false, fmt.Errorf("failed to verify payment for order #%s: %w", order.OrderNumber, err)
+	}
+	if !status.Paid() {
+		return repository.PaymentResult{OrderID: orderID, OrderNumber: order.OrderNumber, Status: string(order.Status)}, false, nil
+	}
+
+	result, err := s.payments.ApplyTransferPayment(ctx, repository.TransferPayment{
+		Event:      "transaction.verify",
+		Reference:  *order.PaymentReference,
+		AmountKobo: status.AmountKobo,
+		Currency:   status.Currency,
+	})
+	if err != nil {
+		return result, true, fmt.Errorf("failed to record payment for order #%s: %w", order.OrderNumber, err)
+	}
+	if result.Outcome == repository.PaymentDuplicateEvent {
+		// Found by an earlier check; nothing new to record.
+		result.Outcome = repository.PaymentAlreadyApplied
+	}
+	logPaymentResult("[admin re-check]", *order.PaymentReference, result)
+	return result, true, nil
 }
