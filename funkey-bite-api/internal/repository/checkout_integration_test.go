@@ -452,3 +452,70 @@ func TestPaymentAndCancellationNeverBothWin(t *testing.T) {
 		}
 	}
 }
+
+func TestResolvePaymentReviewDecisions(t *testing.T) {
+	f := newCheckoutFixture(t, 3, 10)
+	ctx := context.Background()
+
+	// Paid after being cancelled; accepting reopens it and takes the stock again.
+	late := f.placeTransfer(t, 1, f.ref(1))
+	_, _ = f.repo.CancelUnpaidOrder(ctx, late)
+	f.apply(t, "charge.success", f.ref(1), 100000)
+	if f.stock(t) != 3 {
+		t.Fatalf("expected the cancelled order's stock returned, got %d", f.stock(t))
+	}
+	if status, err := f.repo.ResolvePaymentReview(ctx, late, models.ReviewDecisionAccept, "customer paid late"); err != nil || status != "paid" {
+		t.Fatalf("expected the payment accepted, got %q %v", status, err)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM orders WHERE id = $1 AND status = 'confirmed' AND payment_status = 'paid'`, late); n != 1 || f.stock(t) != 2 {
+		t.Fatalf("expected the order reopened as confirmed with its stock taken again; stock %d", f.stock(t))
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM jobs WHERE kind = 'order.paid_email' AND payload->>'orderId' = $1`, fmt.Sprint(late)); n != 1 {
+		t.Fatal("expected the customer told their payment was accepted")
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM audit_log WHERE action = 'order.payment_review_accept' AND entity_id = $1 AND metadata->>'note' = 'customer paid late'`, fmt.Sprint(late)); n != 1 {
+		t.Fatal("expected the decision and its note audited")
+	}
+	if _, err := f.repo.ResolvePaymentReview(ctx, late, models.ReviewDecisionAccept, ""); !errors.Is(err, ErrNotUnderReview) {
+		t.Fatalf("a decided payment can't be decided again, got %v", err)
+	}
+
+	// Short payment on an open order: refund cancels it and returns the stock.
+	short := f.placeTransfer(t, 2, f.ref(2))
+	f.apply(t, "charge.success", f.ref(2), 5000)
+	if f.stock(t) != 1 {
+		t.Fatalf("expected stock 1 with the open order, got %d", f.stock(t))
+	}
+	if status, err := f.repo.ResolvePaymentReview(ctx, short, models.ReviewDecisionRefund, ""); err != nil || status != "refund_due" {
+		t.Fatalf("expected refund due, got %q %v", status, err)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM orders WHERE id = $1 AND status = 'cancelled'`, short); n != 1 || f.stock(t) != 2 {
+		t.Fatalf("expected the order cancelled and its stock returned; stock %d", f.stock(t))
+	}
+	if status, err := f.repo.ResolvePaymentReview(ctx, short, models.ReviewDecisionRefunded, "refunded via Paystack"); err != nil || status != "refunded" {
+		t.Fatalf("expected refunded, got %q %v", status, err)
+	}
+
+	// Accepting a cancelled order whose stock has gone is refused, and nothing changes.
+	gone := f.placeTransfer(t, 3, f.ref(3))
+	_, _ = f.repo.CancelUnpaidOrder(ctx, gone)
+	f.apply(t, "charge.success", f.ref(3), 100000)
+	_, _ = f.db.Exec(`UPDATE inventory_items SET current_stock = 0 WHERE menu_item_id = $1`, f.menuItemID)
+	if _, err := f.repo.ResolvePaymentReview(ctx, gone, models.ReviewDecisionAccept, ""); !errors.Is(err, ErrCannotReopen) {
+		t.Fatalf("expected ErrCannotReopen, got %v", err)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM orders WHERE id = $1 AND status = 'cancelled' AND payment_status = 'needs_review'`, gone); n != 1 {
+		t.Fatal("a refused decision must change nothing")
+	}
+
+	// The payments list finds these by status and by reference.
+	list := NewAdminPaymentRepository(f.db)
+	found, total, err := list.List(ctx, models.OnlinePaymentFilter{PaymentStatus: "needs_review", Search: f.ref(3)}, 10, 0)
+	if err != nil || total != 1 || found[0].OrderID != gone || found[0].ReceivedAmount == nil || *found[0].ReceivedAmount != 1000 {
+		t.Fatalf("expected the order needing review found by its reference, got %d %+v %v", total, found, err)
+	}
+	counts, err := list.CountByStatus(ctx)
+	if err != nil || counts["refunded"] < 1 || counts["paid"] < 1 {
+		t.Fatalf("expected counts per status, got %v %v", counts, err)
+	}
+}
