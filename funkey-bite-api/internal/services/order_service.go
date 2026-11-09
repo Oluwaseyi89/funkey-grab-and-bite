@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
@@ -119,18 +118,9 @@ func (s *orderService) CreateOrder(ctx context.Context, checkout *models.Checkou
 		return nil, fmt.Errorf("failed to place order: %w", err)
 	}
 
-	createdOrder, err := s.orderRepo.GetOrderWithItems(orderID)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		if err := s.notificationService.SendOrderConfirmation(createdOrder); err != nil {
-			log.Printf("Failed to send order confirmation notification: %v", err)
-		}
-	}()
-
-	return createdOrder, nil
+	// The confirmation or invoice email was queued with the order and is
+	// sent, with retries, by the job worker.
+	return s.orderRepo.GetOrderWithItems(orderID)
 }
 
 // shortageMessage completes a sentence starting with the item's name, in the
