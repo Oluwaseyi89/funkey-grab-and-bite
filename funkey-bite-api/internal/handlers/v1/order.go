@@ -120,7 +120,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	if authUserID, exists := c.Get("user_id"); exists {
 		id := authUserID.(int)
 		userID = &id
-	} else if customer, err := h.authService.FindOrderCustomer(req.CustomerPhone); err != nil {
+	} else if customer, err := h.authService.FindOrderCustomer(req.CustomerPhone, derefString(req.CustomerEmail)); err != nil {
 		log.Printf("Failed to look up customer for phone ending %s: %v", lastDigits(req.CustomerPhone), err)
 	} else if customer != nil {
 		userID = &customer.ID
@@ -676,4 +676,11 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 		"orderId": orderID,
 		"status":  "cancelled",
 	})
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
