@@ -72,12 +72,10 @@ func (s *TermiiSMSService) SendOrderStatusUpdate(phoneNumber, orderNumber, statu
 		"cancelled": "Your order #%s has been cancelled.",
 	}
 
-	messageTemplate, ok := statusMessages[status]
-	if !ok {
-		messageTemplate = "Your order #%s status has been updated to: %s"
+	message := fmt.Sprintf("Your order #%s status has been updated to: %s", orderNumber, status)
+	if template, ok := statusMessages[status]; ok {
+		message = fmt.Sprintf(template, orderNumber)
 	}
-
-	message := fmt.Sprintf(messageTemplate, orderNumber, status)
 	return s.sendSMS(phoneNumber, message)
 }
 
@@ -113,8 +111,7 @@ type termiiSendResponse struct {
 }
 
 func (s *TermiiSMSService) sendSMS(to, body string) error {
-	// Termii expects digits only (country code + number), unlike Twilio's "+"-prefixed E.164.
-	to = strings.TrimPrefix(strings.ReplaceAll(to, " ", ""), "+")
+	to = termiiNumber(to)
 
 	payload := termiiSendRequest{
 		To:      to,
@@ -175,4 +172,15 @@ func (m *MockSMSService) SendCateringConfirmation(phoneNumber, requestID string)
 func (m *MockSMSService) SendVerificationCode(phoneNumber, code string) error {
 	log.Printf("[MOCK SMS] Verification code sent to %s: Code: %s", phoneNumber, code)
 	return nil
+}
+
+// termiiNumber converts a phone number to the form Termii expects: digits
+// only, with the country code and no "+" (unlike Twilio's E.164). Customers
+// usually type the local form, e.g. 0803 111 2222, which becomes 2348031112222.
+func termiiNumber(phone string) string {
+	digits := strings.TrimPrefix(CleanPhone(phone), "+")
+	if len(digits) == 11 && strings.HasPrefix(digits, "0") {
+		return "234" + digits[1:]
+	}
+	return digits
 }
