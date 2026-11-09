@@ -38,7 +38,9 @@ func SetupEngine() (*gin.Engine, func()) {
 
 	// Initialize database
 	db := database.InitializeDatabase()
+	maintenanceCtx, stopMaintenance := context.WithCancel(context.Background())
 	cleanup := func() {
+		stopMaintenance()
 		database.CloseDatabase(db)
 	}
 
@@ -69,6 +71,8 @@ func SetupEngine() (*gin.Engine, func()) {
 	promotionRepo := repository.NewPromotionRepository(db)
 	inventoryRepo := repository.NewInventoryRepository(db)
 	notificationRepo := repository.NewNotificationRepository(db)
+	idempotencyRepo := repository.NewIdempotencyRepository(db)
+	rateLimitRepo := repository.NewRateLimitRepository(db)
 
 	emailService := utils.NewEmailService()
 	smsService := utils.NewSMSService()
@@ -139,6 +143,15 @@ func SetupEngine() (*gin.Engine, func()) {
 	if err := r.SetTrustedProxies(trustedProxies); err != nil {
 		log.Fatalf("failed to set trusted proxies: %v", err)
 	}
+	// Behind a platform proxy (e.g. Render, which sits behind Cloudflare), the
+	// connection comes from the proxy, so per-IP limits would treat every
+	// customer as one. CLIENT_IP_HEADER names the header the platform sets to
+	// the real client IP (e.g. True-Client-IP); it must be one clients cannot set.
+	if header := strings.TrimSpace(os.Getenv("CLIENT_IP_HEADER")); header != "" {
+		r.TrustedPlatform = header
+	}
+
+	startMaintenance(maintenanceCtx, idempotencyRepo, rateLimitRepo)
 
 	// Middleware
 	r.Use(middleware.CORSMiddleware())
@@ -154,11 +167,20 @@ func SetupEngine() (*gin.Engine, func()) {
 	public.Use(ginLimiter.NewMiddleware(limiterInstance))
 	public.GET("/health", healthHandler.GetHealth)
 
-	public.GET("/order/track/:phone/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrderPublic)
+	// Per phone number or signed-in customer, on top of the per-IP limits; each
+	// group has its own allowance.
+	limitAuthByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "auth")
+	limitOrdersByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "orders")
+	limitLookupsByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "lookup")
+	limitCateringByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "catering")
+	limitBookingByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "booking")
+	limitAccountByUser := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "account")
+
+	public.GET("/order/track/:phone/:orderNumber", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.TrackOrderPublic)
 
 	{
-		public.POST("/auth/register", authHandler.Register)
-		public.POST("/auth/login", authHandler.Login)
+		public.POST("/auth/register", limitAuthByPhone, authHandler.Register)
+		public.POST("/auth/login", limitAuthByPhone, authHandler.Login)
 		public.GET("/auth/check", authHandler.CheckUser)
 
 		public.GET("/settings", settingsHandler.GetPublicSettings)
@@ -166,11 +188,11 @@ func SetupEngine() (*gin.Engine, func()) {
 
 		public.GET("/catering/packages", cateringHandler.ListPackages)
 		public.GET("/team", teamHandler.ListPublic)
-		public.POST("/catering/requests", cateringHandler.CreateRequest)
-		public.POST("/catering/requests/lookup", middleware.TrackingRateLimitMiddleware(), cateringHandler.LookupRequest)
-		public.POST("/catering/booking", middleware.TrackingRateLimitMiddleware(), cateringContractHandler.ViewBooking)
-		public.POST("/catering/booking/accept", middleware.TrackingRateLimitMiddleware(), cateringContractHandler.AcceptQuote)
-		public.POST("/catering/booking/pay", middleware.TrackingRateLimitMiddleware(), cateringContractHandler.PayOnline)
+		public.POST("/catering/requests", limitCateringByPhone, cateringHandler.CreateRequest)
+		public.POST("/catering/requests/lookup", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringHandler.LookupRequest)
+		public.POST("/catering/booking", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.ViewBooking)
+		public.POST("/catering/booking/accept", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.AcceptQuote)
+		public.POST("/catering/booking/pay", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.PayOnline)
 		public.GET("/promotions/validate", promotionHandler.ValidatePromotion)
 		public.GET("/promotions/active", promotionHandler.GetActivePromotions)
 		public.POST("/admin/auth/login", adminHandler.AdminLogin)
@@ -195,18 +217,18 @@ func SetupEngine() (*gin.Engine, func()) {
 	orderGroup := public.Group("/orders")
 	orderGroup.Use(middleware.OptionalAuthMiddleware())
 	{
-		orderGroup.POST("", orderHandler.CreateOrder)
-		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrder)
-		orderGroup.POST("/lookup", middleware.TrackingRateLimitMiddleware(), orderHandler.LookupOrder)
-		orderGroup.PATCH("/:id/cancel", orderHandler.CancelOrder)
+		orderGroup.POST("", middleware.OrderRateLimitMiddleware(rateLimitRepo), limitOrdersByPhone, orderHandler.CreateOrder)
+		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.TrackOrder)
+		orderGroup.POST("/lookup", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.LookupOrder)
+		orderGroup.PATCH("/:id/cancel", limitOrdersByPhone, orderHandler.CancelOrder)
 	}
 
 	userRoutes := public.Group("/auth")
 	userRoutes.Use(middleware.AuthMiddleware())
 	{
 		userRoutes.GET("/profile", authHandler.GetProfile)
-		userRoutes.PUT("/profile", authHandler.UpdateProfile)
-		userRoutes.PATCH("/password", authHandler.ChangePassword)
+		userRoutes.PUT("/profile", limitAccountByUser, authHandler.UpdateProfile)
+		userRoutes.PATCH("/password", limitAccountByUser, authHandler.ChangePassword)
 		userRoutes.GET("/orders", orderHandler.GetUserOrders)
 		userRoutes.GET("/orders/:id", orderHandler.GetUserOrder)
 		userRoutes.GET("/catering-requests", cateringHandler.GetUserRequests)
