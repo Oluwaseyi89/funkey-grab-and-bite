@@ -47,6 +47,9 @@ const (
 	// PaymentStatusExpired: an online transfer that was never made before its
 	// payment window closed; the order was cancelled and its stock returned.
 	PaymentStatusExpired PaymentStatus = "expired"
+	// PaymentStatusNeedsReview: money arrived that can't simply be accepted,
+	// e.g. the wrong amount or after the order was cancelled; the admin decides.
+	PaymentStatusNeedsReview PaymentStatus = "needs_review"
 )
 
 type Order struct {
