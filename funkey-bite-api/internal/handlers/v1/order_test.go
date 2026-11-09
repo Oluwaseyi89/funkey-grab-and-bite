@@ -14,6 +14,8 @@ import (
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
+	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
+	"funkey-grab-and-bite/funkey-bite-api/internal/requestctx"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +26,8 @@ type fakePaymentService struct {
 	initiateErr    error
 
 	handleWebhookErr  error
+	webhookResult     repository.PaymentResult
+	webhookActor      requestctx.Actor
 	webhookCalled     bool
 	capturedBody      []byte
 	capturedSignature string
@@ -52,11 +56,12 @@ func (f *fakePaymentService) InitiateTransferPayment(order *models.Order) (*mode
 	return order, nil
 }
 
-func (f *fakePaymentService) HandleWebhook(rawBody []byte, signature string) error {
+func (f *fakePaymentService) HandleWebhook(ctx context.Context, rawBody []byte, signature string) (repository.PaymentResult, error) {
 	f.webhookCalled = true
 	f.capturedBody = rawBody
 	f.capturedSignature = signature
-	return f.handleWebhookErr
+	f.webhookActor = requestctx.ActorFrom(ctx)
+	return f.webhookResult, f.handleWebhookErr
 }
 
 type fakeOrderService struct {
