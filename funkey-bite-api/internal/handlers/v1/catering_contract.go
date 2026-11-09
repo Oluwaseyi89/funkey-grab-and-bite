@@ -238,7 +238,8 @@ func (h *CateringContractHandler) AcceptQuote(c *gin.Context) {
 	c.JSON(http.StatusOK, contract)
 }
 
-// PayOnline gives the customer an account to transfer the deposit or balance to
+// PayOnline starts an online payment of the deposit or balance: an account to
+// transfer to, or (method "card") an access code for Paystack's popup
 // @Summary Pay for catering online
 // @Tags catering
 // @Accept json
@@ -257,4 +258,29 @@ func (h *CateringContractHandler) PayOnline(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, charge)
+}
+
+// VerifyPayment confirms an online payment with Paystack, for when the card
+// popup reports success before the webhook has arrived
+// @Summary Confirm a catering online payment
+// @Tags catering
+// @Accept json
+// @Produce json
+// @Param verify body models.CateringVerifyPaymentInput true "Identification and the payment reference"
+// @Success 200 {object} models.CateringContract
+// @Router /catering/booking/pay/verify [post]
+func (h *CateringContractHandler) VerifyPayment(c *gin.Context) {
+	var input models.CateringVerifyPaymentInput
+	if !h.bind(c, &input) {
+		return
+	}
+	booking, recorded, err := h.contracts.VerifyOnlinePayment(input)
+	if err != nil {
+		respondContractError(c, err, "Failed to check the payment")
+		return
+	}
+	if recorded {
+		realtime.GlobalBroadcaster.Broadcast("catering_request_updated", gin.H{"paymentReference": input.PaymentReference})
+	}
+	c.JSON(http.StatusOK, booking)
 }
