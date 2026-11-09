@@ -10,6 +10,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -25,7 +26,22 @@ type PaymentGateway interface {
 	// raw (unparsed) request body. Must be called with the exact bytes Paystack
 	// sent — re-serializing the parsed JSON will not reproduce the same signature.
 	VerifyWebhookSignature(rawBody []byte, signature string) bool
+	// VerifyTransaction asks Paystack how a charge stands, for when its
+	// webhook may never have arrived.
+	VerifyTransaction(reference string) (*TransactionStatus, error)
 }
+
+// TransactionStatus is a charge as Paystack reports it. Status is "success"
+// once paid; anything else (pending, abandoned, failed, reversed) is unpaid.
+type TransactionStatus struct {
+	Reference  string
+	Status     string
+	AmountKobo int64
+	Currency   string
+}
+
+// Paid reports a completed charge.
+func (t *TransactionStatus) Paid() bool { return t != nil && t.Status == "success" }
 
 type TransferChargeResult struct {
 	Reference     string
@@ -155,13 +171,60 @@ func (g *PaystackGateway) VerifyWebhookSignature(rawBody []byte, signature strin
 	return hmac.Equal([]byte(expected), []byte(signature))
 }
 
+type paystackVerifyResponse struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Status    string `json:"status"`
+		Reference string `json:"reference"`
+		Amount    int64  `json:"amount"`
+		Currency  string `json:"currency"`
+	} `json:"data"`
+}
+
+func (g *PaystackGateway) VerifyTransaction(reference string) (*TransactionStatus, error) {
+	req, err := http.NewRequest("GET", g.baseURL+"/transaction/verify/"+url.PathEscape(reference), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+g.secretKey)
+
+	resp, err := g.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reach Paystack: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result paystackVerifyResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode Paystack verify response (status %d): %w", resp.StatusCode, err)
+	}
+	switch {
+	case resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusNotFound:
+		// Paystack's answer for a reference it never completed: an unpaid
+		// charge, not an error to retry.
+		return &TransactionStatus{Reference: reference, Status: "not_found"}, nil
+	case resp.StatusCode >= 300 || !result.Status:
+		// Anything else (a rejected key, an outage) says nothing about the
+		// payment, so it must not be read as unpaid.
+		return nil, fmt.Errorf("Paystack verify failed (status %d): %s", resp.StatusCode, result.Message)
+	}
+
+	return &TransactionStatus{
+		Reference:  result.Data.Reference,
+		Status:     result.Data.Status,
+		AmountKobo: result.Data.Amount,
+		Currency:   result.Data.Currency,
+	}, nil
+}
+
 // MockPaymentGateway simulates a Paystack transfer charge without any network
 // call, used in development the same way MockEmailService/MockSMSService are.
 type MockPaymentGateway struct{}
 
 func (m *MockPaymentGateway) InitiateTransfer(email string, amountNaira float64, reference string) (*TransferChargeResult, error) {
 	log.Printf("[MOCK PAYSTACK] Transfer charge initiated: ref=%s amount=NGN %.2f email=%s", reference, amountNaira, email)
-	expiresAt := time.Now().Add(15 * time.Minute)
+	expiresAt := time.Now().UTC().Add(15 * time.Minute)
 	return &TransferChargeResult{
 		Reference:     reference,
 		Status:        "pending_bank_transfer",
@@ -175,4 +238,9 @@ func (m *MockPaymentGateway) InitiateTransfer(email string, amountNaira float64,
 func (m *MockPaymentGateway) VerifyWebhookSignature(rawBody []byte, signature string) bool {
 	log.Printf("[MOCK PAYSTACK] Skipping webhook signature verification in development")
 	return true
+}
+
+func (m *MockPaymentGateway) VerifyTransaction(reference string) (*TransactionStatus, error) {
+	log.Printf("[MOCK PAYSTACK] Verify %s: reporting it unpaid", reference)
+	return &TransactionStatus{Reference: reference, Status: "abandoned"}, nil
 }
