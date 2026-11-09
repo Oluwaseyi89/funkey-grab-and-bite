@@ -92,6 +92,10 @@ const OrderList: React.FC = () => {
       case 'paid': return 'Transfer · Paid';
       case 'pending': return 'Transfer · Pending';
       case 'failed': return 'Transfer · Failed';
+      case 'expired': return 'Transfer · Expired';
+      case 'needs_review': return 'Transfer · Needs review';
+      case 'refund_due': return 'Transfer · Refund due';
+      case 'refunded': return 'Transfer · Refunded';
       default: return 'Transfer';
     }
   };
@@ -100,7 +104,10 @@ const OrderList: React.FC = () => {
     switch (order.paymentStatus) {
       case 'paid': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'failed':
+      case 'needs_review':
+      case 'refund_due':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };

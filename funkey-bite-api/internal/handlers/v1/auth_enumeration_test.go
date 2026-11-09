@@ -30,9 +30,6 @@ func (f *fakeAuthCheckService) CheckUserExists(phone, email string) (*models.Use
 func (f *fakeAuthCheckService) FindOrderCustomer(phone string) (*models.User, error) {
 	return nil, nil
 }
-func (f *fakeAuthCheckService) ResolveOrderCustomer(name, phone string, email *string) (*models.User, error) {
-	return nil, nil
-}
 
 type fakeUserProfileService struct{}
 

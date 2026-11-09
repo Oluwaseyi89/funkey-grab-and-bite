@@ -44,6 +44,16 @@ const (
 	PaymentStatusPending     PaymentStatus = "pending"
 	PaymentStatusPaid        PaymentStatus = "paid"
 	PaymentStatusFailed      PaymentStatus = "failed"
+	// PaymentStatusExpired: an online transfer that was never made before its
+	// payment window closed; the order was cancelled and its stock returned.
+	PaymentStatusExpired PaymentStatus = "expired"
+	// PaymentStatusNeedsReview: money arrived that can't simply be accepted,
+	// e.g. the wrong amount or after the order was cancelled; the admin decides.
+	PaymentStatusNeedsReview PaymentStatus = "needs_review"
+	// PaymentStatusRefundDue: the admin decided money received for this order
+	// must go back to the customer; PaymentStatusRefunded once it has.
+	PaymentStatusRefundDue PaymentStatus = "refund_due"
+	PaymentStatusRefunded  PaymentStatus = "refunded"
 )
 
 type Order struct {

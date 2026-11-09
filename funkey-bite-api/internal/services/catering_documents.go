@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"log"
@@ -188,7 +189,14 @@ func (s *cateringContractService) deliver(request *models.CateringRequest, subje
 	if doc.Business.Name != "" {
 		subject += " from " + doc.Business.Name
 	}
-	if err := s.email.SendInvoice(*request.ContactEmail, subject, html.String(), renderCateringDocumentText(doc)); err != nil {
+	email := models.EmailJobPayload{To: *request.ContactEmail, Subject: subject, HTML: html.String(), Text: renderCateringDocumentText(doc)}
+	if s.queue != nil {
+		if err := s.queue.QueueEmail(context.Background(), email); err != nil {
+			log.Printf("Failed to queue catering %s email for %s: %v", doc.Kind, request.Reference, err)
+		}
+		return
+	}
+	if err := s.email.SendInvoice(email.To, email.Subject, email.HTML, email.Text); err != nil {
 		log.Printf("Failed to email catering %s for %s: %v", doc.Kind, request.Reference, err)
 	}
 }

@@ -9,3 +9,4 @@ export * from './common.types';
 export * from './admin.types';
 export * from './reports.types'
 export * from './team.types';
+export * from './payments.types';

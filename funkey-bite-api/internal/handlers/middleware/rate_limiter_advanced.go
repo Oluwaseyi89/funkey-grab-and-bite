@@ -39,6 +39,14 @@ var (
 		Window: time.Hour,
 		Prefix: "track_",
 	}
+
+	// IdentityRateLimit caps requests per phone number or signed-in customer
+	// on each route group, however many IP addresses they come from.
+	IdentityRateLimit = RateLimitConfig{
+		Limit:  10,
+		Window: time.Hour,
+		Prefix: "identity_",
+	}
 )
 
 func CreateRateLimiter(config RateLimitConfig) gin.HandlerFunc {
@@ -55,8 +63,18 @@ func CreateRateLimiter(config RateLimitConfig) gin.HandlerFunc {
 	}))
 }
 
-func OrderRateLimitMiddleware() gin.HandlerFunc {
-	return CreateRateLimiter(OrderCreationRateLimit)
+// OrderRateLimitMiddleware caps order creation per IP address.
+func OrderRateLimitMiddleware(counter RateLimitCounter) gin.HandlerFunc {
+	return SharedRateLimit(counter, OrderCreationRateLimit, ByClientIP)
+}
+
+// IdentityRateLimitMiddleware caps requests per phone number or signed-in
+// customer within group, e.g. "orders" or "auth", so each kind of action has
+// its own allowance.
+func IdentityRateLimitMiddleware(counter RateLimitCounter, group string) gin.HandlerFunc {
+	config := IdentityRateLimit
+	config.Prefix = IdentityRateLimit.Prefix + group + "_"
+	return SharedRateLimit(counter, config, ByPhoneOrUser)
 }
 
 func TrackingRateLimitMiddleware() gin.HandlerFunc {

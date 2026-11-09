@@ -33,7 +33,7 @@
         </div>
 
         <div
-          v-if="paymentMethod === 'transfer' && paymentStatus === 'pending' && paymentAccountNumber"
+          v-if="awaitingTransfer && accountNumber && !paymentWindowClosed"
           class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-5 mb-6 text-left"
         >
           <p class="font-bold text-blue-900 dark:text-blue-300 mb-3">Complete your payment</p>
@@ -44,7 +44,7 @@
             <div class="flex items-center justify-between gap-3">
               <span class="text-blue-700 dark:text-blue-400">Account Number</span>
               <div class="flex items-center gap-2">
-                <span class="font-mono font-bold text-blue-900 dark:text-blue-200">{{ paymentAccountNumber }}</span>
+                <span class="font-mono font-bold text-blue-900 dark:text-blue-200">{{ accountNumber }}</span>
                 <button
                   type="button"
                   @click="copyAccountNumber"
@@ -55,19 +55,43 @@
                 </button>
               </div>
             </div>
-            <div v-if="paymentAccountName" class="flex items-center justify-between">
+            <div v-if="accountName" class="flex items-center justify-between">
               <span class="text-blue-700 dark:text-blue-400">Account Name</span>
-              <span class="font-semibold text-blue-900 dark:text-blue-200">{{ paymentAccountName }}</span>
+              <span class="font-semibold text-blue-900 dark:text-blue-200">{{ accountName }}</span>
             </div>
-            <div v-if="paymentBankName" class="flex items-center justify-between">
+            <div v-if="bankName" class="flex items-center justify-between">
               <span class="text-blue-700 dark:text-blue-400">Bank</span>
-              <span class="font-semibold text-blue-900 dark:text-blue-200">{{ paymentBankName }}</span>
+              <span class="font-semibold text-blue-900 dark:text-blue-200">{{ bankName }}</span>
             </div>
-            <div v-if="paymentExpiresAt" class="flex items-center justify-between">
+            <div v-if="expiresAt" class="flex items-center justify-between">
               <span class="text-blue-700 dark:text-blue-400">Expires</span>
               <span class="font-semibold text-blue-900 dark:text-blue-200">{{ formattedExpiry }}</span>
             </div>
           </div>
+        </div>
+
+        <div
+          v-else-if="awaitingTransfer"
+          class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-5 mb-6 text-left"
+        >
+          <p class="font-bold text-blue-900 dark:text-blue-300 mb-2">
+            {{ accountNumber ? 'Your payment window has closed' : 'Payment details are not ready yet' }}
+          </p>
+          <p class="text-sm text-blue-800 dark:text-blue-400 mb-4">
+            {{ accountNumber
+              ? "If you haven't sent the transfer yet, get new details. Don't use the old account."
+              : "We couldn't get an account for your transfer. Your order is saved; get the details to pay." }}
+          </p>
+          <p v-if="renewError" class="text-sm text-red-600 dark:text-red-400 mb-3" role="alert">{{ renewError }}</p>
+          <button
+            type="button"
+            class="btn-primary w-full flex items-center justify-center gap-2"
+            :disabled="isRenewing"
+            @click="getPaymentDetails"
+          >
+            <Loader2 v-if="isRenewing" class="w-4 h-4 animate-spin" />
+            <span>Get payment details</span>
+          </button>
         </div>
 
         <div
@@ -107,10 +131,10 @@
   </template>
   
   <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, onMounted, onUnmounted } from 'vue'
   import { CheckCircle, Clock, Loader2, Copy, Check } from 'lucide-vue-next'
   import { useApi } from '../../utils/api'
-  import type { OrderType, PaymentMethod, PaymentStatus } from '../../types/order'
+  import type { Order, OrderType, PaymentMethod, PaymentStatus } from '../../types/order'
 
   const props = defineProps<{
     orderNumber: string
@@ -136,15 +160,48 @@
   const liveStatus = ref('')
   const accountNumberCopied = ref(false)
 
+  // New payment details fetched on this screen replace the ones from checkout.
+  const renewed = ref<Order | null>(null)
+  const isRenewing = ref(false)
+  const renewError = ref('')
+  const accountNumber = computed(() => renewed.value?.paymentAccountNumber ?? props.paymentAccountNumber)
+  const accountName = computed(() => renewed.value?.paymentAccountName ?? props.paymentAccountName)
+  const bankName = computed(() => renewed.value?.paymentBankName ?? props.paymentBankName)
+  const expiresAt = computed(() => renewed.value?.paymentExpiresAt ?? props.paymentExpiresAt)
+  const awaitingTransfer = computed(() =>
+    props.paymentMethod === 'transfer' && (renewed.value?.paymentStatus ?? props.paymentStatus) === 'pending')
+
+  // Re-checked every half minute so the screen notices the window closing.
+  const now = ref(Date.now())
+  let clock: ReturnType<typeof setInterval> | undefined
+  onMounted(() => { clock = setInterval(() => { now.value = Date.now() }, 30_000) })
+  onUnmounted(() => clearInterval(clock))
+  const paymentWindowClosed = computed(() =>
+    !!expiresAt.value && new Date(expiresAt.value).getTime() <= now.value)
+
+  const getPaymentDetails = async () => {
+    if (!props.customerPhone || !props.orderNumber) return
+    isRenewing.value = true
+    renewError.value = ''
+    try {
+      renewed.value = await api.getPaymentDetails(props.orderNumber, props.customerPhone)
+      now.value = Date.now()
+    } catch (err) {
+      renewError.value = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+    } finally {
+      isRenewing.value = false
+    }
+  }
+
   const formattedExpiry = computed(() => {
-    if (!props.paymentExpiresAt) return ''
-    return new Date(props.paymentExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    if (!expiresAt.value) return ''
+    return new Date(expiresAt.value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   })
 
   const copyAccountNumber = async () => {
-    if (!props.paymentAccountNumber) return
+    if (!accountNumber.value) return
     try {
-      await navigator.clipboard.writeText(props.paymentAccountNumber)
+      await navigator.clipboard.writeText(accountNumber.value)
       accountNumberCopied.value = true
       setTimeout(() => { accountNumberCopied.value = false }, 2000)
     } catch {

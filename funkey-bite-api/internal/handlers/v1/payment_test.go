@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"funkey-grab-and-bite/funkey-bite-api/internal/requestctx"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 )
 
@@ -44,6 +45,9 @@ func TestPaymentWebhookSucceeds(t *testing.T) {
 	}
 	if !svc.webhookCalled {
 		t.Fatal("expected HandleWebhook to be called")
+	}
+	if svc.webhookActor.Type != requestctx.ActorPaystack {
+		t.Errorf("changes from a webhook must be recorded as made by Paystack, got %q", svc.webhookActor.Type)
 	}
 	if !bytes.Equal(svc.capturedBody, body) {
 		t.Errorf("HandleWebhook received body %s, want %s", svc.capturedBody, body)

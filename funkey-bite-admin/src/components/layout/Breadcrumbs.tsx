@@ -21,6 +21,8 @@ const SEGMENT_LABELS: Record<string, string> = {
   settings: 'Settings',
   profile: 'Profile',
   admins: 'Admin Users',
+  payments: 'Payments',
+  activity: 'System Activity',
 };
 
 // Sections whose records have their own page at /<section>/:id. Others (e.g.

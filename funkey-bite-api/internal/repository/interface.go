@@ -45,14 +45,11 @@ type IOrderRepository interface {
 	GetOrderByOrderNumber(orderNumber string) (*models.Order, error)
 	GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error)
 	CancelOrder(id int) error
-	SetOrderCustomer(orderID, userID int) error
 
 	BeginTransaction() (*sql.Tx, error)
 	CreateOrderWithTransaction(tx *sql.Tx, order *models.Order) (*models.Order, error)
 	CreateOrderItemWithTransaction(tx *sql.Tx, item *models.OrderItem) (*models.OrderItem, error)
 
-	GetOrderByPaymentReference(reference string) (*models.Order, error)
 	SetOrderPaymentInitiated(orderID int, reference, accountNumber, accountName, bankName string, expiresAt *time.Time) error
-	MarkOrderPaymentPaid(orderID int, paidAt time.Time) error
 	MarkPaymentCollected(orderID int, via string, paidAt time.Time) (bool, error)
 }

@@ -109,6 +109,26 @@ type BackendOrder = {
   discountAmount?: number
 }
 
+// A rejected API request, with what's needed to decide whether to retry it.
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+    readonly retryAfterSeconds?: number,
+  ) {
+    super(message)
+    this.name = 'ApiRequestError'
+  }
+}
+
+// Checkout is retried at most this many times in all, and only when it is
+// safe: the request never arrived, the server failed, or the first attempt is
+// still running. The Idempotency-Key makes a retry return the same order.
+const CHECKOUT_ATTEMPTS = 3
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 export class ApiService {
   private isBackendAvailable = true
   private checkBackendStatus: Ref<boolean> = ref(false)
@@ -245,7 +265,9 @@ export class ApiService {
   private async fetchJSON<T>(endpoint: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${this.baseURL}${endpoint}`, init)
     if (!res.ok) {
-      throw new Error(await this.errorMessage(res, endpoint))
+      const { message, code } = await this.errorDetails(res, endpoint)
+      const retryAfter = Number(res.headers.get('Retry-After'))
+      throw new ApiRequestError(message, res.status, code, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined)
     }
 
     // Any successful API response means backend is reachable.
@@ -294,16 +316,16 @@ export class ApiService {
 
   // The API explains rejections (e.g. a missing delivery address) in the
   // response body; show that instead of a bare status code.
-  private async errorMessage(res: Response, endpoint: string): Promise<string> {
+  private async errorDetails(res: Response, endpoint: string): Promise<{ message: string; code?: string }> {
     try {
-      const body = await res.json() as { error?: { message?: string } | string; message?: string }
-      if (typeof body.error === 'string') return body.error
-      if (body.error?.message) return body.error.message
-      if (body.message) return body.message
+      const body = await res.json() as { error?: { message?: string; code?: string } | string; message?: string }
+      if (typeof body.error === 'string') return { message: body.error }
+      if (body.error?.message) return { message: body.error.message, code: body.error.code }
+      if (body.message) return { message: body.message }
     } catch {
       // not JSON
     }
-    return `HTTP ${res.status} at ${endpoint}`
+    return { message: `HTTP ${res.status} at ${endpoint}` }
   }
 
   private unwrapPayload<T>(payload: unknown): T {
@@ -355,36 +377,54 @@ export class ApiService {
     }
   }
 
-  async createOrder(orderData: OrderCreatePayload): Promise<Order> {
+  // Places the order. Every attempt sends the same idempotencyKey, so
+  // retrying after a dropped connection or a server error returns the order
+  // already placed instead of placing a second one. Never pretends to succeed.
+  async createOrder(orderData: OrderCreatePayload, idempotencyKey: string): Promise<Order> {
+    const body = JSON.stringify(orderData)
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const payload = await this.fetchJSON<BackendOrder>('/orders', {
+          method: 'POST',
+          headers: { ...this.headers, 'Idempotency-Key': idempotencyKey },
+          body,
+        })
+        return this.normalizeOrder(payload)
+      } catch (err) {
+        const unreachable = this.isBackendUnavailableError(err)
+        const retryable = unreachable || (err instanceof ApiRequestError &&
+          (err.status >= 500 || err.code === 'REQUEST_IN_PROGRESS'))
+        if (!retryable || attempt >= CHECKOUT_ATTEMPTS) {
+          if (unreachable) {
+            this.markBackendUnavailable()
+            throw new Error("We couldn't reach our server to confirm your order. Check your connection and press Place Order again; it won't be placed twice.")
+          }
+          if (err instanceof ApiRequestError && err.status >= 500) {
+            throw new Error("We couldn't confirm your order. Press Place Order again; it won't be placed twice.")
+          }
+          throw err
+        }
+        const waitSeconds = err instanceof ApiRequestError && err.retryAfterSeconds ? err.retryAfterSeconds : attempt
+        await sleep(Math.min(waitSeconds, 5) * 1000)
+      }
+    }
+  }
+
+  // Payment details for an unpaid online transfer order, when getting them at
+  // checkout failed or the payment window closed. Details still valid are
+  // returned as they are, so pressing twice is safe.
+  async getPaymentDetails(orderNumber: string, phone: string): Promise<Order> {
     try {
-      const payload = await this.fetchJSON<BackendOrder>('/orders', {
+      const payload = await this.fetchJSON<BackendOrder>('/orders/payment-details', {
         method: 'POST',
         headers: this.headers,
-        body: JSON.stringify(orderData),
+        body: JSON.stringify({ orderNumber, phone }),
       })
       return this.normalizeOrder(payload)
     } catch (err) {
       if (this.isBackendUnavailableError(err)) {
-        this.markBackendUnavailable()
-        this.notifyFallback('/orders', 'backend-unavailable', false)
-        const paymentMethod = orderData.paymentMethod || 'cash'
-        return {
-          id: Math.random().toString(36).substr(2, 9),
-          orderNumber: `FG-${Date.now()}`,
-          customerName: orderData.customerName || 'Guest',
-          customerPhone: orderData.customerPhone || '',
-          orderType: orderData.orderType || 'pickup',
-          status: 'pending',
-          totalAmount: orderData.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
-          items: orderData.items.map((item) => ({ ...item, menuItemId: String(item.menuItemId) })),
-          createdAt: new Date().toISOString(),
-          // No real Paystack call happened offline, so no account details to show —
-          // just echo back what was requested with an honest "not actually paid" status.
-          paymentMethod,
-          paymentStatus: 'pending',
-        }
+        throw new Error("We couldn't reach our server. Check your connection and try again.")
       }
-
       throw err
     }
   }

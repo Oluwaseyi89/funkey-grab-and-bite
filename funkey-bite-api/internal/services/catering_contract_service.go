@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -44,6 +45,9 @@ var ErrCateringLinkInvalid = errors.New("this link is no longer valid")
 //
 // Part payments short of the total re-issue the invoice with the balance.
 type CateringContractService interface {
+	// SetEmailQueue sends quote, invoice and receipt emails through queue,
+	// which retries them, instead of sending them once directly.
+	SetEmailQueue(queue EmailQueue)
 	GetContract(requestID int) (*models.CateringContract, error)
 	SendQuote(requestID int, input *models.CateringQuoteInput, adminID *int) (*models.CateringContract, error)
 	RecordPayment(requestID int, input *models.CateringPaymentInput, adminID *int) (*models.CateringContract, error)
@@ -78,6 +82,11 @@ type cateringSettingsReader interface {
 	GetSettings() (*models.BusinessSettings, error)
 }
 
+// EmailQueue queues a rendered email to be sent with retries.
+type EmailQueue interface {
+	QueueEmail(ctx context.Context, email models.EmailJobPayload) error
+}
+
 type cateringContractService struct {
 	requests cateringRequestReader
 	contract cateringContractReader
@@ -89,6 +98,12 @@ type cateringContractService struct {
 	now      func() time.Time
 	// send runs email delivery; tests run it inline.
 	send func(func())
+	// queue, when set, retries emails instead of sending them once.
+	queue EmailQueue
+}
+
+func (s *cateringContractService) SetEmailQueue(queue EmailQueue) {
+	s.queue = queue
 }
 
 func NewCateringContractService(

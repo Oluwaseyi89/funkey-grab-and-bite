@@ -528,16 +528,6 @@ func (r *OrderRepository) GetOrderByPhoneAndOrderNumber(phone, orderNumber strin
 	return &order, nil
 }
 
-// SetOrderCustomer links an order placed as a guest to its customer record.
-// An order already linked to a customer is left as it is.
-func (r *OrderRepository) SetOrderCustomer(orderID, userID int) error {
-	_, err := r.db.Exec(`UPDATE orders SET user_id = $1 WHERE id = $2 AND user_id IS NULL`, userID, orderID)
-	if err != nil {
-		return fmt.Errorf("failed to link order to customer: %w", err)
-	}
-	return nil
-}
-
 func (r *OrderRepository) CancelOrder(id int) error {
 	query := `
         UPDATE orders 
@@ -631,71 +621,16 @@ func (r *OrderRepository) CreateOrderItemWithTransaction(tx *sql.Tx, item *model
 	return item, nil
 }
 
-func (r *OrderRepository) GetOrderByPaymentReference(reference string) (*models.Order, error) {
-	query := `
-        SELECT id, order_number, user_id, customer_name, customer_phone,
-               customer_email, order_type, status, total_amount, notes,
-               pickup_time, created_at, payment_method, payment_status,
-               payment_reference, payment_account_number, payment_account_name,
-               payment_bank_name, payment_expires_at, payment_paid_at,
-               delivery_address, invoice_number, subtotal_amount, delivery_fee,
-               tax_amount, discount_amount, payment_collected_via
-        FROM orders
-        WHERE payment_reference = $1
-    `
-
-	var order models.Order
-	var userID sql.NullInt64
-	var pickupTime sql.NullTime
-	var paymentFields paymentScanFields
-
-	dest := append([]any{
-		&order.ID,
-		&order.OrderNumber,
-		&userID,
-		&order.CustomerName,
-		&order.CustomerPhone,
-		&order.CustomerEmail,
-		&order.OrderType,
-		&order.Status,
-		&order.TotalAmount,
-		&order.Notes,
-		&pickupTime,
-		&order.CreatedAt,
-		&order.PaymentMethod,
-		&order.PaymentStatus,
-	}, paymentFields.args()...)
-
-	row := r.db.QueryRow(query, reference)
-	err := row.Scan(dest...)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get order by payment reference: %w", err)
-	}
-
-	if userID.Valid {
-		val := int(userID.Int64)
-		order.UserID = &val
-	}
-	if pickupTime.Valid {
-		order.PickupTime = &pickupTime.Time
-	}
-	paymentFields.applyTo(&order)
-
-	items, err := r.getOrderItems(order.ID)
-	if err != nil {
-		return nil, err
-	}
-	order.Items = items
-
-	return &order, nil
-}
-
+// SetOrderPaymentInitiated records the account a customer should pay into.
+// The reference is also kept in payment_references, in the same statement, so
+// a payment into an earlier account still finds the order after new details
+// are issued.
 func (r *OrderRepository) SetOrderPaymentInitiated(orderID int, reference, accountNumber, accountName, bankName string, expiresAt *time.Time) error {
 	query := `
+        WITH kept AS (
+            INSERT INTO payment_references (reference, order_id) VALUES ($1, $6)
+            ON CONFLICT (reference) DO NOTHING
+        )
         UPDATE orders
         SET payment_status = 'pending',
             payment_reference = $1,
@@ -734,19 +669,4 @@ func (r *OrderRepository) MarkPaymentCollected(orderID int, via string, paidAt t
 		return false, fmt.Errorf("failed to read payment collection rows: %w", err)
 	}
 	return rows > 0, nil
-}
-
-func (r *OrderRepository) MarkOrderPaymentPaid(orderID int, paidAt time.Time) error {
-	query := `
-        UPDATE orders
-        SET payment_status = 'paid', payment_paid_at = $1
-        WHERE id = $2
-    `
-
-	_, err := r.db.Exec(query, paidAt, orderID)
-	if err != nil {
-		return fmt.Errorf("failed to mark order payment paid: %w", err)
-	}
-
-	return nil
 }

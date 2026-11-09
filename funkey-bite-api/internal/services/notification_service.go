@@ -22,7 +22,8 @@ const (
 
 type NotificationService interface {
 	SendOrderConfirmation(order *models.Order) error
-	SendOrderStatusUpdate(orderID int, newStatus string) error
+	SendOrderStatusEmail(orderID int, newStatus string) error
+	SendOrderStatusSMS(orderID int, newStatus string) error
 	SendCateringConfirmation(request *models.CateringRequest) error
 	SendPasswordReset(email, resetToken string) error
 	SendPhoneVerification(phoneNumber, code string) error
@@ -68,9 +69,12 @@ func (s *notificationService) SendOrderConfirmation(order *models.Order) error {
 	// Email-only: a confirmation/receipt isn't time-critical enough to justify SMS cost.
 	// SMS is reserved for SendOrderStatusUpdate, where real-time delivery actually matters.
 	// Pay-on-delivery orders get the invoice email instead, which covers the same details.
+	// A failed email is returned so the confirmation job retries it; the
+	// in-app notification is only created once the email has gone, so a
+	// retry doesn't add a second one.
 	if email != "" && order.InvoiceNumber == nil {
 		if err := s.emailService.SendOrderConfirmation(email, name, order.OrderNumber, order.TotalAmount); err != nil {
-			log.Printf("Failed to send order confirmation email: %v", err)
+			return fmt.Errorf("failed to send order confirmation email: %w", err)
 		}
 	}
 
@@ -90,29 +94,18 @@ func (s *notificationService) SendOrderConfirmation(order *models.Order) error {
 	return nil
 }
 
-func (s *notificationService) SendOrderStatusUpdate(orderID int, newStatus string) error {
+// SendOrderStatusEmail emails the customer an order's new status, and then
+// adds the in-app notification, so a retry after a failed email doesn't add
+// it twice. It returns the email's failure so the job retries it.
+func (s *notificationService) SendOrderStatusEmail(orderID int, newStatus string) error {
 	order, err := s.orderRepo.GetOrderWithItems(orderID)
 	if err != nil || order == nil {
-		return fmt.Errorf("failed to get order: %w", err)
+		return fmt.Errorf("failed to get order %d: %w", orderID, err)
 	}
-
-	var email, phone, name string
-	name = order.CustomerName
-	phone = order.CustomerPhone
 
 	if order.CustomerEmail != nil && *order.CustomerEmail != "" {
-		email = *order.CustomerEmail
-	}
-
-	if phone != "" {
-		if err := s.smsService.SendOrderStatusUpdate(phone, order.OrderNumber, newStatus); err != nil {
-			log.Printf("Failed to send order status update SMS: %v", err)
-		}
-	}
-
-	if email != "" {
-		if err := s.emailService.SendOrderStatusUpdate(email, name, order.OrderNumber, newStatus); err != nil {
-			log.Printf("Failed to send order status update email: %v", err)
+		if err := s.emailService.SendOrderStatusUpdate(*order.CustomerEmail, order.CustomerName, order.OrderNumber, newStatus); err != nil {
+			return fmt.Errorf("failed to send order status email: %w", err)
 		}
 	}
 
@@ -129,6 +122,22 @@ func (s *notificationService) SendOrderStatusUpdate(orderID int, newStatus strin
 		s.notificationRepo.Create(notification)
 	}
 
+	return nil
+}
+
+// SendOrderStatusSMS texts the customer an order's new status, returning the
+// failure so the job retries it.
+func (s *notificationService) SendOrderStatusSMS(orderID int, newStatus string) error {
+	order, err := s.orderRepo.GetOrderWithItems(orderID)
+	if err != nil || order == nil {
+		return fmt.Errorf("failed to get order %d: %w", orderID, err)
+	}
+	if order.CustomerPhone == "" {
+		return nil
+	}
+	if err := s.smsService.SendOrderStatusUpdate(order.CustomerPhone, order.OrderNumber, newStatus); err != nil {
+		return fmt.Errorf("failed to send order status SMS: %w", err)
+	}
 	return nil
 }
 

@@ -234,6 +234,22 @@ func (r *InventoryRepository) UpdateStock(itemID int, newStock int, operation st
 	return tx.Commit()
 }
 
+// InsufficientStockError reports that taking the requested quantity would
+// leave less than zero in stock, or that the item has no stock record.
+type InsufficientStockError struct {
+	MenuItemID int
+	Available  int
+	Requested  int
+	Untracked  bool
+}
+
+func (e *InsufficientStockError) Error() string {
+	if e.Untracked {
+		return fmt.Sprintf("menu item %d has no stock record", e.MenuItemID)
+	}
+	return fmt.Sprintf("insufficient stock. Current: %d, Requested: %d", e.Available, e.Requested)
+}
+
 func (r *InventoryRepository) AdjustStockByMenuItemID(menuItemID int, quantity int, operation string, reason string) (*models.InventoryItem, error) {
 	tx, err := r.db.Begin()
 	if err != nil {
@@ -247,17 +263,36 @@ func (r *InventoryRepository) AdjustStockByMenuItemID(menuItemID int, quantity i
 		}
 	}()
 
+	itemID, err := r.AdjustStockTx(tx, menuItemID, quantity, operation, reason)
+	if err != nil || itemID == 0 {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit inventory update: %w", err)
+	}
+	committed = true
+
+	return r.GetByID(itemID)
+}
+
+// AdjustStockTx changes a menu item's stock inside tx, locking its row so
+// concurrent orders can't oversell, and records the change in the stock
+// history. It returns the inventory item's ID, or 0 when the menu item has no
+// stock record. Subtracting more than is in stock returns an
+// *InsufficientStockError.
+func (r *InventoryRepository) AdjustStockTx(tx *sql.Tx, menuItemID int, quantity int, operation string, reason string) (int, error) {
 	var itemID int
 	var currentStock int
-	err = tx.QueryRow(
+	err := tx.QueryRow(
 		`SELECT id, current_stock FROM inventory_items WHERE menu_item_id = $1 FOR UPDATE`,
 		menuItemID,
 	).Scan(&itemID, &currentStock)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return 0, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to lock inventory item: %w", err)
+		return 0, fmt.Errorf("failed to lock inventory item: %w", err)
 	}
 
 	var newStock int
@@ -267,15 +302,15 @@ func (r *InventoryRepository) AdjustStockByMenuItemID(menuItemID int, quantity i
 	case "subtract":
 		newStock = currentStock - quantity
 		if newStock < 0 {
-			return nil, fmt.Errorf("insufficient stock. Current: %d, Requested: %d", currentStock, quantity)
+			return 0, &InsufficientStockError{MenuItemID: menuItemID, Available: currentStock, Requested: quantity}
 		}
 	case "set":
 		newStock = quantity
 		if newStock < 0 {
-			return nil, fmt.Errorf("stock cannot be negative")
+			return 0, fmt.Errorf("stock cannot be negative")
 		}
 	default:
-		return nil, fmt.Errorf("invalid operation: %s", operation)
+		return 0, fmt.Errorf("invalid operation: %s", operation)
 	}
 
 	now := time.Now()
@@ -288,7 +323,7 @@ func (r *InventoryRepository) AdjustStockByMenuItemID(menuItemID int, quantity i
 		newStock, operation, now, itemID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update inventory: %w", err)
+		return 0, fmt.Errorf("failed to update inventory: %w", err)
 	}
 
 	_, err = tx.Exec(
@@ -298,7 +333,7 @@ func (r *InventoryRepository) AdjustStockByMenuItemID(menuItemID int, quantity i
 		itemID, currentStock, newStock, newStock-currentStock, operation, reason, now,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to record inventory history: %w", err)
+		return 0, fmt.Errorf("failed to record inventory history: %w", err)
 	}
 
 	if newStock <= 0 {
@@ -323,12 +358,7 @@ func (r *InventoryRepository) AdjustStockByMenuItemID(menuItemID int, quantity i
 		)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit inventory update: %w", err)
-	}
-	committed = true
-
-	return r.GetByID(itemID)
+	return itemID, nil
 }
 
 func (r *InventoryRepository) CreateInventoryItem(item *models.InventoryItem) (*models.InventoryItem, error) {

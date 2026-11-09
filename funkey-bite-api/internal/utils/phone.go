@@ -31,11 +31,13 @@ func IsValidPhone(cleaned string) bool {
 // SamePhone reports whether two phone numbers are the same, ignoring
 // formatting and the Nigerian "+234" versus leading "0" forms.
 func SamePhone(a, b string) bool {
-	ca, cb := canonicalPhone(a), canonicalPhone(b)
+	ca, cb := CanonicalPhone(a), CanonicalPhone(b)
 	return ca != "" && ca == cb
 }
 
-func canonicalPhone(raw string) string {
+// CanonicalPhone reduces a phone number to digits in the local Nigerian form,
+// so "+234 803 111 2222" and "08031112222" give the same value.
+func CanonicalPhone(raw string) string {
 	digits := strings.TrimPrefix(CleanPhone(raw), "+")
 	if strings.HasPrefix(digits, "234") && len(digits) == 13 {
 		return "0" + digits[3:]

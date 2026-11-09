@@ -27,7 +27,14 @@ import type {
   CateringPaymentInput,
   CateringStatus,
   TeamMember,
-  TeamMemberInput
+  TeamMemberInput,
+  OnlinePayment,
+  UnmatchedPayment,
+  PaymentReviewDecision,
+  PaymentRecheckResult,
+  BackgroundJob,
+  AuditEntry,
+  Page,
 } from '../types';
 
 type PaginationShape = {
@@ -177,8 +184,8 @@ export const getOrder = (id: number) =>
   apiGet<Order>(`/api/v1/admin/orders/${id}`);
 
 // Records that a pay-on-delivery order was paid, and how.
-export const markOrderPaymentCollected = (id: number, collectedVia: PaymentCollectedVia) =>
-  apiPatch<Order>(`/api/v1/admin/orders/${id}/payment`, { collectedVia });
+export const markOrderPaymentCollected = (id: number, collectedVia: PaymentCollectedVia, idempotencyKey?: string) =>
+  apiPatch<Order>(`/api/v1/admin/orders/${id}/payment`, { collectedVia }, { idempotencyKey });
 
 export const getOrderInvoice = (id: number) =>
   apiGet<Invoice>(`/api/v1/admin/orders/${id}/invoice`);
@@ -331,8 +338,8 @@ export const getCateringContract = (id: number) =>
 export const sendCateringQuote = (id: number, data: CateringQuoteInput) =>
   apiPost<CateringContract>(`/api/v1/admin/catering/requests/${id}/quotes`, data);
 
-export const recordCateringPayment = (id: number, data: CateringPaymentInput) =>
-  apiPost<CateringContract>(`/api/v1/admin/catering/requests/${id}/payments`, data);
+export const recordCateringPayment = (id: number, data: CateringPaymentInput, idempotencyKey?: string) =>
+  apiPost<CateringContract>(`/api/v1/admin/catering/requests/${id}/payments`, data, { idempotencyKey });
 
 // Declines, cancels, completes or reopens a request; other statuses follow
 // from quotes and payments.
@@ -406,5 +413,36 @@ export const getPublicSettings = () =>
 export const updateSettings = (data: Partial<BusinessSettings>) =>
   apiPut<BusinessSettings>('/api/v1/admin/settings', data);
 
+// Online transfer orders, with how many have each payment status.
+export const getOnlinePayments = (params: { status?: string; search?: string; page?: number; limit?: number }) =>
+  apiGet<{ payments: OnlinePayment[]; counts: Record<string, number>; pagination: Page }>('/api/v1/admin/payments', params);
 
+// Payments Paystack reported that matched no order.
+export const getUnmatchedPayments = () =>
+  apiGet<{ payments: UnmatchedPayment[] }>('/api/v1/admin/payments/unmatched');
 
+export const resolvePaymentReview = (orderId: number, decision: PaymentReviewDecision, note: string, idempotencyKey: string) =>
+  apiPost<{ orderId: number; paymentStatus: string }>(
+    `/api/v1/admin/orders/${orderId}/payment-review`,
+    { decision, note },
+    { idempotencyKey },
+  );
+
+// Asks Paystack whether the order was paid; a payment found is recorded.
+export const recheckPayment = (orderId: number) =>
+  apiPost<PaymentRecheckResult>(`/api/v1/admin/orders/${orderId}/payment-check`);
+
+export const getBackgroundJobs = (params: { status?: string; page?: number; limit?: number }) =>
+  apiGet<{ jobs: BackgroundJob[]; pagination: Page }>('/api/v1/admin/jobs', params);
+
+export const retryBackgroundJob = (id: number) =>
+  apiPost<{ id: number; status: string }>(`/api/v1/admin/jobs/${id}/retry`);
+
+export const getAuditLog = (params: {
+  entityType?: string;
+  entityId?: string;
+  action?: string;
+  actorType?: string;
+  page?: number;
+  limit?: number;
+}) => apiGet<{ entries: AuditEntry[]; pagination: Page }>('/api/v1/admin/audit', params);

@@ -2,6 +2,7 @@ package v1
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
+	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
+	"funkey-grab-and-bite/funkey-bite-api/internal/requestctx"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -23,9 +26,25 @@ type fakePaymentService struct {
 	initiateErr    error
 
 	handleWebhookErr  error
+	webhookResult     repository.PaymentResult
+	webhookActor      requestctx.Actor
 	webhookCalled     bool
 	capturedBody      []byte
 	capturedSignature string
+
+	renewResult *models.Order
+	renewErr    error
+	renewed     *models.Order
+}
+
+func (f *fakePaymentService) RenewTransferPayment(order *models.Order) (*models.Order, error) {
+	f.renewed = order
+	return f.renewResult, f.renewErr
+}
+
+func (f *fakePaymentService) CheckTransferPayment(ctx context.Context, orderID int) error { return nil }
+func (f *fakePaymentService) RecheckTransferPayment(ctx context.Context, orderID int) (repository.PaymentResult, bool, error) {
+	return repository.PaymentResult{}, false, nil
 }
 
 func (f *fakePaymentService) SetCateringHandler(services.CateringPaymentHandler) {}
@@ -40,11 +59,12 @@ func (f *fakePaymentService) InitiateTransferPayment(order *models.Order) (*mode
 	return order, nil
 }
 
-func (f *fakePaymentService) HandleWebhook(rawBody []byte, signature string) error {
+func (f *fakePaymentService) HandleWebhook(ctx context.Context, rawBody []byte, signature string) (repository.PaymentResult, error) {
 	f.webhookCalled = true
 	f.capturedBody = rawBody
 	f.capturedSignature = signature
-	return f.handleWebhookErr
+	f.webhookActor = requestctx.ActorFrom(ctx)
+	return f.webhookResult, f.handleWebhookErr
 }
 
 type fakeOrderService struct {
@@ -61,13 +81,15 @@ type fakeOrderService struct {
 	collected    *models.Order
 	collectErr   error
 	collectedVia string
-	assignedUser int
+	checkout     *models.Checkout
 }
 
-func (f *fakeOrderService) CreateOrder(order *models.Order, items []models.OrderItemRequest) (*models.Order, error) {
+func (f *fakeOrderService) CreateOrder(ctx context.Context, checkout *models.Checkout) (*models.Order, error) {
+	f.checkout = checkout
 	if f.createErr != nil {
 		return nil, f.createErr
 	}
+	order := checkout.Order
 	copyOrder := *order
 	f.captured = &copyOrder
 	if f.response != nil {
@@ -104,17 +126,12 @@ func (f *fakeOrderService) GetOrderByPhoneAndOrderNumber(phone, orderNumber stri
 	return f.trackByPhone, nil
 }
 func (f *fakeOrderService) CancelOrder(id int, userID int) error { return nil }
-func (f *fakeOrderService) AssignCustomer(orderID, userID int) error {
-	f.assignedUser = userID
-	return nil
-}
 
 type fakeAuthService struct {
 	authUser      *models.User
 	authErr       error
 	existing      *models.User
-	resolvedPhone string
-	resolveCalls  int
+	lookedUpPhone string
 }
 
 func (f *fakeAuthService) Register(userData models.UserRegistration) (*models.AuthResponse, error) {
@@ -127,19 +144,8 @@ func (f *fakeAuthService) CheckUserExists(phone, email string) (*models.User, bo
 	return nil, false, nil
 }
 func (f *fakeAuthService) FindOrderCustomer(phone string) (*models.User, error) {
+	f.lookedUpPhone = phone
 	return f.existing, f.authErr
-}
-func (f *fakeAuthService) ResolveOrderCustomer(name, phone string, email *string) (*models.User, error) {
-	f.resolvedPhone = phone
-	f.resolveCalls++
-	if f.authErr != nil {
-		return nil, f.authErr
-	}
-	if f.authUser != nil {
-		return f.authUser, nil
-	}
-	uid := 99
-	return &models.User{ID: uid}, nil
 }
 
 type fakeSettingsService struct {
@@ -454,8 +460,8 @@ func TestCreateOrderAppliesPromotionDiscountToPersistedTotal(t *testing.T) {
 	if orderSvc.captured.TotalAmount != 18.6 {
 		t.Fatalf("expected discounted total amount 18.6, got %v", orderSvc.captured.TotalAmount)
 	}
-	if promoSvc.appliedCode != "SAVE5" {
-		t.Fatalf("expected promotion code SAVE5 to be applied, got %q", promoSvc.appliedCode)
+	if use := orderSvc.checkout.Promotion; use == nil || use.PromotionID != 99 || use.DiscountApplied != 5 {
+		t.Fatalf("expected promotion 99 with a 5 discount to be saved with the order, got %+v", use)
 	}
 }
 
@@ -506,24 +512,14 @@ func TestCreateOrderRejectsInvalidPromotion(t *testing.T) {
 	}
 }
 
-func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
-	orderSvc := &fakeOrderService{
-		subtotal: 20,
-		response: &models.Order{ID: 77, OrderNumber: "FG-2026-04-0077", TotalAmount: 20.6},
-	}
-	settingsSvc := &fakeSettingsService{
-		minOrderOK:  true,
-		orderTimeOK: true,
-		acceptOK:    true,
-		total:       23.6,
-	}
+func TestCreateOrderReportsPromotionThatRanOutWhilePlacing(t *testing.T) {
+	orderSvc := &fakeOrderService{subtotal: 20, createErr: services.ErrPromotionUnavailable}
+	settingsSvc := &fakeSettingsService{minOrderOK: true, orderTimeOK: true, acceptOK: true, total: 23.6}
 	promoSvc := &fakePromotionService{
-		validation:    &models.PromotionValidation{IsValid: true, PromotionID: 199, Discount: 3},
-		applyErr:      fmt.Errorf("promotion usage limit reached"),
-		applyDiscount: 3,
+		validation: &models.PromotionValidation{IsValid: true, PromotionID: 199, Discount: 3},
 	}
 
-	code := "FLASH3"
+	code := "SAVE3"
 	req := models.OrderWithAuth{
 		CustomerName:    "Test User",
 		CustomerPhone:   "+15550001111",
@@ -532,12 +528,7 @@ func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
 		OrderType:       models.OrderTypeDelivery,
 		PaymentMethod:   models.PaymentMethodCash,
 		PromotionCode:   &code,
-		Items: []models.OrderItemRequest{{
-			MenuItemID: 1,
-			Name:       "Burger",
-			Quantity:   1,
-			UnitPrice:  8,
-		}},
+		Items:           []models.OrderItemRequest{{MenuItemID: 1, Name: "Burger", Quantity: 1, UnitPrice: 8}},
 	}
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -547,11 +538,8 @@ func TestCreateOrderFailsWhenPromotionApplyFailsAfterCreate(t *testing.T) {
 	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, promoSvc, &fakePaymentService{}, &fakeInvoiceService{})
 	rec := runCreateOrder(t, handler, body)
 
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected status %d, got %d, body: %s", http.StatusInternalServerError, rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "Failed to apply promotion") {
-		t.Fatalf("expected apply promotion error, got body: %s", rec.Body.String())
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "no longer available") {
+		t.Fatalf("expected 409 saying the promotion is no longer available, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -792,47 +780,51 @@ func TestTrackingRateLimitMiddlewareThrottlesAfterConfiguredLimit(t *testing.T) 
 	}
 }
 
-func TestOrderCreationCanBeSpammedWithoutOrderRateLimiterWired(t *testing.T) {
+func runRenewPayment(t *testing.T, h *OrderHandler, body string) *httptest.ResponseRecorder {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
-
-	orderSvc := &fakeOrderService{subtotal: 20}
-	settingsSvc := &fakeSettingsService{
-		minOrderOK:  true,
-		orderTimeOK: true,
-		acceptOK:    true,
-		total:       23.6,
-	}
-	handler := NewOrderHandler(orderSvc, &fakeAuthService{}, settingsSvc, &fakePromotionService{}, &fakePaymentService{}, &fakeInvoiceService{})
-	body := newOrderRequestBody(t, models.OrderTypeDelivery)
-
 	router := gin.New()
-	public := router.Group("/api/v1")
-	orderGroup := public.Group("/orders")
-	orderGroup.Use(middleware.OptionalAuthMiddleware())
-	orderGroup.POST("/", handler.CreateOrder)
+	router.POST("/orders/payment-details", h.RenewPayment)
+	req := httptest.NewRequest(http.MethodPost, "/orders/payment-details", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
 
-	successes := 0
-	throttled := 0
-	attempts := middleware.OrderCreationRateLimit.Limit + 5
-	for i := 0; i < attempts; i++ {
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/orders/", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-Forwarded-For", "198.51.100.11")
-		res := httptest.NewRecorder()
-		router.ServeHTTP(res, req)
+func TestRenewPaymentReturnsNewDetailsForTheCustomersOrder(t *testing.T) {
+	account := "9876543210"
+	existing := &models.Order{ID: 7, OrderNumber: "FG-7", CustomerPhone: "+2348031112222"}
+	payments := &fakePaymentService{renewResult: &models.Order{ID: 7, OrderNumber: "FG-7", PaymentAccountNumber: &account}}
+	handler := NewOrderHandler(&fakeOrderService{byNumber: existing}, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, payments, &fakeInvoiceService{})
 
-		if res.Code == http.StatusCreated {
-			successes++
-		}
-		if res.Code == http.StatusTooManyRequests {
-			throttled++
-		}
+	rec := runRenewPayment(t, handler, `{"orderNumber":"FG-7","phone":"0803 111 2222"}`)
+
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), account) || payments.renewed != existing {
+		t.Fatalf("expected the renewed details for FG-7, got %d: %s", rec.Code, rec.Body.String())
 	}
+}
 
-	if throttled != 0 {
-		t.Fatalf("expected no rate limiting on order creation route, got %d throttled responses", throttled)
+func TestRenewPaymentHidesOrdersOfOtherPhones(t *testing.T) {
+	existing := &models.Order{ID: 7, OrderNumber: "FG-7", CustomerPhone: "+2348031112222"}
+	payments := &fakePaymentService{}
+	handler := NewOrderHandler(&fakeOrderService{byNumber: existing}, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, payments, &fakeInvoiceService{})
+
+	rec := runRenewPayment(t, handler, `{"orderNumber":"FG-7","phone":"08099999999"}`)
+
+	if rec.Code != http.StatusNotFound || payments.renewed != nil {
+		t.Fatalf("a wrong phone must look like an unknown order, got %d", rec.Code)
 	}
-	if successes != attempts {
-		t.Fatalf("expected all %d order creation requests to succeed without throttle, got %d", attempts, successes)
+}
+
+func TestRenewPaymentExplainsOrdersNoLongerAwaitingTransfer(t *testing.T) {
+	existing := &models.Order{ID: 7, OrderNumber: "FG-7", CustomerPhone: "08031112222"}
+	payments := &fakePaymentService{renewErr: services.ErrPaymentNotRenewable}
+	handler := NewOrderHandler(&fakeOrderService{byNumber: existing}, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, payments, &fakeInvoiceService{})
+
+	rec := runRenewPayment(t, handler, `{"orderNumber":"FG-7","phone":"08031112222"}`)
+
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "place a new order") {
+		t.Fatalf("expected 409 explaining what to do, got %d: %s", rec.Code, rec.Body.String())
 	}
 }

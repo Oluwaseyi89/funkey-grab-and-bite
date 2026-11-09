@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -81,6 +82,52 @@ func (r *UserRepository) Create(user *models.User) (*models.User, error) {
 
 // SetPassword gives an account a password; guest customers created at checkout
 // have none until they register.
+// FindOrCreateGuestTx returns the ID of the customer with phone, creating a
+// passwordless record inside tx when there is none, so the admin sees every
+// customer and they can register later with the same phone. If the email
+// already belongs to another customer, the record is created without it.
+// Conflicts are skipped rather than raised, since a failed statement would
+// abort the caller's transaction.
+func (r *UserRepository) FindOrCreateGuestTx(ctx context.Context, tx *sql.Tx, name, phone string, email *string) (int, error) {
+	insert := `
+		INSERT INTO users (phone, email, full_name, password_hash, is_verified, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, '', false, true, NOW(), NOW())
+		ON CONFLICT DO NOTHING
+		RETURNING id
+	`
+	for _, candidate := range []*string{email, nil} {
+		var id int
+		err := tx.QueryRowContext(ctx, insert, phone, candidate, name).Scan(&id)
+		if err == nil {
+			return id, nil
+		}
+		if err != sql.ErrNoRows {
+			return 0, fmt.Errorf("failed to create customer: %w", err)
+		}
+
+		// Nothing inserted: the phone is taken (use that customer) or only
+		// the email is (try again without it).
+		err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE phone = $1`, phone).Scan(&id)
+		if err == nil {
+			return id, nil
+		}
+		if err != sql.ErrNoRows {
+			return 0, fmt.Errorf("failed to find customer: %w", err)
+		}
+		if candidate == nil {
+			break
+		}
+	}
+	return 0, fmt.Errorf("failed to create customer for phone ending %s", lastFour(phone))
+}
+
+func lastFour(phone string) string {
+	if len(phone) <= 4 {
+		return phone
+	}
+	return phone[len(phone)-4:]
+}
+
 func (r *UserRepository) SetPassword(userID int, passwordHash string) error {
 	query := `UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3`
 

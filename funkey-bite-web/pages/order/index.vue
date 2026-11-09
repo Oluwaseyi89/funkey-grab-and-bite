@@ -237,6 +237,7 @@
   import CustomerInfoForm from '../../components/order/CustomerInfoForm.vue'
   import OrderConfirmation from '../../components/order/OrderConfirmation.vue'
   import { useApi } from '../../utils/api'
+  import { checkoutKeyFor, clearCheckoutKey } from '../../utils/checkoutKey'
   import { useBusinessSettings } from '../../composables/useBusinessSettings'
   
   const cart = useCartStore()
@@ -394,7 +395,9 @@
         })),
       }
 
-      const createdOrder = await api.createOrder(orderPayload)
+      // Reused if this same order is submitted again, so it is placed once.
+      const createdOrder = await api.createOrder(orderPayload, checkoutKeyFor(orderPayload))
+      clearCheckoutKey()
 
       orderNumber.value = createdOrder.orderNumber
       lastOrder.value = createdOrder

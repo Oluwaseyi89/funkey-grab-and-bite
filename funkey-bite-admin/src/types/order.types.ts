@@ -3,7 +3,18 @@ export type OrderType = 'pickup' | 'delivery' | 'catering';
 // 'cash' is pay on delivery (or at pickup); 'transfer' is online payment.
 export type PaymentMethod = 'cash' | 'transfer';
 // 'not_required' only appears on cash orders from before payments on delivery were tracked.
-export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'failed';
+// expired: an online transfer never made in time (the order was cancelled).
+// needs_review: money arrived that can't simply be accepted, e.g. the wrong
+// amount; refund_due / refunded follow the admin's decision on it.
+export type PaymentStatus =
+  | 'not_required'
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'expired'
+  | 'needs_review'
+  | 'refund_due'
+  | 'refunded';
 export type PaymentCollectedVia = 'cash' | 'pos' | 'transfer';
 
 export interface OrderItem {

@@ -28,6 +28,7 @@ import { updateSettings } from '../../api/adminApi';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useBusinessSettings, BUSINESS_SETTINGS_QUERY_KEY } from '../../hooks/useBusinessSettings';
 import type { BusinessSettings, OpeningHours } from '../../types';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 
 const settingsSchema = z.object({
   businessName: z.string().min(2, 'Business name must be at least 2 characters'),
@@ -264,6 +265,7 @@ const GeneralSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <SettingsTabs />
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

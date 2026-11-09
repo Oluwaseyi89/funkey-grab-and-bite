@@ -11,6 +11,7 @@ import (
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 	v1 "funkey-grab-and-bite/funkey-bite-api/internal/handlers/v1"
+	"funkey-grab-and-bite/funkey-bite-api/internal/jobs"
 	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 	"funkey-grab-and-bite/funkey-bite-api/internal/storage"
@@ -38,7 +39,13 @@ func SetupEngine() (*gin.Engine, func()) {
 
 	// Initialize database
 	db := database.InitializeDatabase()
+	maintenanceCtx, stopMaintenance := context.WithCancel(context.Background())
+	var worker *jobs.Worker
 	cleanup := func() {
+		stopMaintenance()
+		if worker != nil {
+			worker.Wait()
+		}
 		database.CloseDatabase(db)
 	}
 
@@ -69,6 +76,12 @@ func SetupEngine() (*gin.Engine, func()) {
 	promotionRepo := repository.NewPromotionRepository(db)
 	inventoryRepo := repository.NewInventoryRepository(db)
 	notificationRepo := repository.NewNotificationRepository(db)
+	idempotencyRepo := repository.NewIdempotencyRepository(db)
+	rateLimitRepo := repository.NewRateLimitRepository(db)
+	auditRepo := repository.NewAuditRepository(db)
+	jobRepo := repository.NewJobRepository(db)
+	worker = jobs.NewWorker(jobRepo)
+	checkoutRepo := repository.NewCheckoutRepository(db, orderRepo, userRepo, inventoryRepo, promotionRepo, auditRepo, idempotencyRepo, jobRepo)
 
 	emailService := utils.NewEmailService()
 	smsService := utils.NewSMSService()
@@ -86,14 +99,14 @@ func SetupEngine() (*gin.Engine, func()) {
 	// Initialize services
 	authService := services.NewAuthService(*userRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo, menuRepo)
-	orderService := services.NewOrderService(orderRepo, menuRepo, inventoryService, notificationService)
+	orderService := services.NewOrderService(orderRepo, menuRepo, inventoryService, notificationService, checkoutRepo)
 	userService := services.NewUserService(*userRepo, *orderRepo)
 	menuService := services.NewMenuService(*menuRepo)
 	cateringService := services.NewCateringService(cateringRepo, cateringPackageRepo, menuRepo, notificationService)
 	adminService := services.NewAdminService(adminRepo, *orderRepo, *userRepo, *cateringRepo, *menuRepo, imageStorage)
 	settingsService := services.NewSettingsService(*settingsRepo)
 	promotionService := services.NewPromotionService(promotionRepo)
-	paymentService := services.NewPaymentService(paymentGateway, orderRepo, notificationService)
+	paymentService := services.NewPaymentService(paymentGateway, orderRepo, checkoutRepo)
 	invoiceService := services.NewInvoiceService(settingsService, emailService)
 	teamService := services.NewTeamService(teamRepo, imageStorage)
 	cateringContractService := services.NewCateringContractService(cateringRepo, cateringContractRepo, settingsService, emailService, paymentGateway)
@@ -102,6 +115,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	authHandler := v1.NewAuthHandler(authService, userService)
 	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService, paymentService, invoiceService)
 	paymentHandler := v1.NewPaymentHandler(paymentService)
+	adminPaymentsHandler := v1.NewAdminPaymentsHandler(repository.NewAdminPaymentRepository(db), checkoutRepo, paymentService, jobRepo, auditRepo)
 	menuHandler := v1.NewMenuHandler(menuService)
 	cateringHandler := v1.NewCateringHandler(cateringService)
 	cateringContractHandler := v1.NewCateringContractHandler(cateringContractService, cateringHandler)
@@ -139,6 +153,18 @@ func SetupEngine() (*gin.Engine, func()) {
 	if err := r.SetTrustedProxies(trustedProxies); err != nil {
 		log.Fatalf("failed to set trusted proxies: %v", err)
 	}
+	// Behind a platform proxy (e.g. Render, which sits behind Cloudflare), the
+	// connection comes from the proxy, so per-IP limits would treat every
+	// customer as one. CLIENT_IP_HEADER names the header the platform sets to
+	// the real client IP (e.g. True-Client-IP); it must be one clients cannot set.
+	if header := strings.TrimSpace(os.Getenv("CLIENT_IP_HEADER")); header != "" {
+		r.TrustedPlatform = header
+	}
+
+	startMaintenance(maintenanceCtx, idempotencyRepo, rateLimitRepo, jobRepo)
+	registerJobs(worker, orderService, notificationService, invoiceService, paymentService, emailService)
+	cateringContractService.SetEmailQueue(jobEmailQueue{jobs: jobRepo, worker: worker})
+	worker.Start(maintenanceCtx)
 
 	// Middleware
 	r.Use(middleware.CORSMiddleware())
@@ -154,11 +180,20 @@ func SetupEngine() (*gin.Engine, func()) {
 	public.Use(ginLimiter.NewMiddleware(limiterInstance))
 	public.GET("/health", healthHandler.GetHealth)
 
-	public.GET("/order/track/:phone/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrderPublic)
+	// Per phone number or signed-in customer, on top of the per-IP limits; each
+	// group has its own allowance.
+	limitAuthByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "auth")
+	limitOrdersByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "orders")
+	limitLookupsByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "lookup")
+	limitCateringByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "catering")
+	limitBookingByPhone := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "booking")
+	limitAccountByUser := middleware.IdentityRateLimitMiddleware(rateLimitRepo, "account")
+
+	public.GET("/order/track/:phone/:orderNumber", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.TrackOrderPublic)
 
 	{
-		public.POST("/auth/register", authHandler.Register)
-		public.POST("/auth/login", authHandler.Login)
+		public.POST("/auth/register", limitAuthByPhone, authHandler.Register)
+		public.POST("/auth/login", limitAuthByPhone, authHandler.Login)
 		public.GET("/auth/check", authHandler.CheckUser)
 
 		public.GET("/settings", settingsHandler.GetPublicSettings)
@@ -166,11 +201,11 @@ func SetupEngine() (*gin.Engine, func()) {
 
 		public.GET("/catering/packages", cateringHandler.ListPackages)
 		public.GET("/team", teamHandler.ListPublic)
-		public.POST("/catering/requests", cateringHandler.CreateRequest)
-		public.POST("/catering/requests/lookup", middleware.TrackingRateLimitMiddleware(), cateringHandler.LookupRequest)
-		public.POST("/catering/booking", middleware.TrackingRateLimitMiddleware(), cateringContractHandler.ViewBooking)
-		public.POST("/catering/booking/accept", middleware.TrackingRateLimitMiddleware(), cateringContractHandler.AcceptQuote)
-		public.POST("/catering/booking/pay", middleware.TrackingRateLimitMiddleware(), cateringContractHandler.PayOnline)
+		public.POST("/catering/requests", limitCateringByPhone, cateringHandler.CreateRequest)
+		public.POST("/catering/requests/lookup", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringHandler.LookupRequest)
+		public.POST("/catering/booking", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.ViewBooking)
+		public.POST("/catering/booking/accept", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.AcceptQuote)
+		public.POST("/catering/booking/pay", middleware.TrackingRateLimitMiddleware(), limitBookingByPhone, cateringContractHandler.PayOnline)
 		public.GET("/promotions/validate", promotionHandler.ValidatePromotion)
 		public.GET("/promotions/active", promotionHandler.GetActivePromotions)
 		public.POST("/admin/auth/login", adminHandler.AdminLogin)
@@ -195,26 +230,49 @@ func SetupEngine() (*gin.Engine, func()) {
 	orderGroup := public.Group("/orders")
 	orderGroup.Use(middleware.OptionalAuthMiddleware())
 	{
-		orderGroup.POST("", orderHandler.CreateOrder)
-		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), orderHandler.TrackOrder)
-		orderGroup.POST("/lookup", middleware.TrackingRateLimitMiddleware(), orderHandler.LookupOrder)
-		orderGroup.PATCH("/:id/cancel", orderHandler.CancelOrder)
+		// Idempotency runs first so a retried checkout replays its result
+		// without counting against the rate limits again.
+		orderGroup.POST("",
+			middleware.Idempotency(idempotencyRepo, middleware.IdempotencyOptions{Replay: orderHandler.ReplayCreateOrder}),
+			middleware.OrderRateLimitMiddleware(rateLimitRepo), limitOrdersByPhone, orderHandler.CreateOrder)
+		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.TrackOrder)
+		orderGroup.POST("/lookup", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.LookupOrder)
+		orderGroup.POST("/payment-details", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.RenewPayment)
+		orderGroup.PATCH("/:id/cancel", limitOrdersByPhone, orderHandler.CancelOrder)
 	}
 
 	userRoutes := public.Group("/auth")
 	userRoutes.Use(middleware.AuthMiddleware())
 	{
 		userRoutes.GET("/profile", authHandler.GetProfile)
-		userRoutes.PUT("/profile", authHandler.UpdateProfile)
-		userRoutes.PATCH("/password", authHandler.ChangePassword)
+		userRoutes.PUT("/profile", limitAccountByUser, authHandler.UpdateProfile)
+		userRoutes.PATCH("/password", limitAccountByUser, authHandler.ChangePassword)
 		userRoutes.GET("/orders", orderHandler.GetUserOrders)
 		userRoutes.GET("/orders/:id", orderHandler.GetUserOrder)
 		userRoutes.GET("/catering-requests", cateringHandler.GetUserRequests)
 	}
 
 	admin := public.Group("/admin")
-	admin.Use(middleware.AdminAuthMiddleware(adminRepo))
+	admin.Use(
+		middleware.AdminAuthMiddleware(adminRepo),
+		// Writes sent with an Idempotency-Key aren't repeated on retry.
+		middleware.Idempotency(idempotencyRepo, middleware.IdempotencyOptions{}),
+		// Every successful change is recorded. Payment decisions write a
+		// fuller entry in their own transaction.
+		middleware.AuditWrites(auditRepo,
+			"POST /api/v1/admin/orders/:id/payment-review",
+			"POST /api/v1/admin/orders/:id/payment-check",
+		),
+	)
 	{
+		admin.GET("/payments", adminPaymentsHandler.ListPayments)
+		admin.GET("/payments/unmatched", adminPaymentsHandler.ListUnmatchedPayments)
+		admin.POST("/orders/:id/payment-review", adminPaymentsHandler.ResolvePaymentReview)
+		admin.POST("/orders/:id/payment-check", adminPaymentsHandler.RecheckPayment)
+		admin.GET("/jobs", adminPaymentsHandler.ListJobs)
+		admin.POST("/jobs/:id/retry", adminPaymentsHandler.RetryJob)
+		admin.GET("/audit", adminPaymentsHandler.ListAudit)
+
 		admin.GET("/dashboard/stats", adminHandler.GetDashboardStats)
 		admin.GET("/dashboard/stats/today", adminHandler.GetTodayStats)
 		admin.GET("/reports/sales", adminHandler.GetSalesReport)

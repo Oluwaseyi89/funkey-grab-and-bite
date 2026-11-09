@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -276,6 +277,10 @@ func (r *PromotionRepository) RecordUsage(usage *models.PromotionUsage) error {
 	return nil
 }
 
+// ErrPromotionUnavailable reports a promotion that ended, was switched off or
+// reached its usage limit before it could be used.
+var ErrPromotionUnavailable = errors.New("promotion usage limit reached")
+
 func (r *PromotionRepository) ConsumeUsage(usage *models.PromotionUsage) error {
 	tx, err := r.db.Begin()
 	if err != nil {
@@ -289,6 +294,23 @@ func (r *PromotionRepository) ConsumeUsage(usage *models.PromotionUsage) error {
 		}
 	}()
 
+	if err := r.ConsumeUsageTx(tx, usage); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit promotion usage transaction: %w", err)
+	}
+	committed = true
+
+	return nil
+}
+
+// ConsumeUsageTx records one use of a promotion inside tx. The usage count is
+// only raised while the promotion is active and under its limit, so
+// concurrent orders can't exceed it; otherwise it returns
+// ErrPromotionUnavailable.
+func (r *PromotionRepository) ConsumeUsageTx(tx *sql.Tx, usage *models.PromotionUsage) error {
 	now := time.Now()
 	result, err := tx.Exec(
 		`UPDATE promotions
@@ -310,7 +332,7 @@ func (r *PromotionRepository) ConsumeUsage(usage *models.PromotionUsage) error {
 		return fmt.Errorf("failed to confirm promotion usage update: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("promotion usage limit reached")
+		return ErrPromotionUnavailable
 	}
 
 	err = tx.QueryRow(
@@ -326,11 +348,6 @@ func (r *PromotionRepository) ConsumeUsage(usage *models.PromotionUsage) error {
 	if err != nil {
 		return fmt.Errorf("failed to record promotion usage: %w", err)
 	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit promotion usage transaction: %w", err)
-	}
-	committed = true
 
 	return nil
 }
