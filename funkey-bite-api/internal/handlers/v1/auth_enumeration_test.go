@@ -18,16 +18,13 @@ type fakeAuthCheckService struct {
 	err    error
 }
 
-func (f *fakeAuthCheckService) Register(userData models.UserRegistration) (*models.AuthResponse, error) {
-	return nil, nil
-}
 func (f *fakeAuthCheckService) Login(phone, password string) (*models.AuthResponse, error) {
 	return nil, nil
 }
 func (f *fakeAuthCheckService) CheckUserExists(phone, email string) (*models.User, bool, error) {
 	return f.user, f.exists, f.err
 }
-func (f *fakeAuthCheckService) FindOrderCustomer(phone string) (*models.User, error) {
+func (f *fakeAuthCheckService) FindOrderCustomer(phone, email string) (*models.User, error) {
 	return nil, nil
 }
 
@@ -45,7 +42,7 @@ func (f *fakeUserProfileService) ChangePassword(userID int, currentPassword, new
 func TestCheckUserRequiresPhoneOrEmail(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	handler := NewAuthHandler(&fakeAuthCheckService{}, &fakeUserProfileService{})
+	handler := NewAuthHandler(&fakeAuthCheckService{}, &fakeUserProfileService{}, nil)
 	router := gin.New()
 	router.GET("/auth/check", handler.CheckUser)
 
@@ -65,7 +62,7 @@ func TestCheckUserDoesNotExposeExistsOrUserForExistingAccount(t *testing.T) {
 	handler := NewAuthHandler(&fakeAuthCheckService{
 		user:   &models.User{ID: 10, Phone: "+15551230000", Email: &email, FullName: "Existing User"},
 		exists: true,
-	}, &fakeUserProfileService{})
+	}, &fakeUserProfileService{}, nil)
 
 	router := gin.New()
 	router.GET("/auth/check", handler.CheckUser)
@@ -98,13 +95,13 @@ func TestCheckUserResponseIsSameForExistingAndMissingAccounts(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	routerExisting := gin.New()
-	routerExisting.GET("/auth/check", NewAuthHandler(&fakeAuthCheckService{exists: true}, &fakeUserProfileService{}).CheckUser)
+	routerExisting.GET("/auth/check", NewAuthHandler(&fakeAuthCheckService{exists: true}, &fakeUserProfileService{}, nil).CheckUser)
 	reqExisting := httptest.NewRequest(http.MethodGet, "/auth/check?email=exists@example.com", nil)
 	resExisting := httptest.NewRecorder()
 	routerExisting.ServeHTTP(resExisting, reqExisting)
 
 	routerMissing := gin.New()
-	routerMissing.GET("/auth/check", NewAuthHandler(&fakeAuthCheckService{exists: false}, &fakeUserProfileService{}).CheckUser)
+	routerMissing.GET("/auth/check", NewAuthHandler(&fakeAuthCheckService{exists: false}, &fakeUserProfileService{}, nil).CheckUser)
 	reqMissing := httptest.NewRequest(http.MethodGet, "/auth/check?email=missing@example.com", nil)
 	resMissing := httptest.NewRecorder()
 	routerMissing.ServeHTTP(resMissing, reqMissing)
