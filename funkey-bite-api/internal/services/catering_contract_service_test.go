@@ -14,16 +14,18 @@ import (
 // memoryContract keeps contract records in memory. Its transactions are not
 // rolled back; the tests only check what successful calls leave behind.
 type memoryContract struct {
-	requests  *memoryCateringStore
-	quotes    []models.CateringQuote
-	hashes    map[int]string
-	payments  []models.CateringPayment
-	invoices  []models.CateringInvoice
-	receipt   *models.CateringReceipt
-	history   []models.CateringStatusChange
-	charges   []models.CateringPaymentCharge
-	emails    []string
-	initiated int
+	requests   *memoryCateringStore
+	quotes     []models.CateringQuote
+	hashes     map[int]string
+	payments   []models.CateringPayment
+	invoices   []models.CateringInvoice
+	receipt    *models.CateringReceipt
+	history    []models.CateringStatusChange
+	charges    []models.CateringPaymentCharge
+	emails     []string
+	initiated  int
+	cardStarts int
+	paidKobo   int64
 }
 
 func (m *memoryContract) InTx(fn func(tx repository.CateringContractWriter) error) error {
@@ -166,7 +168,7 @@ func (m *memoryContract) ListHistory(int) ([]models.CateringStatusChange, error)
 }
 func (m *memoryContract) PendingCharge(requestID int, _ time.Time) (*models.CateringPaymentCharge, error) {
 	for i := len(m.charges) - 1; i >= 0; i-- {
-		if m.charges[i].RequestID == requestID && m.charges[i].Status == "pending" {
+		if m.charges[i].RequestID == requestID && m.charges[i].Status == "pending" && m.charges[i].Method != models.CateringPaymentCard {
 			c := m.charges[i]
 			return &c, nil
 		}
@@ -198,6 +200,18 @@ type fakeGateway struct {
 func (g fakeGateway) InitiateTransfer(_ string, _ float64, reference string) (*utils.TransferChargeResult, error) {
 	g.contract.initiated++
 	return &utils.TransferChargeResult{Reference: reference, AccountNumber: "0123456789", BankName: "Test Bank"}, nil
+}
+
+func (g fakeGateway) InitializeCardPayment(_ string, _ float64, reference string) (*utils.CardPayment, error) {
+	g.contract.cardStarts++
+	return &utils.CardPayment{Reference: reference, AccessCode: "access-" + reference}, nil
+}
+
+func (g fakeGateway) VerifyTransaction(reference string) (*utils.TransactionStatus, error) {
+	if g.contract.paidKobo == 0 {
+		return &utils.TransactionStatus{Reference: reference, Status: "abandoned"}, nil
+	}
+	return &utils.TransactionStatus{Reference: reference, Status: "success", AmountKobo: g.contract.paidKobo, Currency: "NGN"}, nil
 }
 
 func newTestContract(t *testing.T) (*cateringContractService, *memoryContract, *models.CateringRequest) {
@@ -419,5 +433,58 @@ func TestChangeStatusRules(t *testing.T) {
 	}
 	if _, err := svc.ChangeStatus(request.ID, "pending", nil, ""); err != nil {
 		t.Fatalf("a declined request without an accepted quote can be reopened: %v", err)
+	}
+}
+
+func TestCardPaymentForCateringBooking(t *testing.T) {
+	svc, mem, request := newTestContract(t)
+	if _, err := svc.SendQuote(request.ID, &models.CateringQuoteInput{Amount: 100000}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AcceptQuote(models.CateringAcceptInput{CateringCustomerAuth: customerAuth(), AgreeToTerms: true}); err != nil {
+		t.Fatal(err)
+	}
+	pay := models.CateringPayOnlineInput{CateringCustomerAuth: customerAuth(), Portion: "deposit", Method: "card"}
+
+	charge, err := svc.StartOnlinePayment(pay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if charge.Method != models.CateringPaymentCard || charge.AccessCode == nil || charge.Amount != 70000 || charge.AccountNumber != nil {
+		t.Fatalf("expected a card charge for the deposit with a popup access code, got %+v", charge)
+	}
+	if again, _ := svc.StartOnlinePayment(pay); again.Reference == charge.Reference || mem.cardStarts != 2 {
+		t.Fatal("each card payment must start fresh")
+	}
+	if contract, _ := svc.GetContract(request.ID); contract.PendingCharge != nil {
+		t.Fatal("a card charge must not show as a pending transfer account")
+	}
+
+	// Paystack hasn't been paid yet: verifying records nothing.
+	if _, recorded, err := svc.VerifyOnlinePayment(models.CateringVerifyPaymentInput{CateringCustomerAuth: customerAuth(), PaymentReference: charge.Reference}); err != nil || recorded {
+		t.Fatalf("an unpaid card payment must not be recorded, got %v %v", recorded, err)
+	}
+
+	// The popup reports success; verifying confirms it before any webhook.
+	mem.paidKobo = 7000000
+	booking, recorded, err := svc.VerifyOnlinePayment(models.CateringVerifyPaymentInput{CateringCustomerAuth: customerAuth(), PaymentReference: charge.Reference})
+	if err != nil || !recorded {
+		t.Fatalf("expected the card payment recorded, got %v %v", recorded, err)
+	}
+	if booking.Request.Status != models.CateringStatusConfirmed || len(booking.Payments) != 1 || booking.Payments[0].Method != models.CateringPaymentCard {
+		t.Fatalf("expected one card payment confirming the booking, got %+v", booking)
+	}
+
+	// The webhook arriving afterwards changes nothing.
+	if handled, err := svc.HandlePaystackCharge(charge.Reference, 7000000); !handled || err != nil {
+		t.Fatalf("the later webhook should be recognised, got %v %v", handled, err)
+	}
+	if contract, _ := svc.GetContract(request.ID); len(contract.Payments) != 1 {
+		t.Fatalf("the payment must be recorded once, got %d", len(contract.Payments))
+	}
+
+	// Another booking's reference is treated as unknown.
+	if _, _, err := svc.VerifyOnlinePayment(models.CateringVerifyPaymentInput{CateringCustomerAuth: customerAuth(), PaymentReference: "CATPAY-OTHER-1"}); !errors.Is(err, ErrCateringRequestNotFound) {
+		t.Fatalf("expected an unknown reference refused, got %v", err)
 	}
 }
