@@ -42,10 +42,10 @@ func (r *JobRepository) Enqueue(ctx context.Context, exec Execer, job models.New
 	}
 
 	_, err = exec.ExecContext(ctx, `
-		INSERT INTO jobs (kind, payload, max_attempts, run_at, dedupe_key)
-		VALUES ($1, $2, $3, COALESCE($4, NOW()), $5)
+		INSERT INTO jobs (kind, payload, max_attempts, run_at, dedupe_key, sensitive)
+		VALUES ($1, $2, $3, COALESCE($4, NOW()), $5, $6)
 		ON CONFLICT (dedupe_key) DO NOTHING
-	`, job.Kind, string(payload), maxAttempts, runAt, nullIfEmpty(job.DedupeKey))
+	`, job.Kind, string(payload), maxAttempts, runAt, nullIfEmpty(job.DedupeKey), job.Sensitive)
 	if err != nil {
 		return fmt.Errorf("queue %s job: %w", job.Kind, err)
 	}
@@ -88,11 +88,12 @@ func (r *JobRepository) Claim(ctx context.Context, limit int, lease time.Duratio
 	return jobs, rows.Err()
 }
 
-// Succeed marks a job done.
+// Succeed marks a job done, wiping a sensitive job's payload.
 func (r *JobRepository) Succeed(ctx context.Context, id int64) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE jobs
 		SET status = 'succeeded', locked_until = NULL, last_error = NULL,
+		    payload = CASE WHEN sensitive THEN '{}'::jsonb ELSE payload END,
 		    completed_at = NOW(), updated_at = NOW()
 		WHERE id = $1
 	`, id)
@@ -151,4 +152,58 @@ func (r *JobRepository) DeleteSucceededBefore(ctx context.Context, cutoff time.T
 		return 0, fmt.Errorf("delete finished jobs: %w", err)
 	}
 	return result.RowsAffected()
+}
+
+// List returns jobs with status (all when empty), newest first, and how many
+// there are. Payloads are left out.
+func (r *JobRepository) List(ctx context.Context, status string, limit, offset int) ([]models.JobSummary, int, error) {
+	var total int
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM jobs WHERE ($1 = '' OR status = $1)`, status).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count jobs: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, kind, status, attempts, max_attempts, run_at, last_error, created_at, updated_at, completed_at
+		FROM jobs
+		WHERE ($1 = '' OR status = $1)
+		ORDER BY updated_at DESC, id DESC
+		LIMIT $2 OFFSET $3
+	`, status, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list jobs: %w", err)
+	}
+	defer rows.Close()
+
+	jobs := []models.JobSummary{}
+	for rows.Next() {
+		var job models.JobSummary
+		var lastError sql.NullString
+		var completedAt sql.NullTime
+		if err := rows.Scan(&job.ID, &job.Kind, &job.Status, &job.Attempts, &job.MaxAttempts,
+			&job.RunAt, &lastError, &job.CreatedAt, &job.UpdatedAt, &completedAt); err != nil {
+			return nil, 0, fmt.Errorf("read job: %w", err)
+		}
+		if lastError.Valid {
+			job.LastError = &lastError.String
+		}
+		if completedAt.Valid {
+			job.CompletedAt = &completedAt.Time
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, total, rows.Err()
+}
+
+// RetryDead gives a dead job a fresh set of attempts, starting now. It
+// returns false when the job doesn't exist or isn't dead.
+func (r *JobRepository) RetryDead(ctx context.Context, id int64) (bool, error) {
+	result, err := r.db.ExecContext(ctx, `
+		UPDATE jobs
+		SET status = 'pending', attempts = 0, run_at = NOW(), locked_until = NULL, updated_at = NOW()
+		WHERE id = $1 AND status = 'dead'
+	`, id)
+	if err != nil {
+		return false, fmt.Errorf("retry job %d: %w", id, err)
+	}
+	n, err := result.RowsAffected()
+	return n > 0, err
 }
