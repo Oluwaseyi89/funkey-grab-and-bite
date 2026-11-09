@@ -20,6 +20,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../stores/authStore';
 import { updateAdminPassword, adminLogout } from '../../api/adminApi';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 
 const profileSchema = z.object({
   email: z.string().email('Valid email is required'),
@@ -130,6 +131,7 @@ const ProfileSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <SettingsTabs />
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
