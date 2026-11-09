@@ -60,6 +60,10 @@ type CateringContractService interface {
 	// HandlePaystackCharge records a confirmed Paystack transfer; handled is
 	// false when the reference is not a catering payment.
 	HandlePaystackCharge(reference string, amountKobo int64) (handled bool, err error)
+	// VerifyOnlinePayment confirms a customer's online payment with Paystack
+	// (e.g. right after the card popup reports success) and records it if
+	// paid, returning the booking and whether a payment was newly recorded.
+	VerifyOnlinePayment(input models.CateringVerifyPaymentInput) (*models.CateringContract, bool, error)
 }
 
 type cateringContractReader interface {
@@ -71,6 +75,7 @@ type cateringContractReader interface {
 	GetReceipt(requestID int) (*models.CateringReceipt, error)
 	ListHistory(requestID int) ([]models.CateringStatusChange, error)
 	PendingCharge(requestID int, now time.Time) (*models.CateringPaymentCharge, error)
+	ChargeByReference(reference string) (*models.CateringPaymentCharge, error)
 }
 
 type cateringRequestReader interface {
@@ -388,10 +393,14 @@ func (s *cateringContractService) HandlePaystackCharge(reference string, amountK
 			// the difference in the ledger.
 			log.Printf("[Paystack webhook] catering payment %s: expected %s, received %s", reference, FormatNaira(charge.Amount), FormatNaira(amount))
 		}
+		method := models.CateringPaymentPaystackTransfer
+		if charge.Method == models.CateringPaymentCard {
+			method = models.CateringPaymentCard
+		}
 		payment := &models.CateringPayment{
 			RequestID: charge.RequestID,
 			Amount:    amount,
-			Method:    models.CateringPaymentPaystackTransfer,
+			Method:    method,
 			Reference: &reference,
 			PaidAt:    s.now(),
 		}
@@ -550,13 +559,35 @@ func (s *cateringContractService) StartOnlinePayment(input models.CateringPayOnl
 		return nil, invalid("Your booking is already paid in full")
 	}
 
+	reference := CateringPaystackPrefix + strings.TrimPrefix(request.Reference, "CAT-") + "-" + randomSuffix()
+
+	if input.Method == "card" {
+		// A card payment always starts fresh: the popup's access code isn't
+		// kept, and an unfinished one is simply never paid.
+		card, err := s.gateway.InitializeCardPayment(*request.ContactEmail, amount, reference)
+		if err != nil {
+			return nil, fmt.Errorf("failed to start card payment: %w", err)
+		}
+		expires := s.now().Add(cateringCardWindow)
+		charge := &models.CateringPaymentCharge{
+			RequestID: request.ID, Reference: card.Reference, Amount: amount,
+			ExpiresAt: &expires, Method: models.CateringPaymentCard,
+		}
+		if err := s.contract.InTx(func(tx repository.CateringContractWriter) error {
+			return tx.InsertCharge(charge)
+		}); err != nil {
+			return nil, err
+		}
+		charge.AccessCode = &card.AccessCode
+		return charge, nil
+	}
+
 	if existing, err := s.contract.PendingCharge(request.ID, s.now()); err != nil {
 		return nil, err
 	} else if existing != nil && math.Abs(existing.Amount-amount) < 0.009 {
 		return existing, nil
 	}
 
-	reference := CateringPaystackPrefix + strings.TrimPrefix(request.Reference, "CAT-") + "-" + randomSuffix()
 	result, err := s.gateway.InitiateTransfer(*request.ContactEmail, amount, reference)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start online payment: %w", err)
@@ -570,6 +601,7 @@ func (s *cateringContractService) StartOnlinePayment(input models.CateringPayOnl
 		AccountName:   optionalString(result.AccountName),
 		BankName:      optionalString(result.BankName),
 		ExpiresAt:     result.ExpiresAt,
+		Method:        models.CateringPaymentPaystackTransfer,
 	}
 	if err := s.contract.InTx(func(tx repository.CateringContractWriter) error {
 		return tx.InsertCharge(charge)
@@ -577,6 +609,41 @@ func (s *cateringContractService) StartOnlinePayment(input models.CateringPayOnl
 		return nil, err
 	}
 	return charge, nil
+}
+
+// cateringCardWindow is how long a catering card payment stays open.
+const cateringCardWindow = 15 * time.Minute
+
+func (s *cateringContractService) VerifyOnlinePayment(input models.CateringVerifyPaymentInput) (*models.CateringContract, bool, error) {
+	request, _, _, err := s.resolveCustomer(input.CateringCustomerAuth)
+	if err != nil {
+		return nil, false, err
+	}
+	charge, err := s.contract.ChargeByReference(input.PaymentReference)
+	if err != nil {
+		return nil, false, err
+	}
+	// A reference from another booking is treated as unknown.
+	if charge == nil || charge.RequestID != request.ID {
+		return nil, false, ErrCateringRequestNotFound
+	}
+
+	recorded := false
+	if charge.Status != "paid" {
+		status, err := s.gateway.VerifyTransaction(charge.Reference)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to verify payment %s: %w", charge.Reference, err)
+		}
+		if status.Paid() {
+			if _, err := s.HandlePaystackCharge(charge.Reference, status.AmountKobo); err != nil {
+				return nil, false, err
+			}
+			recorded = true
+		}
+	}
+
+	booking, err := s.CustomerView(input.CateringCustomerAuth)
+	return booking, recorded, err
 }
 
 // adminTransitions are the status changes the admin makes by hand; the
