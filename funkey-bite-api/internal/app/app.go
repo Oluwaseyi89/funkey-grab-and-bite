@@ -112,7 +112,8 @@ func SetupEngine() (*gin.Engine, func()) {
 	cateringContractService := services.NewCateringContractService(cateringRepo, cateringContractRepo, settingsService, emailService, paymentGateway)
 
 	// Initialize handlers
-	authHandler := v1.NewAuthHandler(authService, userService)
+	accountService := services.NewAccountService(userRepo, repository.NewAccountCodeRepository(db), jobEmailQueue{jobs: jobRepo, worker: worker}, auditRepo)
+	authHandler := v1.NewAuthHandler(authService, userService, accountService)
 	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService, paymentService, invoiceService)
 	paymentHandler := v1.NewPaymentHandler(paymentService)
 	adminPaymentsHandler := v1.NewAdminPaymentsHandler(repository.NewAdminPaymentRepository(db), checkoutRepo, paymentService, jobRepo, auditRepo)
@@ -193,6 +194,9 @@ func SetupEngine() (*gin.Engine, func()) {
 
 	{
 		public.POST("/auth/register", limitAuthByPhone, authHandler.Register)
+		public.POST("/auth/register/confirm", middleware.TrackingRateLimitMiddleware(), limitAuthByPhone, authHandler.ConfirmRegistration)
+		public.POST("/auth/password/forgot", middleware.TrackingRateLimitMiddleware(), limitAuthByPhone, authHandler.ForgotPassword)
+		public.POST("/auth/password/reset", middleware.TrackingRateLimitMiddleware(), limitAuthByPhone, authHandler.ResetPassword)
 		public.POST("/auth/login", limitAuthByPhone, authHandler.Login)
 		public.GET("/auth/check", authHandler.CheckUser)
 
