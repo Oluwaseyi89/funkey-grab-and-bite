@@ -13,11 +13,14 @@ const (
 	// Rate limit windows are an hour at most; a day leaves room for any limit
 	// added later.
 	rateLimitRetention = 24 * time.Hour
+	// Finished jobs are kept a week for troubleshooting; dead ones stay until
+	// dealt with.
+	finishedJobRetention = 7 * 24 * time.Hour
 )
 
-// startMaintenance clears expired idempotency keys and old rate limit
-// windows every maintenanceInterval until ctx is cancelled.
-func startMaintenance(ctx context.Context, idempotency *repository.IdempotencyRepository, rateLimits *repository.RateLimitRepository) {
+// startMaintenance clears expired idempotency keys, old rate limit windows
+// and finished jobs every maintenanceInterval until ctx is cancelled.
+func startMaintenance(ctx context.Context, idempotency *repository.IdempotencyRepository, rateLimits *repository.RateLimitRepository, jobs *repository.JobRepository) {
 	go func() {
 		ticker := time.NewTicker(maintenanceInterval)
 		defer ticker.Stop()
@@ -28,6 +31,9 @@ func startMaintenance(ctx context.Context, idempotency *repository.IdempotencyRe
 				log.Printf("[maintenance] removed %d expired idempotency keys", removed)
 			}
 			if _, err := rateLimits.DeleteBefore(ctx, time.Now().Add(-rateLimitRetention)); err != nil {
+				log.Printf("[maintenance] %v", err)
+			}
+			if _, err := jobs.DeleteSucceededBefore(ctx, time.Now().Add(-finishedJobRetention)); err != nil {
 				log.Printf("[maintenance] %v", err)
 			}
 
