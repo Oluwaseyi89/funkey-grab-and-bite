@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -87,7 +88,7 @@ var phoneBodyFields = []string{"customerPhone", "contactPhone", "phone"}
 
 // ByPhoneOrUser counts requests against the signed-in customer, or else the
 // phone number the request is for (from a :phone path parameter or the JSON
-// body). Requests with neither, such as an emailed quote link, aren't counted.
+// body), or else its email. Requests with neither, such as an emailed quote link, aren't counted.
 func ByPhoneOrUser(c *gin.Context) (string, bool) {
 	if userID, ok := c.Get("user_id"); ok {
 		if isAdmin, _ := c.Get("is_admin"); isAdmin != true {
@@ -113,6 +114,10 @@ func ByPhoneOrUser(c *gin.Context) (string, bool) {
 				return "phone:" + phone, true
 			}
 		}
+	}
+	// Requests identified by email only, e.g. a password reset.
+	if raw, ok := fields["email"].(string); ok && strings.Contains(raw, "@") {
+		return "email:" + strings.ToLower(strings.TrimSpace(raw)), true
 	}
 	return "", false
 }
