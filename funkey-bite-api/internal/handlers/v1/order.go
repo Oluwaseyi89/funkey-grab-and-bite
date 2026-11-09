@@ -14,6 +14,7 @@ import (
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 	"funkey-grab-and-bite/funkey-bite-api/internal/realtime"
+	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 	"funkey-grab-and-bite/funkey-bite-api/internal/utils"
 )
@@ -205,12 +206,12 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	if createdOrder.PaymentMethod == models.PaymentMethodTransfer {
+	if createdOrder.PaymentMethod.IsOnline() {
 		// The order already exists at this point (items + stock committed); a
 		// Paystack outage here shouldn't lose the order, just leave payment
 		// pending with no account details for the customer to retry against later.
-		if withPayment, err := h.paymentService.InitiateTransferPayment(createdOrder); err != nil {
-			log.Printf("Failed to initiate transfer payment for order #%s: %v", createdOrder.OrderNumber, err)
+		if withPayment, err := h.paymentService.InitiatePayment(createdOrder); err != nil {
+			log.Printf("Failed to start online payment for order #%s: %v", createdOrder.OrderNumber, err)
 		} else {
 			createdOrder = withPayment
 		}
@@ -528,7 +529,7 @@ func (h *OrderHandler) RenewPayment(c *gin.Context) {
 		return
 	}
 
-	renewed, err := h.paymentService.RenewTransferPayment(order)
+	renewed, err := h.paymentService.RenewOnlinePayment(order)
 	switch {
 	case errors.Is(err, services.ErrPaymentNotRenewable):
 		c.JSON(http.StatusConflict, gin.H{"error": "This order is not waiting for a transfer. If it was cancelled because it wasn't paid in time, please place a new order."})
@@ -540,6 +541,89 @@ func (h *OrderHandler) RenewPayment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, renewed)
+}
+
+// refreshPayment asks Paystack about an unpaid online order and answers with
+// the order as it now stands and a message for the customer. Other orders are
+// returned as they are, without calling Paystack.
+func (h *OrderHandler) refreshPayment(c *gin.Context, order *models.Order) {
+	checked := false
+	message := ""
+	if order.PaymentMethod.IsOnline() && order.PaymentStatus == models.PaymentStatusPending &&
+		order.PaymentReference != nil && *order.PaymentReference != "" {
+		result, paid, err := h.paymentService.RecheckOnlinePayment(middleware.RequestContext(c), order.ID)
+		switch {
+		case err != nil:
+			log.Printf("Payment refresh for order #%s: %v", order.OrderNumber, err)
+			message = "We couldn't reach our payment provider. Please try again in a minute."
+		case !paid:
+			checked = true
+			message = "We haven't received your payment yet. If you've just paid, give it a minute and refresh again."
+		case result.Outcome == repository.PaymentNeedsReview:
+			checked = true
+			message = "We received a payment we need to check. We'll be in touch shortly."
+		default:
+			checked = true
+			message = "Payment received. Thank you!"
+			realtime.GlobalBroadcaster.Broadcast("order_updated", gin.H{"id": order.ID, "orderNumber": order.OrderNumber, "paymentStatus": models.PaymentStatusPaid})
+		}
+		if refreshed, err := h.orderService.GetOrderByID(order.ID); err == nil && refreshed != nil {
+			order = refreshed
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"order": order, "checked": checked, "message": message})
+}
+
+// RefreshPaymentStatus checks a guest's online payment with Paystack
+// @Summary Refresh an order's payment status
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param lookup body models.OrderLookupRequest true "Order number and phone"
+// @Router /orders/payment-status [post]
+func (h *OrderHandler) RefreshPaymentStatus(c *gin.Context) {
+	var req models.OrderLookupRequest
+	if err := c.ShouldBindJSON(&req); err != nil || h.validate.Struct(req) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order number and phone are required"})
+		return
+	}
+	order, err := h.orderService.GetOrderByOrderNumber(strings.TrimSpace(req.OrderNumber))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch order"})
+		return
+	}
+	if order == nil || !utils.SamePhone(order.CustomerPhone, req.Phone) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+	h.refreshPayment(c, order)
+}
+
+// RefreshMyPaymentStatus checks the signed-in customer's online payment with
+// Paystack
+// @Summary Refresh my order's payment status
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Order ID"
+// @Router /auth/orders/{id}/payment-status [post]
+func (h *OrderHandler) RefreshMyPaymentStatus(c *gin.Context) {
+	orderID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+	userID, _ := c.Get("user_id")
+	order, err := h.orderService.GetOrderByID(orderID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch order"})
+		return
+	}
+	if order == nil || order.UserID == nil || *order.UserID != userID.(int) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+	h.refreshPayment(c, order)
 }
 
 // GetOrderInvoice returns the invoice of an order for the admin
