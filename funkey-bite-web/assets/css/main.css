@@ -36,6 +36,14 @@
 }
 
 @layer components {
+  /* Form fields on the account pages, matching the checkout and catering forms. */
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2;
+  }
+  .form-input {
+    @apply w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white;
+  }
+
   .btn-primary {
     @apply bg-brand-500 hover:bg-brand-600 text-white font-semibold py-3 px-6 rounded-xl 
            transition-all duration-300 transform hover:scale-105 hover:shadow-lg 
