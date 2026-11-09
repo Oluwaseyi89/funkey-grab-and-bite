@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"log"
 	"strings"
@@ -105,7 +106,8 @@ func TestCreateOrderSucceedsWhenOrderConfirmationNotificationFails(t *testing.T)
 		orderErr:    errors.New("ses failure"),
 		orderCalled: make(chan struct{}, 1),
 	}
-	svc := NewOrderService(orderRepo, menu, stock, notifier)
+	checkout := &fakeCheckoutStore{orderID: 101}
+	svc := NewOrderService(orderRepo, menu, stock, notifier, checkout)
 
 	logs := &lockedBuffer{}
 	originalOutput := log.Writer()
@@ -129,14 +131,6 @@ func TestCreateOrderSucceedsWhenOrderConfirmationNotificationFails(t *testing.T)
 		UnitPrice:  12.5,
 	}}
 
-	mock.ExpectBegin()
-	mock.ExpectQuery("INSERT INTO orders").WillReturnRows(
-		sqlmock.NewRows([]string{"id", "created_at"}).AddRow(101, createdAt),
-	)
-	mock.ExpectQuery("INSERT INTO order_items").WillReturnRows(
-		sqlmock.NewRows([]string{"id"}).AddRow(201),
-	)
-	mock.ExpectCommit()
 	mock.ExpectQuery("SELECT id, order_number, user_id, customer_name, customer_phone").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "order_number", "user_id", "customer_name", "customer_phone",
@@ -158,7 +152,7 @@ func TestCreateOrderSucceedsWhenOrderConfirmationNotificationFails(t *testing.T)
 			"id", "order_id", "menu_item_id", "name", "quantity", "unit_price", "special_instructions",
 		}).AddRow(201, 101, 1, "Burger", 3, 12.5, nil))
 
-	createdOrder, err := svc.CreateOrder(order, items)
+	createdOrder, err := svc.CreateOrder(context.Background(), &models.Checkout{Order: order, Items: items})
 	if err != nil {
 		t.Fatalf("CreateOrder() error = %v", err)
 	}
@@ -167,9 +161,6 @@ func TestCreateOrderSucceedsWhenOrderConfirmationNotificationFails(t *testing.T)
 	}
 	if createdOrder.TotalAmount != 37.5 {
 		t.Fatalf("expected persisted total amount 37.5, got %v", createdOrder.TotalAmount)
-	}
-	if got := stock.stock[1]; got != 2 {
-		t.Fatalf("expected stock deduction to persist despite notification failure, got %d", got)
 	}
 
 	waitForSignal(t, notifier.orderCalled, "order confirmation notification attempt")
