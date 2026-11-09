@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -11,7 +12,9 @@ import (
 )
 
 type OrderService interface {
-	CreateOrder(order *models.Order, items []models.OrderItemRequest) (*models.Order, error)
+	// CreateOrder validates and saves a checkout in one transaction. ctx
+	// carries who placed it and its idempotency key (see middleware.RequestContext).
+	CreateOrder(ctx context.Context, checkout *models.Checkout) (*models.Order, error)
 	GetOrderByID(id int) (*models.Order, error)
 	GetOrdersByUserID(userID int) ([]models.Order, error)
 	UpdateOrderStatus(id int, status string) error
@@ -20,7 +23,6 @@ type OrderService interface {
 	GetOrderByPhoneAndOrderNumber(phone, orderNumber string) (*models.Order, error)
 	CancelOrder(id int, userID int) error
 	MarkPaymentCollected(id int, via string) (*models.Order, error)
-	AssignCustomer(orderID, userID int) error
 }
 
 // ItemUnavailableError reports a menu item that can't be ordered in the
@@ -33,6 +35,9 @@ func (e *ItemUnavailableError) Error() string { return e.Message }
 
 var (
 	ErrOrderNotFound = errors.New("order not found")
+	// ErrPromotionUnavailable is returned when a promotion ran out or ended
+	// between checking it and placing the order.
+	ErrPromotionUnavailable = errors.New("this promotion is no longer available")
 	// ErrPaymentNotCollectable is returned for orders that are not pay on
 	// delivery, or whose payment was already recorded.
 	ErrPaymentNotCollectable = errors.New("only pay-on-delivery orders awaiting payment can be marked as paid")
@@ -43,29 +48,38 @@ type orderService struct {
 	menuRepo            menuItemReader
 	stockService        stockService
 	notificationService NotificationService
+	checkout            checkoutStore
+}
+
+// checkoutStore saves a checkout in a single transaction (see
+// repository.CheckoutRepository).
+type checkoutStore interface {
+	PlaceOrder(ctx context.Context, checkout *models.Checkout) (int, error)
 }
 
 type menuItemReader interface {
 	GetByID(id int) (*models.MenuItem, error)
 }
 
+// stockService gives the customer a clear message before checkout; the
+// stock itself is taken, under a lock, when the order is saved.
 type stockService interface {
 	CheckAvailability(menuItemID, quantity int) (bool, string)
-	DeductStockForOrder(menuItemID, quantity int, orderID int) error
-	RestockItem(menuItemID, quantity int, reason string) error
 }
 
-func NewOrderService(orderRepo repository.IOrderRepository, menuRepo menuItemReader, stockService stockService, notificationService NotificationService) OrderService {
+func NewOrderService(orderRepo repository.IOrderRepository, menuRepo menuItemReader, stockService stockService, notificationService NotificationService, checkout checkoutStore) OrderService {
 	return &orderService{
 		orderRepo:           orderRepo,
 		menuRepo:            menuRepo,
 		stockService:        stockService,
 		notificationService: notificationService,
+		checkout:            checkout,
 	}
 }
 
-func (s *orderService) CreateOrder(order *models.Order, items []models.OrderItemRequest) (*models.Order, error) {
-	for _, item := range items {
+func (s *orderService) CreateOrder(ctx context.Context, checkout *models.Checkout) (*models.Order, error) {
+	names := make(map[int]string, len(checkout.Items))
+	for _, item := range checkout.Items {
 		menuItem, err := s.menuRepo.GetByID(item.MenuItemID)
 		if err != nil {
 			return nil, fmt.Errorf("menu item not found: %d", item.MenuItemID)
@@ -90,74 +104,24 @@ func (s *orderService) CreateOrder(order *models.Order, items []models.OrderItem
 		if ok, message := s.stockService.CheckAvailability(item.MenuItemID, item.Quantity); !ok {
 			return nil, &ItemUnavailableError{Message: item.Name + " " + message}
 		}
+		names[item.MenuItemID] = menuItem.Name
 	}
 
-	tx, err := s.orderRepo.BeginTransaction()
+	orderID, err := s.checkout.PlaceOrder(ctx, checkout)
+	var shortage *repository.InsufficientStockError
+	switch {
+	case errors.As(err, &shortage):
+		// Stock ran out between the check above and saving the order.
+		return nil, &ItemUnavailableError{Message: names[shortage.MenuItemID] + " " + shortageMessage(shortage)}
+	case errors.Is(err, repository.ErrPromotionUnavailable):
+		return nil, ErrPromotionUnavailable
+	case err != nil:
+		return nil, fmt.Errorf("failed to place order: %w", err)
+	}
+
+	createdOrder, err := s.orderRepo.GetOrderWithItems(orderID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	var txErr error
-	defer func() {
-		if txErr != nil {
-			tx.Rollback()
-		}
-	}()
-
-	createdOrder, err := s.orderRepo.CreateOrderWithTransaction(tx, order)
-	if err != nil {
-		txErr = err
-		return nil, fmt.Errorf("failed to create order: %w", err)
-	}
-
-	for _, item := range items {
-		orderItem := models.OrderItem{
-			OrderID:             createdOrder.ID,
-			MenuItemID:          item.MenuItemID,
-			Name:                item.Name,
-			Quantity:            item.Quantity,
-			UnitPrice:           item.UnitPrice,
-			SpecialInstructions: item.SpecialInstructions,
-		}
-		_, err := s.orderRepo.CreateOrderItemWithTransaction(tx, &orderItem)
-		if err != nil {
-			txErr = err
-			return nil, fmt.Errorf("failed to create order item: %w", err)
-		}
-	}
-
-	type stockDeduction struct {
-		menuItemID int
-		quantity   int
-	}
-
-	deductions := make([]stockDeduction, 0, len(items))
-	for _, item := range items {
-		err := s.stockService.DeductStockForOrder(item.MenuItemID, item.Quantity, createdOrder.ID)
-		if err != nil {
-			for _, rollback := range deductions {
-				_ = s.stockService.RestockItem(
-					rollback.menuItemID,
-					rollback.quantity,
-					fmt.Sprintf("rollback failed deduction for order #%d", createdOrder.ID),
-				)
-			}
-			txErr = err
-			return nil, fmt.Errorf("failed to deduct stock for menu item %d: %w", item.MenuItemID, err)
-		}
-
-		deductions = append(deductions, stockDeduction{menuItemID: item.MenuItemID, quantity: item.Quantity})
-	}
-
-	if err := tx.Commit(); err != nil {
-		for _, rollback := range deductions {
-			_ = s.stockService.RestockItem(
-				rollback.menuItemID,
-				rollback.quantity,
-				fmt.Sprintf("rollback order #%d after commit failure", createdOrder.ID),
-			)
-		}
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, err
 	}
 
 	go func() {
@@ -166,7 +130,20 @@ func (s *orderService) CreateOrder(order *models.Order, items []models.OrderItem
 		}
 	}()
 
-	return s.orderRepo.GetOrderWithItems(createdOrder.ID)
+	return createdOrder, nil
+}
+
+// shortageMessage completes a sentence starting with the item's name, in the
+// same words as CheckAvailability.
+func shortageMessage(shortage *repository.InsufficientStockError) string {
+	switch {
+	case shortage.Untracked:
+		return "is not available right now"
+	case shortage.Available <= 0:
+		return "is out of stock"
+	default:
+		return fmt.Sprintf("has only %d left", shortage.Available)
+	}
 }
 
 // MarkPaymentCollected records that the customer paid a pay-on-delivery order.
@@ -190,12 +167,6 @@ func (s *orderService) MarkPaymentCollected(id int, via string) (*models.Order, 
 
 func (s *orderService) GetOrderByID(id int) (*models.Order, error) {
 	return s.orderRepo.GetOrderWithItems(id)
-}
-
-// AssignCustomer links a guest order to its customer record once the order
-// has been placed.
-func (s *orderService) AssignCustomer(orderID, userID int) error {
-	return s.orderRepo.SetOrderCustomer(orderID, userID)
 }
 
 func (s *orderService) GetOrdersByUserID(userID int) ([]models.Order, error) {
