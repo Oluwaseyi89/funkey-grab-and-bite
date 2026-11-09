@@ -20,6 +20,9 @@ export default defineNuxtConfig({
       s3BucketUrl: process.env.NUXT_PUBLIC_S3_URL || 'https://funkey-static-assets.s3.amazonaws.com',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://funkeygrabandbite.com',
       environment: process.env.NODE_ENV || 'development',
+      // Paystack's public key (pk_...) opens its card popup; card payments are
+      // offered only when it is set. Never the secret key.
+      paystackPublicKey: process.env.NUXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
     }
   },
   
