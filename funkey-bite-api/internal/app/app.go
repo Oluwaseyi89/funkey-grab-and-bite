@@ -115,6 +115,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	authHandler := v1.NewAuthHandler(authService, userService)
 	orderHandler := v1.NewOrderHandler(orderService, authService, settingsService, promotionService, paymentService, invoiceService)
 	paymentHandler := v1.NewPaymentHandler(paymentService)
+	adminPaymentsHandler := v1.NewAdminPaymentsHandler(repository.NewAdminPaymentRepository(db), checkoutRepo, paymentService, jobRepo, auditRepo)
 	menuHandler := v1.NewMenuHandler(menuService)
 	cateringHandler := v1.NewCateringHandler(cateringService)
 	cateringContractHandler := v1.NewCateringContractHandler(cateringContractService, cateringHandler)
@@ -161,7 +162,8 @@ func SetupEngine() (*gin.Engine, func()) {
 	}
 
 	startMaintenance(maintenanceCtx, idempotencyRepo, rateLimitRepo, jobRepo)
-	registerJobs(worker, orderService, notificationService, invoiceService, paymentService)
+	registerJobs(worker, orderService, notificationService, invoiceService, paymentService, emailService)
+	cateringContractService.SetEmailQueue(jobEmailQueue{jobs: jobRepo, worker: worker})
 	worker.Start(maintenanceCtx)
 
 	// Middleware
@@ -251,8 +253,26 @@ func SetupEngine() (*gin.Engine, func()) {
 	}
 
 	admin := public.Group("/admin")
-	admin.Use(middleware.AdminAuthMiddleware(adminRepo))
+	admin.Use(
+		middleware.AdminAuthMiddleware(adminRepo),
+		// Writes sent with an Idempotency-Key aren't repeated on retry.
+		middleware.Idempotency(idempotencyRepo, middleware.IdempotencyOptions{}),
+		// Every successful change is recorded. Payment decisions write a
+		// fuller entry in their own transaction.
+		middleware.AuditWrites(auditRepo,
+			"POST /api/v1/admin/orders/:id/payment-review",
+			"POST /api/v1/admin/orders/:id/payment-check",
+		),
+	)
 	{
+		admin.GET("/payments", adminPaymentsHandler.ListPayments)
+		admin.GET("/payments/unmatched", adminPaymentsHandler.ListUnmatchedPayments)
+		admin.POST("/orders/:id/payment-review", adminPaymentsHandler.ResolvePaymentReview)
+		admin.POST("/orders/:id/payment-check", adminPaymentsHandler.RecheckPayment)
+		admin.GET("/jobs", adminPaymentsHandler.ListJobs)
+		admin.POST("/jobs/:id/retry", adminPaymentsHandler.RetryJob)
+		admin.GET("/audit", adminPaymentsHandler.ListAudit)
+
 		admin.GET("/dashboard/stats", adminHandler.GetDashboardStats)
 		admin.GET("/dashboard/stats/today", adminHandler.GetTodayStats)
 		admin.GET("/reports/sales", adminHandler.GetSalesReport)
