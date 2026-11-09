@@ -103,3 +103,54 @@ func nullIfEmpty(value string) any {
 	}
 	return value
 }
+
+// List returns audit entries matching filter, newest first, and how many
+// match.
+func (r *AuditRepository) List(ctx context.Context, filter models.AuditFilter, limit, offset int) ([]models.AuditRecord, int, error) {
+	where := `
+		WHERE ($1 = '' OR entity_type = $1)
+		  AND ($2 = '' OR entity_id = $2)
+		  AND ($3 = '' OR action = $3)
+		  AND ($4 = '' OR actor_type = $4)
+	`
+	args := []any{filter.EntityType, filter.EntityID, filter.Action, filter.ActorType}
+
+	var total int
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_log`+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count audit entries: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, occurred_at, actor_type, actor_id, action, entity_type, entity_id,
+		       request_id, idempotency_key, ip_address, before_state, after_state, metadata
+		FROM audit_log`+where+`
+		ORDER BY occurred_at DESC, id DESC
+		LIMIT $5 OFFSET $6
+	`, append(args, limit, offset)...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list audit entries: %w", err)
+	}
+	defer rows.Close()
+
+	entries := []models.AuditRecord{}
+	for rows.Next() {
+		var e models.AuditRecord
+		var actorID, entityID, requestID, idemKey, ip sql.NullString
+		var before, after, metadata []byte
+		if err := rows.Scan(&e.ID, &e.OccurredAt, &e.ActorType, &actorID, &e.Action, &e.EntityType, &entityID,
+			&requestID, &idemKey, &ip, &before, &after, &metadata); err != nil {
+			return nil, 0, fmt.Errorf("read audit entry: %w", err)
+		}
+		e.ActorID, e.EntityID, e.RequestID = nullableString(actorID), nullableString(entityID), nullableString(requestID)
+		e.IdempotencyKey, e.IPAddress = nullableString(idemKey), nullableString(ip)
+		e.Before, e.After, e.Metadata = before, after, metadata
+		entries = append(entries, e)
+	}
+	return entries, total, rows.Err()
+}
+
+func nullableString(v sql.NullString) *string {
+	if !v.Valid {
+		return nil
+	}
+	return &v.String
+}
