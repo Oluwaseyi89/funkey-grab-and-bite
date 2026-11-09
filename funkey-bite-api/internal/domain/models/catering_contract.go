@@ -132,6 +132,11 @@ type CateringPaymentCharge struct {
 	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`
 	Status        string     `json:"status"`
 	CreatedAt     time.Time  `json:"createdAt"`
+	// Method is CateringPaymentPaystackTransfer or CateringPaymentCard.
+	Method string `json:"method"`
+	// AccessCode opens Paystack's card popup; returned when a card payment
+	// starts and not stored.
+	AccessCode *string `json:"accessCode,omitempty"`
 }
 
 // CateringAccount summarises the money on an accepted booking, always
@@ -174,4 +179,14 @@ type CateringAcceptInput struct {
 type CateringPayOnlineInput struct {
 	CateringCustomerAuth
 	Portion string `json:"portion" validate:"required,oneof=deposit balance"`
+	// Method is "transfer" (the default) or "card".
+	Method string `json:"method" validate:"omitempty,oneof=transfer card"`
+}
+
+// CateringVerifyPaymentInput asks for an online payment to be confirmed with
+// Paystack, e.g. right after the card popup reports success.
+type CateringVerifyPaymentInput struct {
+	CateringCustomerAuth
+	// PaymentReference is the Paystack reference; "reference" is the booking's.
+	PaymentReference string `json:"paymentReference" validate:"required,max=100"`
 }
