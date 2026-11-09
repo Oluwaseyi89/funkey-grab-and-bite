@@ -267,13 +267,13 @@ func (t *CateringContractTx) MarkPaidInFull(requestID int, at time.Time) error {
 func (t *CateringContractTx) InsertCharge(charge *models.CateringPaymentCharge) error {
 	return t.tx.QueryRow(`
 		INSERT INTO catering_payment_charges (
-			request_id, reference, amount, account_number, account_name, bank_name, expires_at
+			request_id, reference, amount, account_number, account_name, bank_name, expires_at, method
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, status, created_at`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE(NULLIF($8, ''), 'paystack_transfer'))
+		RETURNING id, status, created_at, method`,
 		charge.RequestID, charge.Reference, charge.Amount, charge.AccountNumber,
-		charge.AccountName, charge.BankName, charge.ExpiresAt,
-	).Scan(&charge.ID, &charge.Status, &charge.CreatedAt)
+		charge.AccountName, charge.BankName, charge.ExpiresAt, charge.Method,
+	).Scan(&charge.ID, &charge.Status, &charge.CreatedAt, &charge.Method)
 }
 
 // ChargeByReference finds a charge and locks it; nil when there is none.
@@ -433,12 +433,13 @@ func (r *CateringContractRepository) ListHistory(requestID int) ([]models.Cateri
 	return history, rows.Err()
 }
 
-// PendingCharge returns the newest unpaid, unexpired Paystack account for a
+// PendingCharge returns the newest unpaid, unexpired Paystack transfer account for a
 // request, so the customer is shown the same account again.
 func (r *CateringContractRepository) PendingCharge(requestID int, now time.Time) (*models.CateringPaymentCharge, error) {
 	charge, err := scanCharge(r.db.QueryRow(`
 		SELECT `+chargeColumns+` FROM catering_payment_charges
-		WHERE request_id = $1 AND status = 'pending' AND (expires_at IS NULL OR expires_at > $2)
+		WHERE request_id = $1 AND status = 'pending' AND method = 'paystack_transfer'
+		  AND (expires_at IS NULL OR expires_at > $2)
 		ORDER BY created_at DESC LIMIT 1`, requestID, now))
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -447,13 +448,13 @@ func (r *CateringContractRepository) PendingCharge(requestID int, now time.Time)
 }
 
 const chargeColumns = `id, request_id, reference, amount, account_number, account_name,
-	bank_name, expires_at, status, created_at`
+	bank_name, expires_at, status, created_at, method`
 
 func scanCharge(row rowScanner) (*models.CateringPaymentCharge, error) {
 	var c models.CateringPaymentCharge
 	var expires sql.NullTime
 	err := row.Scan(&c.ID, &c.RequestID, &c.Reference, &c.Amount, &c.AccountNumber, &c.AccountName,
-		&c.BankName, &expires, &c.Status, &c.CreatedAt)
+		&c.BankName, &expires, &c.Status, &c.CreatedAt, &c.Method)
 	if err == sql.ErrNoRows {
 		return nil, err
 	}
@@ -464,4 +465,13 @@ func scanCharge(row rowScanner) (*models.CateringPaymentCharge, error) {
 		c.ExpiresAt = &expires.Time
 	}
 	return &c, nil
+}
+
+// ChargeByReference returns the online payment with this reference, or nil.
+func (r *CateringContractRepository) ChargeByReference(reference string) (*models.CateringPaymentCharge, error) {
+	charge, err := scanCharge(r.db.QueryRow(`SELECT `+chargeColumns+` FROM catering_payment_charges WHERE reference = $1`, reference))
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return charge, err
 }
