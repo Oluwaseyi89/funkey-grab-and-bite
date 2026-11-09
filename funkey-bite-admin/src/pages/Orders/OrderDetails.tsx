@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { useIdempotencyKey } from '../../hooks/useIdempotencyKey';
 import { getOrder, getOrderInvoice, markOrderPaymentCollected, updateOrderStatus } from '../../api/adminApi';
 import InvoiceDocument from '../../components/orders/InvoiceDocument';
 import type { Order, OrderStatus, PaymentCollectedVia } from '../../types';
@@ -34,6 +35,7 @@ const OrderDetails: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [collectedVia, setCollectedVia] = useState<PaymentCollectedVia>('cash');
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+  const paymentKey = useIdempotencyKey();
 
   const { data: order, isLoading, refetch } = useQuery({
     queryKey: ['order', id],
@@ -61,7 +63,10 @@ const OrderDetails: React.FC = () => {
     if (!order) return;
     setIsRecordingPayment(true);
     try {
-      await markOrderPaymentCollected(order.id, collectedVia);
+      // Pressing again after a failure resends the same key, so the payment
+      // is recorded once even if the first attempt did reach the server.
+      await markOrderPaymentCollected(order.id, collectedVia, paymentKey.current());
+      paymentKey.reset();
       toast.success('Payment recorded');
       refetch();
     } catch (error: any) {
@@ -146,6 +151,14 @@ const OrderDetails: React.FC = () => {
         return { badge: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200', text: 'Paid' };
       case 'failed':
         return { badge: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', text: 'Failed' };
+      case 'expired':
+        return { badge: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', text: 'Not paid in time' };
+      case 'needs_review':
+        return { badge: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', text: 'Needs review' };
+      case 'refund_due':
+        return { badge: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', text: 'Refund due' };
+      case 'refunded':
+        return { badge: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', text: 'Refunded' };
       default:
         return { badge: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', text: status };
     }
