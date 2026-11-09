@@ -125,13 +125,11 @@ func TestCreateOrderPayOnDeliveryRaisesInvoice(t *testing.T) {
 		t.Fatalf("expected amount breakdown stored, got %v/%v/%v/%v", *order.SubtotalAmount, *order.DeliveryFee, *order.TaxAmount, *order.DiscountAmount)
 	}
 
+	// The invoice email is queued with the order and sent by the job worker.
 	select {
-	case sent := <-invoices.sent:
-		if sent.InvoiceNumber == nil {
-			t.Fatal("expected the invoiced order to be emailed")
-		}
-	case <-time.After(time.Second):
-		t.Fatal("expected the invoice to be sent")
+	case <-invoices.sent:
+		t.Fatal("checkout must not send the invoice itself; the job worker does")
+	case <-time.After(50 * time.Millisecond):
 	}
 }
 
