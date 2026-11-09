@@ -27,7 +27,18 @@ type fakePaymentService struct {
 	webhookCalled     bool
 	capturedBody      []byte
 	capturedSignature string
+
+	renewResult *models.Order
+	renewErr    error
+	renewed     *models.Order
 }
+
+func (f *fakePaymentService) RenewTransferPayment(order *models.Order) (*models.Order, error) {
+	f.renewed = order
+	return f.renewResult, f.renewErr
+}
+
+func (f *fakePaymentService) CheckTransferPayment(ctx context.Context, orderID int) error { return nil }
 
 func (f *fakePaymentService) SetCateringHandler(services.CateringPaymentHandler) {}
 
@@ -758,5 +769,54 @@ func TestTrackingRateLimitMiddlewareThrottlesAfterConfiguredLimit(t *testing.T) 
 	}
 	if throttled != 1 {
 		t.Fatalf("expected exactly one throttled request, got %d", throttled)
+	}
+}
+
+func runRenewPayment(t *testing.T, h *OrderHandler, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/orders/payment-details", h.RenewPayment)
+	req := httptest.NewRequest(http.MethodPost, "/orders/payment-details", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestRenewPaymentReturnsNewDetailsForTheCustomersOrder(t *testing.T) {
+	account := "9876543210"
+	existing := &models.Order{ID: 7, OrderNumber: "FG-7", CustomerPhone: "+2348031112222"}
+	payments := &fakePaymentService{renewResult: &models.Order{ID: 7, OrderNumber: "FG-7", PaymentAccountNumber: &account}}
+	handler := NewOrderHandler(&fakeOrderService{byNumber: existing}, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, payments, &fakeInvoiceService{})
+
+	rec := runRenewPayment(t, handler, `{"orderNumber":"FG-7","phone":"0803 111 2222"}`)
+
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), account) || payments.renewed != existing {
+		t.Fatalf("expected the renewed details for FG-7, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRenewPaymentHidesOrdersOfOtherPhones(t *testing.T) {
+	existing := &models.Order{ID: 7, OrderNumber: "FG-7", CustomerPhone: "+2348031112222"}
+	payments := &fakePaymentService{}
+	handler := NewOrderHandler(&fakeOrderService{byNumber: existing}, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, payments, &fakeInvoiceService{})
+
+	rec := runRenewPayment(t, handler, `{"orderNumber":"FG-7","phone":"08099999999"}`)
+
+	if rec.Code != http.StatusNotFound || payments.renewed != nil {
+		t.Fatalf("a wrong phone must look like an unknown order, got %d", rec.Code)
+	}
+}
+
+func TestRenewPaymentExplainsOrdersNoLongerAwaitingTransfer(t *testing.T) {
+	existing := &models.Order{ID: 7, OrderNumber: "FG-7", CustomerPhone: "08031112222"}
+	payments := &fakePaymentService{renewErr: services.ErrPaymentNotRenewable}
+	handler := NewOrderHandler(&fakeOrderService{byNumber: existing}, &fakeAuthService{}, acceptingSettings(), &fakePromotionService{}, payments, &fakeInvoiceService{})
+
+	rec := runRenewPayment(t, handler, `{"orderNumber":"FG-7","phone":"08031112222"}`)
+
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "place a new order") {
+		t.Fatalf("expected 409 explaining what to do, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
