@@ -1,9 +1,20 @@
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled'
 export type OrderType = 'pickup' | 'delivery' | 'catering'
-// 'cash' is pay on delivery (or at pickup); 'transfer' is online payment.
-export type PaymentMethod = 'cash' | 'transfer'
+// 'cash' is pay on delivery (or at pickup); 'transfer' and 'card' are paid
+// online through Paystack.
+export type PaymentMethod = 'cash' | 'transfer' | 'card'
 export type PaymentCollectedVia = 'cash' | 'pos' | 'transfer'
-export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'failed'
+// expired: an online payment not made in time (the order was cancelled).
+// needs_review / refund_due / refunded: a payment we're checking or returning.
+export type PaymentStatus =
+  | 'not_required'
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'expired'
+  | 'needs_review'
+  | 'refund_due'
+  | 'refunded'
 
 export interface Order {
   id: string
@@ -26,6 +37,8 @@ export interface Order {
   paymentAccountName?: string
   paymentBankName?: string
   paymentExpiresAt?: string
+  // Opens Paystack's card popup; only present just after a card payment starts.
+  paymentAccessCode?: string
   paymentPaidAt?: string
   paymentCollectedVia?: PaymentCollectedVia
   deliveryAddress?: string
