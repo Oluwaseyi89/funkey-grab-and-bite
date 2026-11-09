@@ -14,7 +14,6 @@ type AuthService interface {
 	Login(phone, password string) (*models.AuthResponse, error)
 	CheckUserExists(phone, email string) (*models.User, bool, error)
 	FindOrderCustomer(phone string) (*models.User, error)
-	ResolveOrderCustomer(name, phone string, email *string) (*models.User, error)
 }
 
 type authService struct {
@@ -111,38 +110,6 @@ func (s *authService) CheckUserExists(phone, email string) (*models.User, bool, 
 // or nil when there is none. It never creates one.
 func (s *authService) FindOrderCustomer(phone string) (*models.User, error) {
 	return s.userRepo.FindByPhone(phone)
-}
-
-// ResolveOrderCustomer returns the customer record for a guest checkout,
-// matched by phone number. A first-time customer gets a record without a
-// password, so the admin sees every customer and their order history; they can
-// register later with the same phone to set one.
-func (s *authService) ResolveOrderCustomer(name, phone string, email *string) (*models.User, error) {
-	existing, err := s.userRepo.FindByPhone(phone)
-	if err != nil {
-		return nil, err
-	}
-	if existing != nil {
-		return existing, nil
-	}
-
-	now := time.Now()
-	user := &models.User{
-		Phone:     phone,
-		Email:     email,
-		FullName:  name,
-		IsActive:  true,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-
-	created, err := s.userRepo.Create(user)
-	if err != nil && email != nil {
-		// The email may already belong to another customer; link by phone alone.
-		user.Email = nil
-		created, err = s.userRepo.Create(user)
-	}
-	return created, err
 }
 
 // claimGuestAccount turns a guest customer record into a full account.
