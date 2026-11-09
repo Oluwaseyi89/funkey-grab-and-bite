@@ -11,6 +11,7 @@ import (
 	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 	"funkey-grab-and-bite/funkey-bite-api/internal/handlers/middleware"
 	v1 "funkey-grab-and-bite/funkey-bite-api/internal/handlers/v1"
+	"funkey-grab-and-bite/funkey-bite-api/internal/jobs"
 	"funkey-grab-and-bite/funkey-bite-api/internal/repository"
 	"funkey-grab-and-bite/funkey-bite-api/internal/services"
 	"funkey-grab-and-bite/funkey-bite-api/internal/storage"
@@ -39,8 +40,12 @@ func SetupEngine() (*gin.Engine, func()) {
 	// Initialize database
 	db := database.InitializeDatabase()
 	maintenanceCtx, stopMaintenance := context.WithCancel(context.Background())
+	var worker *jobs.Worker
 	cleanup := func() {
 		stopMaintenance()
+		if worker != nil {
+			worker.Wait()
+		}
 		database.CloseDatabase(db)
 	}
 
@@ -74,7 +79,9 @@ func SetupEngine() (*gin.Engine, func()) {
 	idempotencyRepo := repository.NewIdempotencyRepository(db)
 	rateLimitRepo := repository.NewRateLimitRepository(db)
 	auditRepo := repository.NewAuditRepository(db)
-	checkoutRepo := repository.NewCheckoutRepository(db, orderRepo, userRepo, inventoryRepo, promotionRepo, auditRepo, idempotencyRepo)
+	jobRepo := repository.NewJobRepository(db)
+	worker = jobs.NewWorker(jobRepo)
+	checkoutRepo := repository.NewCheckoutRepository(db, orderRepo, userRepo, inventoryRepo, promotionRepo, auditRepo, idempotencyRepo, jobRepo)
 
 	emailService := utils.NewEmailService()
 	smsService := utils.NewSMSService()
@@ -99,7 +106,7 @@ func SetupEngine() (*gin.Engine, func()) {
 	adminService := services.NewAdminService(adminRepo, *orderRepo, *userRepo, *cateringRepo, *menuRepo, imageStorage)
 	settingsService := services.NewSettingsService(*settingsRepo)
 	promotionService := services.NewPromotionService(promotionRepo)
-	paymentService := services.NewPaymentService(paymentGateway, orderRepo, notificationService)
+	paymentService := services.NewPaymentService(paymentGateway, orderRepo, notificationService, checkoutRepo)
 	invoiceService := services.NewInvoiceService(settingsService, emailService)
 	teamService := services.NewTeamService(teamRepo, imageStorage)
 	cateringContractService := services.NewCateringContractService(cateringRepo, cateringContractRepo, settingsService, emailService, paymentGateway)
@@ -153,7 +160,9 @@ func SetupEngine() (*gin.Engine, func()) {
 		r.TrustedPlatform = header
 	}
 
-	startMaintenance(maintenanceCtx, idempotencyRepo, rateLimitRepo)
+	startMaintenance(maintenanceCtx, idempotencyRepo, rateLimitRepo, jobRepo)
+	registerJobs(worker, orderService, notificationService, invoiceService, paymentService)
+	worker.Start(maintenanceCtx)
 
 	// Middleware
 	r.Use(middleware.CORSMiddleware())
@@ -226,6 +235,7 @@ func SetupEngine() (*gin.Engine, func()) {
 			middleware.OrderRateLimitMiddleware(rateLimitRepo), limitOrdersByPhone, orderHandler.CreateOrder)
 		orderGroup.GET("/track/:orderNumber", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.TrackOrder)
 		orderGroup.POST("/lookup", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.LookupOrder)
+		orderGroup.POST("/payment-details", middleware.TrackingRateLimitMiddleware(), limitLookupsByPhone, orderHandler.RenewPayment)
 		orderGroup.PATCH("/:id/cancel", limitOrdersByPhone, orderHandler.CancelOrder)
 	}
 
