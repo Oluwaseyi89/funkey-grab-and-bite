@@ -49,6 +49,7 @@ func newCheckoutFixture(t *testing.T, stock, promotionLimit int) *checkoutFixtur
 		db.Exec(`DELETE FROM order_items WHERE menu_item_id = $1`, f.menuItemID)
 		db.Exec(`DELETE FROM audit_log WHERE entity_type = 'order' AND entity_id IN (SELECT id::text FROM orders WHERE order_number LIKE $1)`, "CHK-"+f.tag+"%")
 		db.Exec(`DELETE FROM jobs WHERE payload->>'orderId' IN (SELECT id::text FROM orders WHERE order_number LIKE $1)`, "CHK-"+f.tag+"%")
+		db.Exec(`DELETE FROM payment_events WHERE reference LIKE $1`, "PSK-CHK-"+f.tag+"%")
 		db.Exec(`DELETE FROM orders WHERE order_number LIKE $1`, "CHK-"+f.tag+"%")
 		db.Exec(`DELETE FROM users WHERE full_name LIKE $1`, "Checkout guest "+f.tag+"%")
 		db.Exec(`DELETE FROM inventory_alerts WHERE inventory_item_id IN (SELECT id FROM inventory_items WHERE menu_item_id = $1)`, f.menuItemID)
@@ -318,5 +319,136 @@ func TestCancelUnpaidOrderReturnsStockOnce(t *testing.T) {
 	_, _ = f.db.Exec(`UPDATE orders SET payment_status = 'paid' WHERE id = $1`, paidID)
 	if c, err := f.repo.CancelUnpaidOrder(context.Background(), paidID); err != nil || c {
 		t.Fatalf("a paid order must not be cancelled, got %v %v", c, err)
+	}
+}
+
+// placeTransfer places an online transfer order and gives it the payment
+// reference ref, as checkout does after asking Paystack for an account.
+func (f *checkoutFixture) placeTransfer(t *testing.T, n int, ref string) int {
+	t.Helper()
+	checkout := f.checkout(n, 1, fmt.Sprintf("0800%s%d", f.tag[len(f.tag)-6:], n), nil, false)
+	checkout.Order.PaymentMethod = models.PaymentMethodTransfer
+	orderID, err := f.repo.PlaceOrder(context.Background(), checkout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.repo.orders.SetOrderPaymentInitiated(orderID, ref, "0123456789", "Test", "Bank", nil); err != nil {
+		t.Fatal(err)
+	}
+	return orderID
+}
+
+func (f *checkoutFixture) ref(n int) string { return fmt.Sprintf("PSK-CHK-%s-%d", f.tag, n) }
+
+func (f *checkoutFixture) apply(t *testing.T, event, ref string, kobo int64) PaymentResult {
+	t.Helper()
+	result, err := f.repo.ApplyTransferPayment(context.Background(), TransferPayment{Event: event, Reference: ref, AmountKobo: kobo, Currency: "NGN"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+func TestApplyTransferPaymentMarksPaidOnce(t *testing.T) {
+	f := newCheckoutFixture(t, 5, 10)
+	orderID := f.placeTransfer(t, 1, f.ref(1))
+
+	if r := f.apply(t, "charge.success", f.ref(1), 100000); r.Outcome != PaymentApplied || r.OrderID != orderID || r.Status != "confirmed" {
+		t.Fatalf("expected the payment applied and the order confirmed, got %+v", r)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM orders WHERE id = $1 AND payment_status = 'paid' AND status = 'confirmed' AND payment_received_kobo = 100000 AND payment_paid_at IS NOT NULL`, orderID); n != 1 {
+		t.Fatal("expected the order paid and confirmed")
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM jobs WHERE kind IN ('order.paid_email', 'order.paid_sms') AND payload->>'orderId' = $1`, fmt.Sprint(orderID)); n != 2 {
+		t.Fatalf("expected the email and SMS queued, got %d", n)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM audit_log WHERE action = 'order.payment_received' AND entity_id = $1`, fmt.Sprint(orderID)); n != 1 {
+		t.Fatal("expected an audit entry for the payment")
+	}
+
+	// Paystack delivering the same event again changes nothing.
+	if r := f.apply(t, "charge.success", f.ref(1), 100000); r.Outcome != PaymentDuplicateEvent {
+		t.Fatalf("expected the repeat delivery recognised, got %+v", r)
+	}
+	// The payment check finding the same payment changes nothing either.
+	if r := f.apply(t, "transaction.verify", f.ref(1), 100000); r.Outcome != PaymentAlreadyApplied {
+		t.Fatalf("expected the verified payment recognised as already applied, got %+v", r)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM jobs WHERE kind = 'order.paid_email' AND payload->>'orderId' = $1`, fmt.Sprint(orderID)); n != 1 {
+		t.Fatalf("expected one payment email in all, got %d", n)
+	}
+}
+
+func TestApplyTransferPaymentMatchesAnEarlierReference(t *testing.T) {
+	f := newCheckoutFixture(t, 5, 10)
+	orderID := f.placeTransfer(t, 1, f.ref(1))
+	// The customer got new details, then paid into the first account anyway.
+	if err := f.repo.orders.SetOrderPaymentInitiated(orderID, f.ref(2), "9876543210", "Test", "Bank", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if r := f.apply(t, "charge.success", f.ref(1), 100000); r.Outcome != PaymentApplied || r.OrderID != orderID {
+		t.Fatalf("expected a payment into the earlier account to pay the order, got %+v", r)
+	}
+}
+
+func TestApplyTransferPaymentSendsProblemsForReview(t *testing.T) {
+	f := newCheckoutFixture(t, 5, 10)
+
+	short := f.placeTransfer(t, 1, f.ref(1))
+	if r := f.apply(t, "charge.success", f.ref(1), 50000); r.Outcome != PaymentNeedsReview || r.Reason != ReviewAmountMismatch {
+		t.Fatalf("expected the wrong amount sent for review, got %+v", r)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM orders WHERE id = $1 AND payment_status = 'needs_review' AND payment_review_reason = 'amount_mismatch' AND payment_received_kobo = 50000 AND status = 'pending'`, short); n != 1 {
+		t.Fatal("expected the order waiting for review with what was received")
+	}
+
+	late := f.placeTransfer(t, 2, f.ref(2))
+	if cancelled, err := f.repo.CancelUnpaidOrder(context.Background(), late); err != nil || !cancelled {
+		t.Fatalf("cancel: %v %v", cancelled, err)
+	}
+	if r := f.apply(t, "charge.success", f.ref(2), 100000); r.Outcome != PaymentNeedsReview || r.Reason != ReviewPaidAfterCancellation {
+		t.Fatalf("expected a payment after cancellation sent for review, got %+v", r)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM orders WHERE id = $1 AND status = 'cancelled' AND payment_status = 'needs_review'`, late); n != 1 {
+		t.Fatal("expected the cancelled order kept cancelled, waiting for review")
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM jobs WHERE kind = 'order.paid_email' AND payload->>'orderId' IN ($1, $2)`, fmt.Sprint(short), fmt.Sprint(late)); n != 0 {
+		t.Fatal("no payment confirmation may be sent for a payment under review")
+	}
+
+	if r := f.apply(t, "charge.success", f.ref(99), 100000); r.Outcome != PaymentUnmatched {
+		t.Fatalf("expected an unknown reference recorded as unmatched, got %+v", r)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM payment_events WHERE reference = $1 AND outcome = 'unmatched'`, f.ref(99)); n != 1 {
+		t.Fatal("expected the unmatched payment kept for review")
+	}
+}
+
+func TestPaymentAndCancellationNeverBothWin(t *testing.T) {
+	f := newCheckoutFixture(t, 50, 10)
+	for i := 1; i <= 8; i++ {
+		orderID := f.placeTransfer(t, i, f.ref(i))
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_, _ = f.repo.CancelUnpaidOrder(context.Background(), orderID)
+		}()
+		go func() {
+			defer wg.Done()
+			_, _ = f.repo.ApplyTransferPayment(context.Background(), TransferPayment{Event: "charge.success", Reference: f.ref(i), AmountKobo: 100000, Currency: "NGN"})
+		}()
+		wg.Wait()
+
+		var status, paymentStatus string
+		if err := f.db.QueryRow(`SELECT status, payment_status FROM orders WHERE id = $1`, orderID).Scan(&status, &paymentStatus); err != nil {
+			t.Fatal(err)
+		}
+		paidAndOpen := status == "confirmed" && paymentStatus == "paid"
+		cancelledForReview := status == "cancelled" && paymentStatus == "needs_review"
+		if !paidAndOpen && !cancelledForReview {
+			t.Fatalf("order %d ended %s/%s; expected paid and confirmed, or cancelled and waiting for review", i, status, paymentStatus)
+		}
 	}
 }
