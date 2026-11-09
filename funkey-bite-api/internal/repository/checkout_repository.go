@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"funkey-grab-and-bite/funkey-bite-api/internal/database"
@@ -15,7 +17,7 @@ import (
 )
 
 // CheckoutRepository saves an order and everything it changes in a single
-// transaction.
+// transaction, and later changes to its payment the same way.
 type CheckoutRepository struct {
 	db          *sql.DB
 	orders      *OrderRepository
@@ -235,4 +237,170 @@ func (r *CheckoutRepository) CancelUnpaidOrder(ctx context.Context, orderID int)
 		return nil
 	})
 	return cancelled, err
+}
+
+// TransferPayment is a confirmed online transfer, from a Paystack webhook or
+// from verifying the payment with Paystack.
+type TransferPayment struct {
+	// Event is the webhook event, e.g. "charge.success", or
+	// "transaction.verify" for a payment found by verifying it.
+	Event      string
+	Reference  string
+	AmountKobo int64
+	Currency   string
+}
+
+// PaymentOutcome is what a confirmed transfer did.
+type PaymentOutcome string
+
+const (
+	PaymentApplied        PaymentOutcome = "applied"
+	PaymentAlreadyApplied PaymentOutcome = "already_paid"
+	PaymentNeedsReview    PaymentOutcome = "needs_review"
+	PaymentUnmatched      PaymentOutcome = "unmatched"
+	PaymentDuplicateEvent PaymentOutcome = "duplicate_event"
+)
+
+// Reasons a payment waits for the admin.
+const (
+	ReviewAmountMismatch        = "amount_mismatch"
+	ReviewPaidAfterCancellation = "paid_after_cancellation"
+)
+
+// PaymentResult describes what ApplyTransferPayment did.
+type PaymentResult struct {
+	Outcome     PaymentOutcome
+	OrderID     int
+	OrderNumber string
+	Status      string
+	Reason      string
+}
+
+// ApplyTransferPayment records a confirmed transfer against its order in one
+// transaction, with the order row locked so it can't race the payment check
+// cancelling it. The event is recorded first, so a repeat delivery of the
+// same event is recognised and does nothing. The order is found by any
+// reference it was ever given. A payment of the expected amount marks the
+// order paid and confirmed and queues the payment-confirmed messages; the
+// wrong amount or currency, or a payment for an order already cancelled,
+// waits for the admin as needs_review instead.
+func (r *CheckoutRepository) ApplyTransferPayment(ctx context.Context, payment TransferPayment) (PaymentResult, error) {
+	var result PaymentResult
+	err := database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		result = PaymentResult{}
+
+		var eventID int64
+		err := tx.QueryRowContext(ctx, `
+			INSERT INTO payment_events (event, reference, amount_kobo, currency, outcome)
+			VALUES ($1, $2, $3, $4, 'processing')
+			ON CONFLICT (provider, event, reference) DO NOTHING
+			RETURNING id
+		`, payment.Event, payment.Reference, payment.AmountKobo, payment.Currency).Scan(&eventID)
+		if errors.Is(err, sql.ErrNoRows) {
+			result.Outcome = PaymentDuplicateEvent
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("record payment event: %w", err)
+		}
+
+		var orderID int
+		err = tx.QueryRowContext(ctx, `SELECT order_id FROM payment_references WHERE reference = $1`, payment.Reference).Scan(&orderID)
+		if errors.Is(err, sql.ErrNoRows) {
+			result.Outcome = PaymentUnmatched
+			return r.finishPaymentEvent(ctx, tx, eventID, result)
+		}
+		if err != nil {
+			return fmt.Errorf("find order for payment: %w", err)
+		}
+
+		var orderNumber, status, paymentStatus string
+		var total float64
+		if err := tx.QueryRowContext(ctx, `
+			SELECT order_number, status, payment_status, total_amount FROM orders WHERE id = $1 FOR UPDATE
+		`, orderID).Scan(&orderNumber, &status, &paymentStatus, &total); err != nil {
+			return fmt.Errorf("lock order %d: %w", orderID, err)
+		}
+		result.OrderID, result.OrderNumber, result.Status = orderID, orderNumber, status
+
+		expectedKobo := int64(math.Round(total * 100))
+		switch {
+		case paymentStatus == string(models.PaymentStatusPaid):
+			result.Outcome = PaymentAlreadyApplied
+		case paymentStatus == string(models.PaymentStatusNeedsReview):
+			// Already waiting for the admin, who will see this event too.
+			result.Outcome = PaymentNeedsReview
+		case payment.AmountKobo != expectedKobo || !strings.EqualFold(payment.Currency, "NGN"):
+			result.Outcome, result.Reason = PaymentNeedsReview, ReviewAmountMismatch
+		case status == string(models.OrderStatusCancelled):
+			result.Outcome, result.Reason = PaymentNeedsReview, ReviewPaidAfterCancellation
+		default:
+			result.Outcome = PaymentApplied
+		}
+
+		before := map[string]any{"status": status, "paymentStatus": paymentStatus}
+		metadata := map[string]any{"reference": payment.Reference, "event": payment.Event,
+			"amountKobo": payment.AmountKobo, "expectedKobo": expectedKobo, "currency": payment.Currency}
+		entityID := strconv.Itoa(orderID)
+
+		switch {
+		case result.Outcome == PaymentNeedsReview && result.Reason != "":
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE orders
+				SET payment_status = $2, payment_review_reason = $3, payment_received_kobo = $4, updated_at = NOW()
+				WHERE id = $1
+			`, orderID, models.PaymentStatusNeedsReview, result.Reason, payment.AmountKobo); err != nil {
+				return fmt.Errorf("flag order %d payment for review: %w", orderID, err)
+			}
+			if err := r.audit.Record(ctx, tx, models.AuditEntry{
+				Action: "order.payment_needs_review", EntityType: "order", EntityID: entityID,
+				Before: before, After: map[string]any{"status": status, "paymentStatus": models.PaymentStatusNeedsReview, "reason": result.Reason},
+				Metadata: metadata,
+			}); err != nil {
+				return err
+			}
+
+		case result.Outcome == PaymentApplied:
+			newStatus := status
+			if status == string(models.OrderStatusPending) {
+				newStatus = string(models.OrderStatusConfirmed)
+			}
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE orders
+				SET payment_status = $2, payment_paid_at = $3, payment_received_kobo = $4, status = $5, updated_at = NOW()
+				WHERE id = $1
+			`, orderID, models.PaymentStatusPaid, time.Now(), payment.AmountKobo, newStatus); err != nil {
+				return fmt.Errorf("mark order %d paid: %w", orderID, err)
+			}
+			result.Status = newStatus
+			if err := r.audit.Record(ctx, tx, models.AuditEntry{
+				Action: "order.payment_received", EntityType: "order", EntityID: entityID,
+				Before: before, After: map[string]any{"status": newStatus, "paymentStatus": models.PaymentStatusPaid},
+				Metadata: metadata,
+			}); err != nil {
+				return err
+			}
+			jobPayload := models.OrderJobPayload{OrderID: orderID}
+			for _, kind := range []string{jobs.KindOrderPaidEmail, jobs.KindOrderPaidSMS} {
+				if err := r.jobs.Enqueue(ctx, tx, models.NewJob{Kind: kind, Payload: jobPayload, DedupeKey: kind + ":" + entityID}); err != nil {
+					return err
+				}
+			}
+		}
+
+		return r.finishPaymentEvent(ctx, tx, eventID, result)
+	})
+	return result, err
+}
+
+func (r *CheckoutRepository) finishPaymentEvent(ctx context.Context, tx *sql.Tx, eventID int64, result PaymentResult) error {
+	var orderID any
+	if result.OrderID != 0 {
+		orderID = result.OrderID
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE payment_events SET outcome = $2, order_id = $3 WHERE id = $1`,
+		eventID, string(result.Outcome), orderID); err != nil {
+		return fmt.Errorf("record payment event outcome: %w", err)
+	}
+	return nil
 }
