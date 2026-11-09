@@ -127,6 +127,9 @@ export interface CateringPaymentCharge {
   bankName?: string
   expiresAt?: string
   status: 'pending' | 'paid'
+  method?: 'paystack_transfer' | 'card'
+  // Opens Paystack's card popup; only present just after a card payment starts.
+  accessCode?: string
 }
 
 // The customer's view of their request, quote and payments.
