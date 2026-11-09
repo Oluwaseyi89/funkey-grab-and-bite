@@ -43,6 +43,22 @@ func registerJobs(worker *jobs.Worker, orders services.OrderService, notificatio
 		return invoices.SendInvoice(order)
 	})
 
+	// The payment-confirmed messages, queued when a transfer is recorded.
+	worker.Register(jobs.KindOrderPaidEmail, func(ctx context.Context, payload json.RawMessage) error {
+		orderID, err := jobs.Order(payload)
+		if err != nil {
+			return err
+		}
+		return notifications.SendOrderStatusEmail(orderID, string(models.OrderStatusConfirmed))
+	})
+	worker.Register(jobs.KindOrderPaidSMS, func(ctx context.Context, payload json.RawMessage) error {
+		orderID, err := jobs.Order(payload)
+		if err != nil {
+			return err
+		}
+		return notifications.SendOrderStatusSMS(orderID, string(models.OrderStatusConfirmed))
+	})
+
 	worker.Register(jobs.KindOrderPaymentCheck, func(ctx context.Context, payload json.RawMessage) error {
 		orderID, err := jobs.Order(payload)
 		if err != nil {
