@@ -21,6 +21,10 @@ const (
 	KindOrderConfirmation = "order.confirmation"
 	KindOrderInvoice      = "order.invoice"
 	KindOrderPaymentCheck = "order.payment_check"
+	// The payment-confirmed message, one job per channel so a failed email
+	// is retried without sending the SMS again.
+	KindOrderPaidEmail = "order.paid_email"
+	KindOrderPaidSMS   = "order.paid_sms"
 )
 
 // Store is where jobs are kept.
@@ -58,7 +62,10 @@ func RunAgainAt(t time.Time) error { return runAgainError{t} }
 const (
 	defaultPollInterval = 3 * time.Second
 	defaultBatchSize    = 10
-	jobTimeout          = time.Minute
+	// A slow provider (e.g. an email service retrying) shouldn't hold up the
+	// rest of a batch, so up to this many jobs run at once.
+	maxConcurrentJobs = 4
+	jobTimeout        = time.Minute
 	// The lease outlasts the job timeout, so a job is only reclaimed when its
 	// worker stopped.
 	jobLease = 2 * jobTimeout
@@ -134,9 +141,18 @@ func (w *Worker) RunDue(ctx context.Context) int {
 		}
 		return 0
 	}
+	slots := make(chan struct{}, maxConcurrentJobs)
+	var batch sync.WaitGroup
 	for _, job := range claimed {
-		w.run(ctx, job)
+		slots <- struct{}{}
+		batch.Add(1)
+		go func() {
+			defer batch.Done()
+			defer func() { <-slots }()
+			w.run(ctx, job)
+		}()
 	}
+	batch.Wait()
 	return len(claimed)
 }
 
