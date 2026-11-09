@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 // fakeStore records what the worker decided for each job.
 type fakeStore struct {
+	mu          sync.Mutex
 	queue       []models.Job
 	succeeded   []int64
 	retried     map[int64]time.Time
@@ -31,18 +33,26 @@ func (s *fakeStore) Claim(ctx context.Context, limit int, lease time.Duration) (
 	return claimed, nil
 }
 func (s *fakeStore) Succeed(ctx context.Context, id int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.succeeded = append(s.succeeded, id)
 	return nil
 }
 func (s *fakeStore) Retry(ctx context.Context, id int64, runAt time.Time, reason string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.retried[id], s.reasons[id] = runAt, reason
 	return nil
 }
 func (s *fakeStore) Reschedule(ctx context.Context, id int64, runAt time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.rescheduled[id] = runAt
 	return nil
 }
 func (s *fakeStore) Kill(ctx context.Context, id int64, reason string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.killed[id] = reason
 	return nil
 }
@@ -137,5 +147,23 @@ func TestWorkerStopsWhenContextIsCancelled(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("the worker must stop when its context is cancelled")
+	}
+}
+
+func TestWorkerRunsSlowJobsSideBySide(t *testing.T) {
+	store := newFakeStore(job(1, "slow", 1), job(2, "slow", 1), job(3, "slow", 1), job(4, "slow", 1))
+	worker := NewWorker(store)
+	worker.Register("slow", func(ctx context.Context, payload json.RawMessage) error {
+		time.Sleep(200 * time.Millisecond)
+		return nil
+	})
+
+	start := time.Now()
+	worker.RunDue(context.Background())
+	if elapsed := time.Since(start); elapsed > 600*time.Millisecond {
+		t.Fatalf("4 slow jobs took %v; they must not run one after another", elapsed)
+	}
+	if len(store.succeeded) != 4 {
+		t.Fatalf("expected all 4 to succeed, got %d", len(store.succeeded))
 	}
 }
