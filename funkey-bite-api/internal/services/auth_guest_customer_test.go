@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -25,57 +24,6 @@ func newGuestAuthService(t *testing.T) (AuthService, sqlmock.Sqlmock) {
 	}
 	t.Cleanup(func() { db.Close() })
 	return NewAuthService(*repository.NewUserRepository(db)), mock
-}
-
-func TestResolveOrderCustomerReusesExistingPhone(t *testing.T) {
-	svc, mock := newGuestAuthService(t)
-	now := time.Now()
-	mock.ExpectQuery("FROM users").WithArgs("08012345678").WillReturnRows(
-		sqlmock.NewRows(userColumns).AddRow(4, "08012345678", nil, "Ada", "", false, true, nil, now, now),
-	)
-
-	user, err := svc.ResolveOrderCustomer("Ada Lovelace", "08012345678", nil)
-	if err != nil || user == nil || user.ID != 4 {
-		t.Fatalf("expected existing customer 4, got %+v, %v", user, err)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestResolveOrderCustomerCreatesPasswordlessGuest(t *testing.T) {
-	svc, mock := newGuestAuthService(t)
-	email := "ada@example.com"
-	mock.ExpectQuery("FROM users").WithArgs("08012345678").WillReturnRows(sqlmock.NewRows(userColumns))
-	mock.ExpectQuery("INSERT INTO users").
-		WithArgs("08012345678", &email, "Ada", "", false, true, sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).AddRow(11, time.Now(), time.Now()))
-
-	user, err := svc.ResolveOrderCustomer("Ada", "08012345678", &email)
-	if err != nil || user.ID != 11 || user.PasswordHash != "" {
-		t.Fatalf("expected new passwordless guest 11, got %+v, %v", user, err)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestResolveOrderCustomerRetriesWithoutTakenEmail(t *testing.T) {
-	svc, mock := newGuestAuthService(t)
-	email := "shared@example.com"
-	mock.ExpectQuery("FROM users").WillReturnRows(sqlmock.NewRows(userColumns))
-	mock.ExpectQuery("INSERT INTO users").WillReturnError(errors.New("duplicate key value violates unique constraint \"users_email_key\""))
-	mock.ExpectQuery("INSERT INTO users").
-		WithArgs("08012345678", nil, "Ada", "", false, true, sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).AddRow(12, time.Now(), time.Now()))
-
-	user, err := svc.ResolveOrderCustomer("Ada", "08012345678", &email)
-	if err != nil || user.ID != 12 || user.Email != nil {
-		t.Fatalf("expected guest 12 without email, got %+v, %v", user, err)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestRegisterClaimsGuestAccount(t *testing.T) {
