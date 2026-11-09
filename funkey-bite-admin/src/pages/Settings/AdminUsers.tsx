@@ -35,6 +35,7 @@ import {
 import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { AdminUser } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 
 const adminUserSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
@@ -233,6 +234,7 @@ const AdminUsers: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <SettingsTabs />
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
