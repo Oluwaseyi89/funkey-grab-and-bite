@@ -90,7 +90,9 @@ func waitForLogContains(t *testing.T, logs *lockedBuffer, want string) {
 	t.Fatalf("expected log to contain %q, got: %s", want, logs.String())
 }
 
-func TestCreateOrderSucceedsWhenOrderConfirmationNotificationFails(t *testing.T) {
+// The confirmation is queued with the order and sent by the job worker, so a
+// failing email service can't affect checkout and isn't called during it.
+func TestCreateOrderDoesNotSendConfirmationDuringCheckout(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock.New() error = %v", err)
@@ -163,8 +165,11 @@ func TestCreateOrderSucceedsWhenOrderConfirmationNotificationFails(t *testing.T)
 		t.Fatalf("expected persisted total amount 37.5, got %v", createdOrder.TotalAmount)
 	}
 
-	waitForSignal(t, notifier.orderCalled, "order confirmation notification attempt")
-	waitForLogContains(t, logs, "Failed to send order confirmation notification")
+	select {
+	case <-notifier.orderCalled:
+		t.Fatal("checkout must not send the confirmation itself; the job worker does")
+	case <-time.After(100 * time.Millisecond):
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("sqlmock expectations failed: %v", err)
