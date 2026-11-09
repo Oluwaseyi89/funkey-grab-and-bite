@@ -43,6 +43,9 @@ func (f *fakePaymentService) RenewTransferPayment(order *models.Order) (*models.
 }
 
 func (f *fakePaymentService) CheckTransferPayment(ctx context.Context, orderID int) error { return nil }
+func (f *fakePaymentService) RecheckTransferPayment(ctx context.Context, orderID int) (repository.PaymentResult, bool, error) {
+	return repository.PaymentResult{}, false, nil
+}
 
 func (f *fakePaymentService) SetCateringHandler(services.CateringPaymentHandler) {}
 
