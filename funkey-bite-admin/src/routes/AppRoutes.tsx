@@ -27,6 +27,8 @@ const OrderCalendar = lazy(() => import('../pages/Orders/OrderCalendar'));
 const CateringDetails = lazy(() => import('../pages/Catering/CateringDetails'));
 const CateringPackages = lazy(() => import('../pages/Catering/CateringPackages'));
 const TeamMembers = lazy(() => import('../pages/Team/TeamMembers'));
+const PaymentList = lazy(() => import('../pages/Payments/PaymentList'));
+const SystemActivity = lazy(() => import('../pages/Settings/SystemActivity'));
 
 
 
@@ -64,6 +66,7 @@ const AppRoutes: React.FC = () => {
           <Route path="orders" element={<OrderList />} />
           <Route path="orders/:id" element={<OrderDetails />} />
           <Route path="orders/calendar" element={<OrderCalendar />} />
+          <Route path="payments" element={<PaymentList />} />
 
           
           
@@ -103,6 +106,7 @@ const AppRoutes: React.FC = () => {
           <Route path="settings/profile" element={<ProfileSettings />} />
 
           <Route path="settings/admins" element={<AdminUsers />} />
+          <Route path="settings/activity" element={<SystemActivity />} />
           
           
           <Route path="*" element={<Navigate to="/dashboard" />} />
