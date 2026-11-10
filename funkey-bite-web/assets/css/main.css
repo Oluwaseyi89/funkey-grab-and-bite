@@ -3,82 +3,185 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --color-background: 255 255 255;
-    --color-foreground: 0 0 0;
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
   }
 
-  .dark {
-    --color-background: 15 23 42;
-    --color-foreground: 248 250 252;
+  /* clip, not hidden: hidden would turn the page into a scroll container
+     and stop sticky bars (the menu's search and tabs) from sticking. */
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   body {
-    @apply bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 transition-colors duration-300;
-  }
-  html, body {
-    max-width: 100%;
-    overflow-x: hidden;
+    @apply bg-ink-50 font-body text-ink-900 antialiased dark:bg-ink-950 dark:text-ink-100;
   }
 
-  
-  ::-webkit-scrollbar {
-    @apply w-2;
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
   }
 
-  ::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-slate-800;
+  /* One visible focus ring everywhere, for keyboard users only. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white dark:ring-offset-ink-950;
   }
 
-  ::-webkit-scrollbar-thumb {
-    @apply bg-brand-500 rounded-full hover:bg-brand-600;
+  ::selection {
+    @apply bg-brand-500 text-white;
+  }
+
+  /* Keeps anchored sections clear of the sticky header. */
+  [id] {
+    scroll-margin-top: 7rem;
   }
 }
 
 @layer components {
-  /* Form fields on the account pages, matching the checkout and catering forms. */
-  .form-label {
-    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2;
-  }
-  .form-input {
-    @apply w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white;
-  }
-
-  .btn-primary {
-    @apply bg-brand-500 hover:bg-brand-600 text-white font-semibold py-3 px-6 rounded-xl 
-           transition-all duration-300 transform hover:scale-105 hover:shadow-lg 
-           active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
-           dark:focus:ring-offset-slate-900;
-  }
-
-  .btn-secondary {
-    @apply bg-white dark:bg-slate-800 border border-brand-500 text-brand-500 
-           hover:bg-brand-50 dark:hover:bg-slate-700 font-semibold py-3 px-6 
-           rounded-xl transition-all duration-300;
-  }
-
-  .card-hover {
-    @apply transition-all duration-300 hover:scale-105 hover:shadow-2xl;
-  }
-
-  .glass-effect {
-    @apply backdrop-blur-lg bg-white/10 dark:bg-slate-900/10 border border-white/20 dark:border-slate-700/50;
-  }
-
-  .text-gradient {
-    @apply bg-gradient-to-r from-brand-500 to-accent-500 bg-clip-text text-transparent;
+  /* Layout */
+  .container-narrow {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
   }
 
   .section-padding {
-    @apply px-4 sm:px-6 lg:px-8 py-12 md:py-20;
+    @apply py-10 md:py-16;
   }
 
-  .container-narrow {
-    @apply max-w-7xl mx-auto;
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.14em] text-brand-600 dark:text-brand-400;
+  }
+
+  .section-title {
+    @apply font-display text-2xl font-bold text-ink-900 dark:text-white md:text-3xl;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-600 via-brand-500 to-accent-500 bg-clip-text text-transparent;
+  }
+
+  /* Surfaces */
+  .card {
+    @apply rounded-2xl border border-ink-200/70 bg-white shadow-soft dark:border-ink-800 dark:bg-ink-900;
+  }
+
+  .surface-muted {
+    @apply rounded-xl bg-ink-100 dark:bg-ink-800/60;
+  }
+
+  /* Buttons. Every button is at least 44px tall so it's easy to tap. */
+  .btn {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold
+           transition duration-150 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-glow hover:bg-brand-700;
+  }
+
+  .btn-secondary {
+    @apply btn border border-ink-200 bg-white text-ink-900 hover:border-ink-300 hover:bg-ink-50
+           dark:border-ink-700 dark:bg-ink-900 dark:text-white dark:hover:bg-ink-800;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-700 hover:bg-ink-100 dark:text-ink-200 dark:hover:bg-ink-800;
+  }
+
+  .btn-lg {
+    @apply min-h-[52px] px-6 text-base;
+  }
+
+  .icon-btn {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full text-ink-700 transition
+           hover:bg-ink-100 active:scale-95 dark:text-ink-200 dark:hover:bg-ink-800;
+  }
+
+  .link {
+    @apply font-medium text-brand-600 underline-offset-4 hover:underline dark:text-brand-400;
+  }
+
+  /* Chips: category tabs and filters. */
+  .chip {
+    @apply inline-flex min-h-[40px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-ink-200 bg-white px-4
+           text-sm font-medium text-ink-700 transition hover:border-ink-300
+           dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200;
+  }
+
+  .chip-active {
+    @apply border-ink-900 bg-ink-900 text-white hover:border-ink-900 dark:border-white dark:bg-white dark:text-ink-900;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+
+  /* Forms */
+  .form-label {
+    @apply mb-1.5 block text-sm font-medium text-ink-800 dark:text-ink-200;
+  }
+
+  .form-input {
+    @apply block min-h-[48px] w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-base text-ink-900
+           placeholder:text-ink-400 transition focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15
+           dark:border-ink-700 dark:bg-ink-900 dark:text-white;
+  }
+
+  .form-input[aria-invalid='true'] {
+    @apply border-brand-600 focus:ring-brand-600/20;
+  }
+
+  .form-hint {
+    @apply mt-1.5 text-sm text-ink-500 dark:text-ink-400;
+  }
+
+  .form-error {
+    @apply mt-1.5 text-sm font-medium text-brand-700 dark:text-brand-400;
+  }
+
+  /* Loading placeholders */
+  .skeleton {
+    @apply rounded-lg bg-[length:200%_100%] animate-shimmer;
+    background-image: linear-gradient(90deg, rgb(231 224 217 / 0.6) 0%, rgb(243 239 235) 50%, rgb(231 224 217 / 0.6) 100%);
+  }
+
+  .dark .skeleton {
+    background-image: linear-gradient(90deg, rgb(42 36 32) 0%, rgb(68 60 54) 50%, rgb(42 36 32) 100%);
+  }
+
+  /* Horizontal scrollers without a visible scrollbar. */
+  .scroll-row {
+    @apply flex snap-x gap-3 overflow-x-auto overscroll-x-contain;
+    scrollbar-width: none;
+  }
+
+  .scroll-row::-webkit-scrollbar {
+    display: none;
   }
 }
 
-/* Respect users who prefer reduced motion */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Bottom padding that clears the tab bar on phones. */
+  .pb-tabbar {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  @screen md {
+    .pb-tabbar {
+      padding-bottom: 0;
+    }
+  }
+}
+
+/* Respect users who prefer reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
