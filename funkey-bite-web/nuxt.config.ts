@@ -45,9 +45,9 @@ export default defineNuxtConfig({
           name: 'keywords', 
           content: 'fast food, take-out, catering, lunch packs, chips & chicken, noodles, shawarma, food delivery, restaurant, food bowls, soup, drinks, event catering' 
         },
-        { name: 'theme-color', content: '#f44336' },
+        { name: 'theme-color', content: '#c3241a' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
-        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
         
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: 'Funkey Grab & Bite' },
@@ -61,11 +61,9 @@ export default defineNuxtConfig({
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
         { property: 'og:image:alt', content: 'Funkey Grab & Bite Restaurant' },
-        { property: 'og:locale', content: 'en_US' },
+        { property: 'og:locale', content: 'en_NG' },
         
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:site', content: '@funkeygrab' },
-        { name: 'twitter:creator', content: '@funkeygrab' },
         { name: 'twitter:title', content: 'Funkey Grab & Bite - Fast Food & Catering' },
         { 
           name: 'twitter:description', 
@@ -91,7 +89,7 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous' },
         { 
           rel: 'stylesheet', 
-          href: 'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap' 
+          href: 'https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap' 
         },
         { rel: 'canonical', href: 'https://funkeygrabandbite.com' },
       ],
@@ -107,17 +105,8 @@ export default defineNuxtConfig({
             image: 'https://funkey-static-assets.s3.amazonaws.com/branding/logo.png',
             '@id': 'https://funkeygrabandbite.com',
             url: 'https://funkeygrabandbite.com',
-            priceRange: '$$',
-            servesCuisine: ['Fast Food', 'American', 'Middle Eastern', 'Asian'],
-            aggregateRating: {
-              '@type': 'AggregateRating',
-              ratingValue: '4.8',
-              ratingCount: '150',
-              bestRating: '5',
-              worstRating: '1'
-            },
+            servesCuisine: ['Fast Food'],
             hasMenu: 'https://funkeygrabandbite.com/menu',
-            acceptsReservations: 'True',
             menu: 'https://funkeygrabandbite.com/menu'
           })
         },
@@ -145,7 +134,7 @@ export default defineNuxtConfig({
   },
   
   build: {
-    transpile: ['@headlessui/vue', 'gsap']
+    transpile: ['@headlessui/vue']
   },
   
   nitro: {
