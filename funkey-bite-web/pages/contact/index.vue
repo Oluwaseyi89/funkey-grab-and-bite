@@ -1,232 +1,142 @@
 <template>
-    <div>
-
-      <PageHeader
-      title-before="Get"
-      highlight-text="in Touch"
-      variant="gradient"
-      alignment="center"
-      :narrow="true"
-      header-class="pb-12"
-    >
-      
-
-        <template #subtitle>
-            Have questions, feedback, or catering inquiries? We're here to help! Reach out through any channel below.
-        </template>
-
-        <div class="mt-8 max-w-2xl mx-auto">
-
-            <div class="flex flex-wrap justify-center gap-4">
-            <a href="#contact-form" class="btn-primary">Send Message</a>
-            <a v-if="phoneHref" :href="phoneHref" class="btn-secondary">
-                <Phone class="w-4 h-4 inline mr-2" />
-                Call Now
-            </a>
-            </div>
-        </div>
+  <div>
+    <PageHeader eyebrow="Contact" title="We’re here to help" subtitle="Questions about an order, catering or anything else? Call, email or come and see us.">
+      <StoreStatus />
     </PageHeader>
 
-  
-      <div class="section-padding mx-5 px-3 py-3 md:mx-8 md:py-8 md:px-8">
-        <div class="container-narrow">
-          <div class="grid lg:grid-cols-3 gap-8">
-
-            <div class="space-y-8">
-              <ContactInfo />
-              <BusinessHours />
-              <ContactMap />
-            </div>
-  
-
-            <div class="lg:col-span-2">
-              <div class="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 border border-gray-200 dark:border-slate-700">
-                <ContactForm
-                  :is-submitting="isSubmitting"
-                  @submit="handleSubmit"
-                />
-              </div>
-  
-
-              <div class="mt-8">
-                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Common Questions</h3>
-                <div class="space-y-4">
-                  <div 
-                    v-for="(faq, index) in faqs" 
-                    :key="index"
-                    class="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden"
-                  >
-                    <button
-                      @click="toggleFAQ(index)"
-                      class="w-full px-4 py-3 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      <span class="font-medium text-gray-900 dark:text-white">{{ faq.question }}</span>
-                      <ChevronDown 
-                        class="w-5 h-5 text-gray-500 transition-transform duration-200" 
-                        :class="{ 'rotate-180': openFaqIndex === index }"
-                      />
-                    </button>
-                    
-                    <div
-                      v-show="openFaqIndex === index"
-                      class="px-4 pb-4 text-gray-600 dark:text-gray-400"
-                    >
-                      {{ faq.answer }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-  
-
-          <!-- Shown only once the admin has added team members. -->
-          <div v-if="team.length" class="mt-16 pt-12 border-t border-gray-200 dark:border-slate-700">
-            <h2 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
-              Meet Our <span class="text-gradient">Team</span>
-            </h2>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
-              <div 
-                v-for="member in team" 
-                :key="member.id"
-                class="text-center"
-              >
-                <div class="w-32 h-32 mx-auto mb-4 bg-gradient-to-br from-brand-100 to-accent-100 dark:from-brand-900/30 dark:to-accent-900/30 rounded-full flex items-center justify-center">
-                  <img
-                    v-if="member.photoUrl"
-                    :src="member.photoUrl"
-                    :alt="member.name"
-                    class="w-28 h-28 rounded-full object-cover"
-                    loading="lazy"
-                  />
-                  <div v-else class="w-28 h-28 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-3xl font-bold text-brand-500" aria-hidden="true">
-                    {{ initials(member.name) }}
-                  </div>
-                </div>
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-1">{{ member.name }}</h3>
-                <p class="text-brand-500 font-medium mb-2">{{ member.role }}</p>
-                <p v-if="member.bio" class="text-gray-600 dark:text-gray-400 text-sm">{{ member.bio }}</p>
-              </div>
-            </div>
-          </div>
-  
-
-          <div class="mt-16 bg-gradient-to-r from-brand-500 to-accent-500 rounded-2xl p-8 text-center text-white">
-            <h2 class="text-3xl font-bold mb-4">Need Immediate Assistance?</h2>
-            <p class="text-xl opacity-90 mb-6 max-w-2xl mx-auto">
-              Call us now for orders, catering inquiries, or urgent matters.
-            </p>
-            <a 
-              v-if="phoneHref"
-              :href="phoneHref" 
-              class="inline-flex items-center bg-white text-brand-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-xl transition-colors text-lg"
-            >
-              <Phone class="w-5 h-5 mr-2" />
-              Call Now: {{ settings?.phoneNumber }}
+    <div class="container-narrow grid gap-6 py-6 md:grid-cols-[1.2fr_1fr] md:py-10">
+      <div class="space-y-4">
+        <!-- Ways to reach us -->
+        <ul class="grid gap-3 sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
+          <li v-if="phoneHref">
+            <a :href="phoneHref" class="card flex h-full items-center gap-4 p-4 transition hover:shadow-lift sm:flex-col sm:items-start md:flex-row lg:flex-col">
+              <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"><Phone class="h-6 w-6" aria-hidden="true" /></span>
+              <span class="min-w-0">
+                <span class="block font-semibold text-ink-900 dark:text-white">Call us</span>
+                <span class="block truncate text-sm text-ink-500 dark:text-ink-400">{{ settings?.phoneNumber }}</span>
+              </span>
             </a>
-          </div>
-        </div>
-      </div>
-  
+          </li>
+          <li v-if="settings?.email">
+            <a :href="`mailto:${settings.email}`" class="card flex h-full items-center gap-4 p-4 transition hover:shadow-lift sm:flex-col sm:items-start md:flex-row lg:flex-col">
+              <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 dark:bg-accent-700/20 dark:text-accent-300"><Mail class="h-6 w-6" aria-hidden="true" /></span>
+              <span class="min-w-0">
+                <span class="block font-semibold text-ink-900 dark:text-white">Email us</span>
+                <span class="block truncate text-sm text-ink-500 dark:text-ink-400">{{ settings.email }}</span>
+              </span>
+            </a>
+          </li>
+          <li v-if="mapsUrl">
+            <a :href="mapsUrl" target="_blank" rel="noopener noreferrer" class="card flex h-full items-center gap-4 p-4 transition hover:shadow-lift sm:flex-col sm:items-start md:flex-row lg:flex-col">
+              <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-leaf-50 text-leaf-700 dark:bg-leaf-800/30 dark:text-leaf-300"><MapPin class="h-6 w-6" aria-hidden="true" /></span>
+              <span class="min-w-0">
+                <span class="block font-semibold text-ink-900 dark:text-white">Visit us</span>
+                <span class="block text-sm text-ink-500 dark:text-ink-400">{{ fullAddress }}</span>
+                <span class="sr-only">(opens Google Maps)</span>
+              </span>
+            </a>
+          </li>
+        </ul>
+        <p v-if="status === 'unavailable'" class="card p-5 text-sm text-ink-600 dark:text-ink-300" role="alert">
+          Our contact details didn’t load. Please refresh the page to try again.
+        </p>
 
-      <div 
-        v-if="showSuccessModal"
-        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      >
-        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-8 text-center">
-          <div class="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle class="w-10 h-10 text-green-600 dark:text-green-400" />
+        <!-- Common questions -->
+        <section class="card p-5" aria-labelledby="faq-title">
+          <h2 id="faq-title" class="font-display text-lg font-semibold text-ink-900 dark:text-white">Common questions</h2>
+          <div class="mt-2 divide-y divide-ink-100 dark:divide-ink-800">
+            <details v-for="faq in faqs" :key="faq.question" class="group py-1">
+              <summary class="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-4 font-medium text-ink-900 dark:text-white">
+                {{ faq.question }}
+                <ChevronDown class="h-5 w-5 shrink-0 text-ink-400 transition group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <p class="pb-3 text-sm text-ink-600 dark:text-ink-300">
+                {{ faq.answer }}
+                <NuxtLink v-if="faq.link" :to="faq.link.to" class="link">{{ faq.link.label }}</NuxtLink>
+              </p>
+            </details>
           </div>
-          
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Message Sent!</h2>
-          <p class="text-gray-600 dark:text-gray-400 mb-6">
-            Thank you for reaching out. We'll get back to you within 24 hours.
-          </p>
-          
-          <button @click="showSuccessModal = false" class="w-full btn-primary">
-            Continue Browsing
-          </button>
-        </div>
+        </section>
       </div>
+
+      <!-- Opening hours -->
+      <section class="card h-fit p-5" aria-labelledby="hours-title">
+        <h2 id="hours-title" class="font-display text-lg font-semibold text-ink-900 dark:text-white">Opening hours</h2>
+        <dl v-if="status === 'ready'" class="mt-3 divide-y divide-ink-100 dark:divide-ink-800">
+          <div v-for="group in hoursGroups" :key="group.label" class="flex justify-between gap-4 py-2.5 text-sm" :class="group.days.includes(today) ? 'font-semibold text-ink-900 dark:text-white' : 'text-ink-600 dark:text-ink-300'">
+            <dt>{{ group.label }}<span v-if="group.days.includes(today)" class="ml-2 badge bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">Today</span></dt>
+            <dd class="text-right">{{ group.hours }}</dd>
+          </div>
+        </dl>
+        <div v-else-if="status === 'loading'" class="mt-3 space-y-2">
+          <div v-for="i in 4" :key="i" class="skeleton h-5" />
+        </div>
+        <p v-else class="mt-3 text-sm text-ink-600 dark:text-ink-300">Our hours didn’t load. Please call us to check.</p>
+        <p v-if="timezoneLabel" class="mt-3 text-xs text-ink-500 dark:text-ink-400">Times are in {{ timezoneLabel }}.</p>
+      </section>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, computed, onMounted } from 'vue'
-  import { 
-    Phone, 
-    ChevronDown, 
-    CheckCircle 
-  } from 'lucide-vue-next'
-  
-  import PageHeader from '../../components/layout/PageHeader.vue'
-  import ContactForm from '../../components/contact/ContactForm.vue'
-  import ContactInfo from '../../components/contact/ContactInfo.vue'
-  import BusinessHours from '../../components/contact/BusinessHours.vue'
-  import ContactMap from '../../components/contact/ContactMap.vue'
-  import { useBusinessSettings } from '../../composables/useBusinessSettings'
-  import { useApi } from '../../utils/api'
-  import type { TeamMember } from '../../types/team'
-  
-  const { settings, phoneHref, load } = useBusinessSettings()
-  const team = ref<TeamMember[]>([])
-  
-  onMounted(async () => {
-    load()
-    team.value = await useApi().getTeamMembers()
-  })
-  
-  const initials = (name: string) =>
-    name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('')
-  
-  const isSubmitting = ref(false)
-  const showSuccessModal = ref(false)
-  const openFaqIndex = ref<number | null>(0)
-  
-  const faqs = computed(() => [
-    {
-      question: 'What are your delivery hours?',
-      answer: 'We deliver during our opening hours, shown on this page. Orders can only be placed while we are open.'
-    },
-    {
-      question: 'Do you offer catering for small events?',
-      answer: 'Yes. See our catering page: each package shows the guest numbers it serves, and a custom request can be any size. We will send you a quote.'
-    },
-    {
-      question: 'Can I modify or cancel my order?',
-      answer: 'You can modify or cancel your order within 15 minutes of placing it by calling us directly.'
-    },
-    {
-      question: 'Do you have vegetarian/vegan options?',
-      answer: 'Absolutely! We offer a variety of vegetarian and vegan dishes. Check our menu or ask our staff.'
-    },
-    {
-      question: 'How do I apply for a job?',
-      answer: settings.value?.email
-        ? `Send your resume to ${settings.value.email} or visit us in person to fill out an application.`
-        : 'Send us your resume through the contact form or visit us in person to fill out an application.'
-    }
-  ])
-  
-  
-  const handleSubmit = async (formData: any) => {
-    isSubmitting.value = true
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      
-      showSuccessModal.value = true
-      
-    } catch (error) {
-      console.error('Message submission failed:', error)
-    } finally {
-      isSubmitting.value = false
-    }
-  }
-  
-  const toggleFAQ = (index: number) => {
-    openFaqIndex.value = openFaqIndex.value === index ? null : index
-  }
-  </script>
+
+    <!-- The team, once the admin has added people. -->
+    <section v-if="team.length" class="container-narrow pb-12" aria-labelledby="team-title">
+      <h2 id="team-title" class="section-title">Meet the team</h2>
+      <ul class="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <li v-for="member in team" :key="member.id" class="card p-5 text-center">
+          <img v-if="member.photoUrl" :src="member.photoUrl" :alt="member.name" class="mx-auto h-20 w-20 rounded-full object-cover" loading="lazy" />
+          <span v-else class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 font-display text-2xl font-bold text-white" aria-hidden="true">{{ initials(member.name) }}</span>
+          <h3 class="mt-3 font-display font-semibold text-ink-900 dark:text-white">{{ member.name }}</h3>
+          <p class="text-sm text-brand-600 dark:text-brand-400">{{ member.role }}</p>
+          <p v-if="member.bio" class="mt-1 text-xs text-ink-500 dark:text-ink-400">{{ member.bio }}</p>
+        </li>
+      </ul>
+    </section>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { ChevronDown, Mail, MapPin, Phone } from 'lucide-vue-next'
+import PageHeader from '../../components/layout/PageHeader.vue'
+import StoreStatus from '../../components/layout/StoreStatus.vue'
+import { useBusinessSettings } from '../../composables/useBusinessSettings'
+import { useApi } from '../../utils/api'
+import { usePageSeo } from '../../composables/usePageSeo'
+import type { TeamMember } from '../../types/team'
+
+usePageSeo({ title: 'Contact', description: 'Call, email or visit Funkey Grab & Bite. Opening hours and answers to common questions.', path: '/contact' })
+
+const { settings, status, phoneHref, mapsUrl, fullAddress, hoursGroups, today, timezoneLabel, load } = useBusinessSettings()
+const team = ref<TeamMember[]>([])
+
+onMounted(async () => {
+  load()
+  team.value = await useApi().getTeamMembers()
+})
+
+const initials = (name: string) =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('')
+
+const faqs = computed(() => [
+  {
+    question: 'When can I order?',
+    answer: 'Orders can be placed while we’re open; the hours are on this page. Your cart is saved if you visit while we’re closed.',
+  },
+  {
+    question: 'How do I check on my order?',
+    answer: 'Open Orders and enter your order number and phone, or sign in to see all your orders.',
+    link: { to: '/order/track', label: 'Track an order' },
+  },
+  {
+    question: 'Something’s wrong with my order. What do I do?',
+    answer: 'Call us as soon as you can with your order number and we’ll sort it out.',
+  },
+  {
+    question: 'Do you cater small events?',
+    answer: 'Yes. Each package shows how many guests it serves, and a custom request can be any size.',
+    link: { to: '/catering', label: 'See catering' },
+  },
+  {
+    question: 'I have an allergy. Can you help?',
+    answer: 'Add a note to the item or your order, and call us before ordering so we can tell you what’s in each dish.',
+  },
+])
+</script>
