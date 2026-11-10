@@ -1,50 +1,23 @@
 <template>
-  <header 
-    class="section-padding bg-transparent dark:from-slate-900 dark:to-slate-800 px-8 md:px-12 py-8 md:py-12"
-    :class="[
-      headerClass,
-      variant === 'solid' ? `bg-${solidColor || 'amber-50'} dark:bg-${solidColorDark || 'amber-900/20'}` : '',
-      variant === 'image' && backgroundImage ? `bg-cover bg-center` : ''
-    ]"
-    :style="variant === 'image' && backgroundImage ? `background-image: url('${backgroundImage}')` : ''"
-  >
-    <div 
-      :class="[
-        'text-center',
-        narrow ? 'container-narrow' : 'container',
-        alignment === 'left' ? 'text-left' : '',
-        alignment === 'right' ? 'text-right' : ''
-      ]"
-    >
-
-      <h1 
-        class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4"
-        :class="titleClass"
-      >
+  <header class="relative overflow-hidden border-b border-ink-200/60 bg-gradient-to-b from-brand-50/70 to-transparent dark:border-ink-800 dark:from-brand-900/10">
+    <div aria-hidden="true" class="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-accent-200/40 blur-3xl dark:bg-accent-500/10" />
+    <div aria-hidden="true" class="pointer-events-none absolute -left-20 top-10 h-48 w-48 rounded-full bg-leaf-200/40 blur-3xl dark:bg-leaf-500/10" />
+    <div class="container-narrow relative py-7 md:py-12" :class="alignment === 'center' ? 'text-center' : ''">
+      <p v-if="eyebrow" class="eyebrow mb-2">{{ eyebrow }}</p>
+      <h1 class="font-display text-[1.75rem] font-bold leading-tight text-ink-900 dark:text-white md:text-5xl" :class="titleClass">
         <slot name="title">
-
-          <template v-if="highlightText">
-            {{ titleBefore }}
-            <span class="text-gradient">{{ highlightText }}</span>
-            {{ titleAfter }}
-          </template>
-          <template v-else>
-            {{ title }}
-          </template>
+          <template v-if="highlightText">{{ titleBefore }} <span class="text-gradient">{{ highlightText }}</span> {{ titleAfter }}</template>
+          <template v-else>{{ title }}</template>
         </slot>
       </h1>
-
-      <p 
-        v-if="showSubtitle"
-        class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8"
-        :class="[subtitleClass, alignment !== 'center' ? 'mx-0' : '']"
+      <p
+        v-if="subtitle || $slots.subtitle"
+        class="mt-2 max-w-2xl text-base text-ink-600 dark:text-ink-300 md:mt-3 md:text-lg"
+        :class="[alignment === 'center' ? 'mx-auto' : '', subtitleClass]"
       >
-        <slot name="subtitle">
-          {{ subtitle }}
-        </slot>
+        <slot name="subtitle">{{ subtitle }}</slot>
       </p>
-
-      <div class="mt-6">
+      <div v-if="$slots.default" class="mt-5">
         <slot />
       </div>
     </div>
@@ -52,55 +25,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useSlots } from 'vue'
-
-interface Props {
+// The title band at the top of a page. Compact on phones so content starts
+// near the top of the screen.
+withDefaults(defineProps<{
   title?: string
   titleBefore?: string
   highlightText?: string
   titleAfter?: string
   subtitle?: string
-  
-  variant?: 'gradient' | 'solid' | 'image' | 'simple'
-  solidColor?: string
-  solidColorDark?: string
-  backgroundImage?: string
-  alignment?: 'center' | 'left' | 'right'
-  narrow?: boolean
-  headerClass?: string
+  eyebrow?: string
+  alignment?: 'center' | 'left'
   titleClass?: string
   subtitleClass?: string
-  
-  showSubtitle?: boolean
-  padding?: 'small' | 'medium' | 'large' | 'none'
-}
-
-const props = withDefaults(defineProps<Props>(), {
+  // Older options, accepted so existing pages keep working.
+  variant?: string
+  narrow?: boolean
+  headerClass?: string
+  solidColor?: string
+  solidColorDark?: string
+}>(), {
   title: '',
   titleBefore: '',
   highlightText: '',
   titleAfter: '',
   subtitle: '',
-  variant: 'gradient',
-  solidColor: 'amber-50',
-  solidColorDark: 'amber-900/20',
-  alignment: 'center',
-  narrow: true,
-  showSubtitle: true,
-  padding: 'medium'
-})
-
-const showSubtitle = computed(() => {
-  return props.showSubtitle && (props.subtitle || useSlots().subtitle)
+  eyebrow: '',
+  alignment: 'left',
+  titleClass: '',
+  subtitleClass: '',
 })
 </script>
-
-<style scoped>
-
-.text-gradient {
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-</style>
