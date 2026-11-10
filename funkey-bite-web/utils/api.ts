@@ -1,6 +1,4 @@
-import type { Ref } from 'vue'
-import { ref } from 'vue'
-import type { MenuCategory, MenuItem } from '~/types/menu'
+import type { MenuCategory, MenuItem, Promotion, PromotionCheck } from '~/types/menu'
 import type { Order, OrderCreatePayload, OrderLookupResult } from '~/types/order'
 import type { AuthSession, Customer, PaymentRefresh, RegistrationDetails, RegistrationResult } from '~/types/account'
 import type {
@@ -13,11 +11,7 @@ import type {
 } from '~/types/catering'
 import type { TeamMember } from '~/types/team'
 import type { BusinessSettings } from '~/types/settings'
-import { mockCategories, mockMenuItems, mockOrders, mockPromotions } from './mockData'
-import { useNuxtApp, useRuntimeConfig } from 'nuxt/app'
-
-type ToastNotify = (endpoint: string, reason: FallbackReason, requestSucceeded: boolean) => void
-type FallbackReason = 'backend-unavailable' | 'empty-backend-data'
+import { useRuntimeConfig } from 'nuxt/app'
 
 type BackendMenuCategory = {
   id: number | string
@@ -132,11 +126,7 @@ const CHECKOUT_ATTEMPTS = 3
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export class ApiService {
-  private isBackendAvailable = true
-  private checkBackendStatus: Ref<boolean> = ref(false)
   private baseURL: string
-  private notifyMockUsage?: ToastNotify
-  private notifiedFallbacks = new Set<string>()
   private authToken: string | null = null
 
   // Requests carry the signed-in customer's token, so orders placed while
@@ -151,30 +141,8 @@ export class ApiService {
     this.authToken = token
   }
 
-  constructor(baseURL: string = '', notifyMockUsage?: ToastNotify) {
-    // Align default port with nuxt.config.ts (8080), though config should always provide value
+  constructor(baseURL: string = '') {
     this.baseURL = baseURL || 'http://localhost:8080/api/v1'
-    this.notifyMockUsage = notifyMockUsage
-    this.checkBackend()
-  }
-
-  private async checkBackend() {
-    try {
-      const health_url = `${this.baseURL}/health`
-      const res = await fetch(health_url)
-      this.isBackendAvailable = res.ok
-      console.info(`[API Health Check] ${health_url} → ${res.status}`, this.isBackendAvailable ? '✅ Backend available' : '❌ Backend unavailable')
-    } catch (err) {
-      this.isBackendAvailable = false
-      console.warn(`[API Health Check] Failed to reach ${this.baseURL}/health`, err instanceof Error ? err.message : 'unknown error')
-    } finally {
-      this.checkBackendStatus.value = true
-    }
-  }
-
-  private markBackendUnavailable() {
-    this.isBackendAvailable = false
-    this.checkBackendStatus.value = true
   }
 
   private normalizeMenuCategory(item: BackendMenuCategory): MenuCategory {
@@ -255,27 +223,6 @@ export class ApiService {
     )
   }
 
-  private notifyFallback(endpoint: string, reason: FallbackReason, requestSucceeded: boolean) {
-    const key = `${endpoint}:${reason}`
-    if (this.notifiedFallbacks.has(key)) {
-      console.info(`[API] Notification already shown for ${key}, skipping duplicate`)
-      return
-    }
-    this.notifiedFallbacks.add(key)
-
-    if (this.notifyMockUsage) {
-      console.info(`[API] Triggering toast notification: ${reason} for ${endpoint} | requestSucceeded=${requestSucceeded}`)
-      this.notifyMockUsage(endpoint, reason, requestSucceeded)
-      return
-    }
-
-    // Fallback to console if no toast system available
-    const message = !requestSucceeded
-      ? `🔴 Backend offline. Using showcase data for ${endpoint}.`
-      : `🔵 No records in database for ${endpoint}. Empty result returned.`
-    console.warn(message)
-  }
-
   private async fetchJSON<T>(endpoint: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${this.baseURL}${endpoint}`, init)
     if (!res.ok) {
@@ -284,46 +231,21 @@ export class ApiService {
       throw new ApiRequestError(message, res.status, code, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined)
     }
 
-    // Any successful API response means backend is reachable.
-    this.isBackendAvailable = true
-    this.checkBackendStatus.value = true
-
     return this.unwrapPayload<T>(await res.json())
   }
 
-  private async fetchWithFallback<T>(
-    endpoint: string,
-    mockData: T,
-    normalize?: (payload: T) => T,
-  ): Promise<T> {
+  // Lists the menu and the like. A network failure becomes a plain message;
+  // the site never shows made-up items in place of the real menu.
+  private async fetchList<T>(endpoint: string): Promise<T> {
     try {
-      const payload = await this.fetchJSON<T>(endpoint)
-      const normalized = normalize ? normalize(payload) : payload
-
-      // Backend is healthy - return actual data (even if empty)
-      // Backend is the single source of truth; empty arrays are valid responses
-      if (Array.isArray(normalized) && normalized.length === 0) {
-        console.info(`[API] 🔵 ${endpoint} returned EMPTY ARRAY (backend responded successfully, database has no records)`)
-        console.info(`[API] 🔵 Backend is source of truth → returning empty array to UI`)
-        // Pass true because THIS request succeeded (got 200 OK)
-        this.notifyFallback(endpoint, 'empty-backend-data', true)
-        // Return the real empty array, not mock data - let UI handle "no items" state
-        return normalized
-      }
-
-      console.info(`[API] ✅ ${endpoint} fetched ${Array.isArray(normalized) ? normalized.length : 1} real item(s) from backend`)
-      return normalized
+      return await this.fetchJSON<T>(endpoint)
     } catch (err) {
       if (this.isBackendUnavailableError(err)) {
-        console.error(`[API] 🔴 NETWORK ERROR on ${endpoint}:`, err instanceof Error ? err.message : 'unknown error')
-        console.error(`[API] 🔴 Backend server unreachable or offline → using mock data for demo`)
-        this.markBackendUnavailable()
-        // Pass false because THIS request failed (network error)
-        this.notifyFallback(endpoint, 'backend-unavailable', false)
-        return mockData
+        throw new Error("We couldn't reach our kitchen's server. Check your connection and try again.")
       }
-
-      console.error(`[API] ⚠️ Unexpected error on ${endpoint}:`, err)
+      if (err instanceof ApiRequestError && (err.status === 429 || err.status >= 500)) {
+        throw new Error("We're a little busy right now. Please try again in a moment.")
+      }
       throw err
     }
   }
@@ -360,35 +282,19 @@ export class ApiService {
   }
 
   async getMenuCategories(): Promise<MenuCategory[]> {
-    return this.fetchWithFallback('/menu/categories', mockCategories, (payload) => {
-      return (payload as BackendMenuCategory[]).map((item) => this.normalizeMenuCategory(item)) as MenuCategory[]
-    })
+    const payload = await this.fetchList<BackendMenuCategory[]>('/menu/categories')
+    return (payload || []).map((item) => this.normalizeMenuCategory(item))
   }
 
   async getMenuItems(categoryId?: string): Promise<MenuItem[]> {
-    if (categoryId) {
-      return this.fetchWithFallback(`/menu/category?category_id=${encodeURIComponent(categoryId)}`, mockMenuItems, (payload) => {
-        return (payload as BackendMenuItem[]).map((item) => this.normalizeMenuItem(item)) as MenuItem[]
-      })
-    }
-
-    return this.fetchWithFallback('/menu', mockMenuItems, (payload) => {
-      return (payload as BackendMenuItem[]).map((item) => this.normalizeMenuItem(item)) as MenuItem[]
-    })
+    const endpoint = categoryId ? `/menu/category?category_id=${encodeURIComponent(categoryId)}` : '/menu'
+    const payload = await this.fetchList<BackendMenuItem[]>(endpoint)
+    return (payload || []).map((item) => this.normalizeMenuItem(item))
   }
 
   async getMenuItem(id: string): Promise<MenuItem | null> {
-    try {
-      const payload = await this.fetchJSON<BackendMenuItem>(`/menu/${id}`)
-      return this.normalizeMenuItem(payload)
-    } catch (err) {
-      if (this.isBackendUnavailableError(err)) {
-        this.markBackendUnavailable()
-        this.notifyFallback(`/menu/${id}`, 'backend-unavailable', false)
-        return mockMenuItems.find(i => i.id === id) || null
-      }
-      throw err
-    }
+    const payload = await this.fetchList<BackendMenuItem | null>(`/menu/${encodeURIComponent(id)}`)
+    return payload ? this.normalizeMenuItem(payload) : null
   }
 
   // Places the order. Every attempt sends the same idempotencyKey, so
@@ -410,7 +316,6 @@ export class ApiService {
           (err.status >= 500 || err.code === 'REQUEST_IN_PROGRESS'))
         if (!retryable || attempt >= CHECKOUT_ATTEMPTS) {
           if (unreachable) {
-            this.markBackendUnavailable()
             throw new Error("We couldn't reach our server to confirm your order. Check your connection and press Place Order again; it won't be placed twice.")
           }
           if (err instanceof ApiRequestError && err.status >= 500) {
@@ -513,22 +418,6 @@ export class ApiService {
     return { ...payload, order: this.normalizeOrder(payload.order) }
   }
 
-  async getOrder(phone: string, orderNumber: string): Promise<Order | null> {
-    const endpoint = `/order/track/${encodeURIComponent(phone)}/${encodeURIComponent(orderNumber)}`
-    try {
-      const payload = await this.fetchJSON<BackendOrder>(endpoint)
-      return this.normalizeOrder(payload)
-    } catch (err) {
-      if (this.isBackendUnavailableError(err)) {
-        this.markBackendUnavailable()
-        this.notifyFallback('/order/track/:phone/:orderNumber', 'backend-unavailable', false)
-        return mockOrders[0] || null
-      }
-
-      throw err
-    }
-  }
-
   // Looks up the full order and its invoice. The phone goes in the body, not
   // the URL, so it stays out of logs and browser history.
   async lookupOrder(orderNumber: string, phone: string): Promise<OrderLookupResult | null> {
@@ -577,7 +466,6 @@ export class ApiService {
       })
     } catch (err) {
       if (this.isBackendUnavailableError(err)) {
-        this.markBackendUnavailable()
         throw new Error('We could not reach our server, so your request was not sent. Please try again or call us.')
       }
       throw err
@@ -631,8 +519,29 @@ export class ApiService {
     })
   }
 
-  async getActivePromotions(): Promise<any[]> {
-    return this.fetchWithFallback('/promotions/active', mockPromotions)
+  // Promotions are extras: if they can't load, the site simply hides them.
+  async getActivePromotions(): Promise<Promotion[]> {
+    try {
+      const payload = await this.fetchJSON<Promotion[]>('/promotions/active')
+      return (payload || []).filter((promo) => promo.isActive && new Date(promo.validUntil).getTime() > Date.now())
+    } catch (err) {
+      console.warn('[API] Could not load promotions:', err instanceof Error ? err.message : err)
+      return []
+    }
+  }
+
+  // Asks the server whether a code would apply to this order total. The
+  // discount itself is worked out again when the order is placed.
+  async checkPromotion(code: string, amount: number): Promise<PromotionCheck> {
+    const params = new URLSearchParams({ code: code.trim(), amount: String(Math.max(0, amount)) })
+    try {
+      return await this.fetchJSON<PromotionCheck>(`/promotions/validate?${params}`)
+    } catch (err) {
+      if (this.isBackendUnavailableError(err)) {
+        throw new Error("We couldn't check that code. Check your connection and try again.")
+      }
+      throw err
+    }
   }
 
   // Contact details and opening hours never fall back to demo data: a made-up
@@ -641,9 +550,6 @@ export class ApiService {
     try {
       return await this.fetchJSON<BusinessSettings>('/settings')
     } catch (err) {
-      if (this.isBackendUnavailableError(err)) {
-        this.markBackendUnavailable()
-      }
       console.warn('[API] Could not load business settings:', err instanceof Error ? err.message : err)
       return null
     }
@@ -655,46 +561,7 @@ let apiInstance: ApiService | null = null
 export function useApi() {
   if (!apiInstance) {
     const config = useRuntimeConfig()
-    let notifyMockUsage: ToastNotify | undefined
-
-    if (process.client) {
-      const { $toast } = useNuxtApp()
-      const toast = $toast as { warning?: (message: string) => void; info?: (message: string) => void } | undefined
-      notifyMockUsage = (endpoint: string, reason: FallbackReason, requestSucceeded: boolean) => {
-        // requestSucceeded = true means THIS request got a valid response (backend is reachable)
-        // requestSucceeded = false means THIS request failed (network error, backend offline)
-        const isUnavailable = !requestSucceeded
-        const dataSetEmpty = requestSucceeded && reason === 'empty-backend-data'
-
-        console.info(`[API Fallback] ${endpoint} → reason=${reason} | requestSucceeded=${requestSucceeded} | isUnavailable=${isUnavailable} | dataSetEmpty=${dataSetEmpty}`)
-
-        const message = isUnavailable
-          ? `⚠️ Backend server is offline. Showing demo data for ${endpoint}.`
-          : dataSetEmpty
-            ? `ℹ️ No records found for ${endpoint}. Database is empty.`
-            : `ℹ️ Could not load ${endpoint}. Please try again.`
-
-        if (toast) {
-          if (isUnavailable && typeof toast.warning === 'function') {
-            toast.warning(message)
-            console.info(`[API] 🔴 Backend offline → mock data for ${endpoint}`)
-            return
-          }
-          if (dataSetEmpty && typeof toast.info === 'function') {
-            toast.info(message)
-            console.info(`[API] 🔵 Empty dataset (backend online) → mock data for ${endpoint}`)
-            return
-          }
-          console.warn(`[API] Toast method not available for ${endpoint} (isUnavailable=${isUnavailable}, dataSetEmpty=${dataSetEmpty})`)
-        }
-
-        console.info(`[API] ${message}`)
-      }
-    }
-
-    apiInstance = new ApiService(config.public.apiBaseUrl as string, notifyMockUsage)
+    apiInstance = new ApiService(config.public.apiBaseUrl as string)
   }
-
   return apiInstance
 }
-
