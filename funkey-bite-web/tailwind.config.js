@@ -14,14 +14,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Brand red, from the logo (#9b1414 is 700): buttons, prices, active states.
+        // Brand red. 500 is the site's original bright red, for accents; buttons
+        // use 600, which keeps white text readable (5.9:1). 700 is the logo's red.
         brand: {
           50: '#fff2f1',
           100: '#ffe1de',
           200: '#fec7c1',
           300: '#fb9e94',
-          400: '#f0695b',
-          500: '#e03b2d',
+          400: '#ef5350',
+          500: '#f44336',
           600: '#c3241a',
           700: '#9b1414',
           800: '#7f1513',
@@ -50,19 +51,20 @@ module.exports = {
           600: '#d97706',
           700: '#b45309',
         },
-        // Warm neutrals for text and surfaces, so the page doesn't look grey.
+        // Neutrals for text and surfaces: the slate blues the site has always
+        // used. In dark mode the page is navy (950), cards a step lighter (900).
         ink: {
-          50: '#faf8f6',
-          100: '#f3efeb',
-          200: '#e7e0d9',
-          300: '#d3c9bf',
-          400: '#a59a8f',
-          500: '#7a6f66',
-          600: '#5c524a',
-          700: '#443c36',
-          800: '#2a2420',
-          900: '#1a1512',
-          950: '#110d0b',
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#3f4d63',
+          800: '#334155',
+          900: '#1e293b',
+          950: '#0f172a',
         },
       },
       fontFamily: {
@@ -70,8 +72,8 @@ module.exports = {
         body: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        soft: '0 1px 2px rgb(26 21 18 / 0.04), 0 4px 16px rgb(26 21 18 / 0.06)',
-        lift: '0 2px 4px rgb(26 21 18 / 0.06), 0 12px 32px rgb(26 21 18 / 0.12)',
+        soft: '0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px rgb(15 23 42 / 0.06)',
+        lift: '0 2px 4px rgb(15 23 42 / 0.06), 0 12px 32px rgb(15 23 42 / 0.12)',
         glow: '0 8px 24px -8px rgb(195 36 26 / 0.55)',
       },
       spacing: {
