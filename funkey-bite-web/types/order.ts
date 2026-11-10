@@ -67,6 +67,8 @@ export interface OrderCreatePayload {
   paymentMethod: PaymentMethod
   deliveryAddress?: string
   notes?: string
+  // Checked and applied by the server; the discount shows on the order.
+  promotionCode?: string
   items: {
     menuItemId: number
     name: string
