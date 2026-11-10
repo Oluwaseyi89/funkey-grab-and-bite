@@ -1,188 +1,111 @@
 <template>
-  <form @submit.prevent="submitForm" class="space-y-6" autocomplete="on" novalidate>
-    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Customer Information</h3>
-
-    <!-- Name & Phone -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Full Name *
-        </label>
-        <input
-          v-model="formData.customerName"
-          type="text"
-          required
-          autocomplete="name"
-          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-          placeholder="John Doe"
-          @input="validateField('customerName')"
-        />
-        <p v-if="errors.customerName" class="text-red-500 text-xs mt-1">{{ errors.customerName }}</p>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Phone Number *
-        </label>
-        <input
-          v-model="formData.customerPhone"
-          type="tel"
-          required
-          autocomplete="tel"
-          inputmode="tel"
-          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-          placeholder="0801 234 5678"
-          @input="validateField('customerPhone')"
-        />
-        <p v-if="errors.customerPhone" class="text-red-500 text-xs mt-1">{{ errors.customerPhone }}</p>
-      </div>
-    </div>
-
-    <!-- Email -->
-    <div>
-      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Email Address *
+  <div class="space-y-4">
+    <div v-for="field in visibleFields" :key="field.key">
+      <label :for="`co-${field.key}`" class="form-label">
+        {{ field.label }}<span v-if="field.required" class="text-brand-600" aria-hidden="true"> *</span>
+        <span v-else class="font-normal text-ink-500"> (optional)</span>
       </label>
-      <input
-        v-model="formData.customerEmail"
-        type="email"
-        required
-        autocomplete="email"
-        inputmode="email"
-        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-        placeholder="john@example.com"
-        @input="validateField('customerEmail')"
+      <component
+        :is="field.multiline ? 'textarea' : 'input'"
+        :id="`co-${field.key}`"
+        :value="modelValue[field.key]"
+        :type="field.multiline ? undefined : field.type"
+        :rows="field.multiline ? 2 : undefined"
+        :autocomplete="field.autocomplete"
+        :inputmode="field.inputmode"
+        :placeholder="field.placeholder"
+        :required="field.required || undefined"
+        :maxlength="field.maxlength"
+        :aria-invalid="errors[field.key] ? 'true' : undefined"
+        :aria-describedby="describedBy(field)"
+        class="form-input"
+        :class="field.multiline ? 'resize-none' : ''"
+        @input="onInput(field.key, ($event.target as HTMLInputElement).value)"
+        @blur="touch(field.key)"
       />
-      <p v-if="errors.customerEmail" class="text-red-500 text-xs mt-1">{{ errors.customerEmail }}</p>
+      <p v-if="field.hint && !errors[field.key]" :id="`co-${field.key}-hint`" class="form-hint">{{ field.hint }}</p>
+      <p v-if="errors[field.key]" :id="`co-${field.key}-error`" class="form-error">{{ errors[field.key] }}</p>
     </div>
-
-    <!-- Delivery Address -->
-    <div v-if="props.orderType === 'delivery'">
-      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Delivery Address *
-      </label>
-      <textarea
-        v-model="formData.deliveryAddress"
-        rows="2"
-        required
-        autocomplete="street-address"
-        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-        placeholder="House number, street, area and a landmark"
-        @input="validateField('deliveryAddress')"
-      ></textarea>
-      <p v-if="errors.deliveryAddress" class="text-red-500 text-xs mt-1">{{ errors.deliveryAddress }}</p>
-    </div>
-
-    <!-- Order Notes -->
-    <div>
-      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Special Instructions
-      </label>
-      <textarea
-        v-model="formData.notes"
-        rows="3"
-        autocomplete="off"
-        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-        placeholder="Allergies, delivery instructions, etc."
-      ></textarea>
-    </div>
-
-    <!-- Submit -->
-    <button
-      type="submit"
-      :disabled="props.isLoading"
-      class="w-full btn-primary py-4 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed dark:text-white"
-    >
-      <template v-if="props.isLoading">
-        <Loader2 class="w-5 h-5 animate-spin inline mr-2" />
-        Processing...
-      </template>
-      <template v-else>
-        {{ props.submitText }}
-      </template>
-    </button>
-  </form>
+  </div>
 </template>
-  
-  <script setup lang="ts">
-import { Loader2 } from 'lucide-vue-next'
-import { ref, reactive } from 'vue'
 
+<script setup lang="ts">
+import { computed, nextTick, reactive } from 'vue'
 import type { CustomerInfo, OrderType } from '../../types/order'
 
-type FormData = CustomerInfo
+type Key = keyof CustomerInfo
 
-const props = withDefaults(defineProps<{
-  isLoading?: boolean
-  submitText?: string
-  orderType?: OrderType
-  // Details entered earlier, so going back a step doesn't clear the form.
-  initialData?: Partial<CustomerInfo>
-}>(), {
-  submitText: 'Continue to Payment',
-  orderType: 'pickup',
-  initialData: () => ({})
-})
+interface Field {
+  key: Key
+  label: string
+  type?: string
+  autocomplete: string
+  inputmode?: 'tel' | 'email' | 'text'
+  placeholder?: string
+  hint?: string
+  required: boolean
+  multiline?: boolean
+  maxlength?: number
+}
 
-const emit = defineEmits<{
-  submit: [data: FormData]
-}>()
+// The customer's contact details. Errors show once a field has been left (or
+// on placing the order), never while the customer is still typing.
+const props = defineProps<{ modelValue: CustomerInfo; orderType: OrderType }>()
+const emit = defineEmits<{ 'update:modelValue': [value: CustomerInfo] }>()
 
-const formData = ref<FormData>({
-  customerName: props.initialData.customerName ?? '',
-  customerPhone: props.initialData.customerPhone ?? '',
-  customerEmail: props.initialData.customerEmail ?? '',
-  deliveryAddress: props.initialData.deliveryAddress ?? '',
-  notes: props.initialData.notes ?? ''
-})
+const fields: Field[] = [
+  { key: 'customerName', label: 'Full name', type: 'text', autocomplete: 'name', placeholder: 'e.g. Ada Okafor', required: true, maxlength: 100 },
+  { key: 'customerPhone', label: 'Phone number', type: 'tel', autocomplete: 'tel', inputmode: 'tel', placeholder: '0801 234 5678', hint: 'We’ll call if there’s a question about your order.', required: true },
+  { key: 'customerEmail', label: 'Email', type: 'email', autocomplete: 'email', inputmode: 'email', placeholder: 'you@example.com', hint: 'For your receipt and updates.', required: true, maxlength: 200 },
+  { key: 'deliveryAddress', label: 'Delivery address', autocomplete: 'street-address', placeholder: 'House number, street, area and a landmark', required: true, multiline: true, maxlength: 500 },
+  { key: 'notes', label: 'Notes for us', autocomplete: 'off', placeholder: 'Allergies, gate code, where to find you…', required: false, multiline: true, maxlength: 500 },
+]
+
+const visibleFields = computed(() => fields.filter((f) => f.key !== 'deliveryAddress' || props.orderType === 'delivery'))
+
+const errors = reactive<Partial<Record<Key, string>>>({})
 
 // Spaces, dashes and brackets are fine to type; the API strips them too.
 const cleanPhone = (value: string) => value.trim().replace(/(?!^\+)[^\d]/g, '')
 
-const errors = reactive<{ [key: string]: string }>({})
-
-function validateField(field: keyof FormData) {
-  switch (field) {
-    case 'customerName':
-      errors.customerName = formData.value.customerName.trim().length < 2
-        ? 'Please enter your full name.'
-        : ''
-      break
-    case 'customerPhone':
-      errors.customerPhone =
-        !/^\+?\d{7,15}$/.test(cleanPhone(formData.value.customerPhone))
-          ? 'Enter a valid phone number, e.g. 0801 234 5678.'
-          : ''
-      break
-    case 'deliveryAddress':
-      errors.deliveryAddress = props.orderType === 'delivery' && formData.value.deliveryAddress.trim().length < 5
-        ? 'Enter the address we should deliver to.'
-        : ''
-      break
-    case 'customerEmail':
-      errors.customerEmail =
-        !/^\S+@\S+\.\S+$/.test(formData.value.customerEmail.trim())
-          ? 'Enter a valid email address.'
-          : ''
-      break
+const check = (key: Key): string => {
+  const value = (props.modelValue[key] ?? '').trim()
+  switch (key) {
+    case 'customerName': return value.length < 2 ? 'Enter your name.' : ''
+    case 'customerPhone': return /^\+?\d{7,15}$/.test(cleanPhone(value)) ? '' : 'Enter a phone number we can reach, e.g. 0801 234 5678.'
+    case 'customerEmail': return /^\S+@\S+\.\S+$/.test(value) ? '' : 'Enter an email address like you@example.com.'
+    case 'deliveryAddress': return props.orderType === 'delivery' && value.length < 5 ? 'Enter the address to deliver to.' : ''
+    default: return ''
   }
 }
 
-function validateAll() {
-  validateField('customerName')
-  validateField('customerPhone')
-  validateField('customerEmail')
-  validateField('deliveryAddress')
-  return !errors.customerName && !errors.customerPhone && !errors.customerEmail && !errors.deliveryAddress
+const describedBy = (field: Field) =>
+  errors[field.key] ? `co-${field.key}-error` : field.hint ? `co-${field.key}-hint` : undefined
+
+const onInput = (key: Key, value: string) => {
+  emit('update:modelValue', { ...props.modelValue, [key]: value })
+  // Once an error is showing, clear it as soon as the field is fixed.
+  if (errors[key]) nextTick(() => { errors[key] = check(key) })
 }
 
-function submitForm() {
-  if (!validateAll()) return
-  emit('submit', {
-    ...formData.value,
-    customerName: formData.value.customerName.trim(),
-    customerPhone: formData.value.customerPhone.trim(),
-    customerEmail: formData.value.customerEmail.trim(),
-    deliveryAddress: props.orderType === 'delivery' ? formData.value.deliveryAddress.trim() : '',
-  })
+const touch = (key: Key) => {
+  errors[key] = check(key)
 }
+
+// Checks every field, shows what's wrong and moves to the first problem.
+const validate = (): boolean => {
+  let first: Key | null = null
+  for (const field of visibleFields.value) {
+    errors[field.key] = check(field.key)
+    if (errors[field.key] && !first) first = field.key
+  }
+  if (first) {
+    const el = document.getElementById(`co-${first}`)
+    el?.focus()
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
+  return !first
+}
+
+defineExpose({ validate })
 </script>
