@@ -1,497 +1,235 @@
 <template>
   <div>
-
-    <PageHeader
-      title-before="Our"
-      highlight-text="Delicious"
-      title-after="Menu"
-      subtitle="Explore our wide range of mouth-watering dishes, each crafted with fresh ingredients and passion."
-      alignment="center"
-      :narrow="true"
-      header-class="pb-12"
-    >
-
-      <div class="mt-8 max-w-2xl mx-auto w-full">
-        <SearchBar @search="handleSearch" />
-        
-
-        <div class="flex flex-wrap justify-center gap-2 mt-4">
-          <button
-            v-for="category in topCategories"
-            :key="category.id"
-            @click="handleCategoryFilter(category.id)"
-            class="px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
-            :class="[
-              selectedCategories.includes(category.id)
-                ? 'bg-brand-500 text-white shadow-lg'
-                : 'bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-slate-800'
-            ]"
-          >
-            {{ category.name }}
-            <span class="ml-1 text-xs opacity-75">({{ category.itemsCount }})</span>
-          </button>
-          
-          <button
-            v-if="selectedCategories.length > 0"
-            @click="clearAllFilters"
-            class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
-          >
-            Clear Filters
-          </button>
+    <div class="container-narrow pt-5 md:pt-10">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p class="eyebrow">Pickup &amp; delivery</p>
+          <h1 class="font-display text-3xl font-bold text-ink-900 dark:text-white md:text-5xl">Our menu</h1>
         </div>
-      </div>
-    </PageHeader>
-
-    <div  class="section-padding my-5 mx-5 md:my-8 md:mx-8 px-3 py-3 md:py-8 md:px-8">
-      <div class="container-narrow">
-
-        <div v-if="activeFilters.length" class="mb-8 p-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl border border-gray-100 dark:border-slate-700">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <Filter class="w-4 h-4 text-gray-500" />
-              <span class="text-sm text-gray-600 dark:text-gray-400">Active Filters:</span>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="filter in activeFilters"
-                  :key="filter"
-                  class="inline-flex items-center bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-sm"
-                >
-                  {{ filter }}
-                  <button @click="removeFilter(filter)" class="ml-2 hover:text-red-500 transition-colors">
-                    <X class="w-3 h-3" />
-                  </button>
-                </span>
-              </div>
-            </div>
-            <button 
-              @click="clearAllFilters" 
-              class="text-sm text-brand-500 hover:text-brand-600 dark:hover:text-brand-400 font-medium transition-colors"
-            >
-              Clear All
-            </button>
-          </div>
-        </div>
-
-        <div class="flex flex-col lg:flex-row gap-8">
-
-          <div class="lg:w-1/4 space-y-6">
-
-            <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-100 dark:border-slate-700">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-gray-900 dark:text-white">Categories</h3>
-                <Filter class="w-4 h-4 text-gray-500" />
-              </div>
-              <div v-if="menuStore.isLoading">
-                <div v-for="i in 5" :key="i" class="h-8 bg-gray-200 dark:bg-slate-700 rounded mb-3 animate-pulse"></div>
-              </div>
-              <CategoryFilter
-                v-else
-                :categories="categoriesWithCount"
-                :selected-categories="selectedCategories"
-                @filter="handleCategoryFilter"
-                @clearAll="clearAllFilters"
-              />
-            </div>
-
-            <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-100 dark:border-slate-700">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-gray-900 dark:text-white">Price Range</h3>
-                <span class="w-4 h-4 text-gray-500">₦</span>
-              </div>
-              <div v-if="menuStore.isLoading">
-                <div class="h-6 bg-gray-200 dark:bg-slate-700 rounded mb-4 animate-pulse"></div>
-                <div class="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/2 animate-pulse"></div>
-              </div>
-              <template v-else>
-                <PriceFilter
-                  :min-price="0"
-                  :max-price="30000"
-                  :current-price="maxPrice"
-                  @price-change="handlePriceFilter"
-                />
-                <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                  <span class="font-medium">Max: ₦{{ maxPrice }}</span>
-                  <span class="float-right">{{ priceFilteredCount }} items</span>
-                </div>
-              </template>
-            </div>
-
-            <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-100 dark:border-slate-700">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-gray-900 dark:text-white">Popular Picks</h3>
-                <TrendingUp class="w-4 h-4 text-brand-500" />
-              </div>
-              <div v-if="menuStore.isLoading">
-                <div v-for="i in 3" :key="i" class="flex items-center gap-3 p-3 animate-pulse">
-                  <div class="w-12 h-12 bg-gray-200 dark:bg-slate-700 rounded-lg"></div>
-                  <div class="flex-1 min-w-0">
-                    <div class="h-4 bg-gray-200 dark:bg-slate-700 rounded w-2/3 mb-2"></div>
-                    <div class="h-3 bg-gray-200 dark:bg-slate-700 rounded w-1/3"></div>
-                  </div>
-                </div>
-              </div>
-              <div v-else-if="popularItems.length" class="space-y-3">
-                <div
-                  v-for="item in popularItems"
-                  :key="item.id"
-                  @click="handleViewDetails(item)"
-                  class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors"
-                >
-                  <img
-                    :src="item.imageUrl"
-                    :alt="item.name"
-                    class="w-12 h-12 object-cover rounded-lg"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <p class="font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
-                    <p class="text-sm text-brand-500 font-bold">₦{{ item.price.toFixed(2) }}</p>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="text-sm text-gray-400 italic">No popular items yet.</div>
-            </div>
-
-            <div class="bg-gradient-to-r from-brand-50/80 to-accent-50/80 dark:from-brand-900/20 dark:to-accent-900/20 rounded-xl p-5 border border-brand-100 dark:border-brand-700/30">
-              <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
-                  <Clock class="w-5 h-5 text-brand-600 dark:text-brand-400" />
-                </div>
-                <div>
-                  <h4 class="font-bold text-brand-700 dark:text-brand-300 text-sm mb-1">Pre-order Tip</h4>
-                  <p class="text-xs text-gray-600 dark:text-gray-400">
-                    Pre-order items need 30+ minutes preparation time. Order early to ensure availability!
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="lg:w-3/4">
-
-            <div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-                  {{ filteredItems.length }} Items Available
-                </h2>
-                <p v-if="searchQuery" class="text-gray-600 dark:text-gray-400 mt-1">
-                  Showing results for "<span class="font-medium">{{ searchQuery }}</span>"
-                </p>
-              </div>
-              
-
-              <div class="flex items-center gap-4 dark:text-white">
-                <select
-                  v-model="sortBy"
-                  class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                >
-                  <option value="name">Sort by Name</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
-                  <option value="popular">Most Popular</option>
-                </select>
-                
-
-                <div class="hidden sm:flex items-center gap-1 p-1 bg-gray-100 dark:bg-slate-800 rounded-lg dark:text-white">
-                  <button
-                    @click="gridView = 'grid'"
-                    class="p-2 rounded transition-colors"
-                    :class="gridView === 'grid' ? 'bg-white dark:bg-slate-700 shadow' : 'hover:bg-gray-200 dark:hover:bg-slate-700'"
-                  >
-                    <Grid class="w-4 h-4" />
-                  </button>
-                  <button
-                    @click="gridView = 'list'"
-                    class="p-2 rounded transition-colors"
-                    :class="gridView === 'list' ? 'bg-white dark:bg-slate-700 shadow' : 'hover:bg-gray-200 dark:hover:bg-slate-700'"
-                  >
-                    <List class="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <MenuGrid
-              :filtered-items="paginatedItems"
-              :is-loading="menuStore.isLoading"
-              :current-page="currentPage"
-              :total-pages="totalPages"
-              :items-per-page="itemsPerPage"
-              :view="gridView"
-              @add-to-cart="handleAddToCart"
-              @view-details="handleViewDetails"
-              @page-change="handlePageChange"
-            />
-
-            <div v-if="filteredItems.length === 0 && !menuStore.isLoading" class="text-center py-16">
-              <Search class="w-24 h-24 text-brand-300 dark:text-brand-700 mx-auto mb-6 animate-bounce" />
-              <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">No delicious items found!</h3>
-              <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                We couldn't find any menu items matching your current filters.<br>
-                Try adjusting your search, categories, or price range.<br>
-                Or <span class="font-semibold text-brand-500">clear all filters</span> to see our full menu.
-              </p>
-              <button
-                @click="clearAllFilters"
-                class="btn-primary"
-              >
-                Clear All Filters
-              </button>
-            </div>
-
-            <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 shadow-lg p-4 z-50">
-              <div class="flex justify-between items-center">
-                <div>
-                  <div class="text-sm text-gray-600 dark:text-gray-400">Total</div>
-                  <div class="font-bold text-xl text-brand-500">₦{{ cart.totalPrice.toFixed(2) }}</div>
-                  <div class="text-xs text-gray-500">{{ cart.totalItems }} items</div>
-                </div>
-                <div class="flex gap-3">
-                  <button
-                    @click="cart.toggleCart()"
-                    class="btn-primary px-6"
-                  >
-                    View Cart
-                  </button>
-                  <button
-                    v-if="cart.totalItems > 0"
-                    @click="navigateTo('/order')"
-                    class="btn-secondary px-6"
-                  >
-                    Checkout
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <StoreStatus />
       </div>
     </div>
 
-    <Teleport to="body">
-      <ItemDetailsModal
-        v-if="selectedItem"
-        :item="selectedItem"
-        @close="selectedItem = null"
-        @add-to-cart="handleAddToCart"
-      />
-    </Teleport>
+    <!-- Search and category tabs stay under the header while scrolling. -->
+    <div class="sticky top-14 z-30 mt-4 border-b border-ink-200/60 bg-ink-50/95 backdrop-blur-xl dark:border-ink-800 dark:bg-ink-950/95 md:top-16">
+      <div class="container-narrow space-y-3 py-3">
+        <div class="relative" role="search">
+          <label for="menu-search" class="sr-only">Search the menu</label>
+          <Search class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-400" aria-hidden="true" />
+          <input
+            id="menu-search"
+            v-model="search"
+            type="search"
+            enterkeyhint="search"
+            autocomplete="off"
+            class="form-input rounded-full pl-12 pr-12"
+            placeholder="Search chicken, shawarma, drinks…"
+          />
+          <button v-if="search" type="button" class="icon-btn absolute right-1 top-1/2 -translate-y-1/2" aria-label="Clear search" @click="search = ''">
+            <X class="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+        <nav v-if="!search && sections.length > 1" ref="tabsEl" class="scroll-row -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0" aria-label="Menu sections">
+          <a
+            v-for="section in sections"
+            :key="section.id"
+            :href="`#${section.id}`"
+            :data-section="section.id"
+            class="chip snap-start"
+            :class="activeSection === section.id ? 'chip-active' : ''"
+            :aria-current="activeSection === section.id ? 'true' : undefined"
+            @click.prevent="goTo(section.id)"
+          >
+            {{ section.title }}
+            <span class="text-xs opacity-60">{{ section.items.length }}</span>
+          </a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="container-narrow py-4 md:py-8">
+      <!-- Loading -->
+      <div v-if="menu.isLoading && !menu.loaded" class="space-y-6" aria-busy="true" aria-label="Loading the menu">
+        <div v-for="i in 4" :key="i" class="flex gap-4">
+          <div class="flex-1 space-y-2 py-2">
+            <div class="skeleton h-4 w-2/3" />
+            <div class="skeleton h-3 w-full" />
+            <div class="skeleton h-3 w-1/3" />
+          </div>
+          <div class="skeleton h-28 w-28 rounded-2xl" />
+        </div>
+      </div>
+
+      <!-- Couldn't load -->
+      <div v-else-if="menu.error" class="card mx-auto max-w-md p-8 text-center" role="alert">
+        <WifiOff class="mx-auto h-10 w-10 text-ink-400" aria-hidden="true" />
+        <p class="mt-3 font-semibold text-ink-900 dark:text-white">The menu didn’t load</p>
+        <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">{{ menu.error }}</p>
+        <button type="button" class="btn-primary mt-5" @click="menu.load(true)">Try again</button>
+      </div>
+
+      <!-- Search results -->
+      <section v-else-if="search" aria-live="polite">
+        <h2 class="text-sm font-medium text-ink-500 dark:text-ink-400">
+          {{ results.length ? `${plural(results.length, 'dish', 'dishes')} for “${search}”` : `Nothing matches “${search}”` }}
+        </h2>
+        <div v-if="results.length" :class="listClass">
+          <MenuItemCard v-for="item in results" :key="item.id" :item="item" :layout="layout" @open="open" />
+        </div>
+        <div v-else class="py-12 text-center">
+          <p class="text-ink-600 dark:text-ink-300">Try another word, or browse the full menu.</p>
+          <button type="button" class="btn-secondary mt-4" @click="search = ''">Show everything</button>
+        </div>
+      </section>
+
+      <!-- Nothing on the menu yet -->
+      <div v-else-if="!sections.length" class="py-16 text-center">
+        <p class="font-semibold text-ink-900 dark:text-white">The menu is being updated</p>
+        <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">Please check back soon.</p>
+      </div>
+
+      <!-- Full menu by section -->
+      <template v-else>
+        <section v-for="section in sections" :id="section.id" :key="section.id" :data-section="section.id" class="scroll-mt-[12.5rem] pb-6 pt-4 md:scroll-mt-[13rem] md:pb-10">
+          <div class="mb-1 flex items-baseline justify-between gap-3">
+            <h2 class="font-display text-xl font-bold text-ink-900 dark:text-white md:text-2xl">{{ section.title }}</h2>
+            <span class="text-sm text-ink-500 dark:text-ink-400">{{ plural(section.items.length, 'item') }}</span>
+          </div>
+          <p v-if="section.description" class="text-sm text-ink-500 dark:text-ink-400">{{ section.description }}</p>
+          <div :class="listClass">
+            <MenuItemCard
+              v-for="(item, index) in section.items"
+              :key="`${section.id}-${item.id}`"
+              :item="item"
+              :layout="layout"
+              :eager="section === sections[0] && index < 3"
+              @open="open"
+            />
+          </div>
+        </section>
+      </template>
+    </div>
+
+    <ItemSheet :item="selected" @close="selected = null" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useMediaQuery } from '@vueuse/core'
+import { Search, WifiOff, X } from 'lucide-vue-next'
+import StoreStatus from '../../components/layout/StoreStatus.vue'
+import MenuItemCard from '../../components/menu/MenuItemCard.vue'
+import ItemSheet from '../../components/menu/ItemSheet.vue'
 import { useMenuStore } from '../../stores/menu'
-import { useCartStore } from '../../stores/cart'
-import { navigateTo } from 'nuxt/app'
-import { 
-  X, 
-  Filter, 
-  Banknote, 
-  TrendingUp, 
-  Clock,
-  Grid,
-  List,
-  Search 
-} from 'lucide-vue-next'
+import { plural } from '../../utils/format'
+import { usePageSeo } from '../../composables/usePageSeo'
 import type { MenuItem } from '../../types/menu'
-import { useRoute } from 'vue-router'
 
-import PageHeader from '../../components/layout/PageHeader.vue'
-import SearchBar from '../../components/menu/SearchBar.vue'
-import CategoryFilter from '../../components/menu/CategoryFilter.vue'
-import PriceFilter from '../../components/menu/PriceFilter.vue'
-import MenuGrid from '../../components/menu/MenuGrid.vue'
-import ItemDetailsModal from '../../components/menu/ItemDetailsModal.vue'
+usePageSeo({
+  title: 'Menu',
+  description: 'Chicken & chips, shawarma, noodles, soups, drinks and lunch packs. Order for pickup or delivery.',
+  path: '/menu',
+})
 
 const route = useRoute()
+const router = useRouter()
+const menu = useMenuStore()
 
-const menuStore = useMenuStore()
-const cart = useCartStore()
+const search = ref(typeof route.query.search === 'string' ? route.query.search : '')
+const selected = ref<MenuItem | null>(null)
+const activeSection = ref('')
 
-const selectedCategories = ref<string[]>([])
-const searchQuery = ref('')
-const maxPrice = ref(30000)
-const selectedItem = ref<MenuItem | null>(null)
-const currentPage = ref(1)
-const sortBy = ref('name')
-const gridView = ref<'grid' | 'list'>('grid')
-const gridItemsPerPage = 4
-const listItemsPerPage = 3
-const itemsPerPage = computed(() => gridView.value === 'grid' ? gridItemsPerPage : listItemsPerPage)
+// Rows on phones (photo on the right, like food apps), tiles from tablets up.
+const wide = useMediaQuery('(min-width: 768px)')
+const layout = computed(() => (wide.value ? 'tile' : 'row'))
+const listClass = computed(() =>
+  wide.value ? 'mt-4 grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'divide-y divide-ink-200/70 dark:divide-ink-800',
+)
 
-const categoriesWithCount = computed(() => {
-  return menuStore.categories.map(category => ({
-    ...category,
-    itemsCount: menuStore.getItemsByCategory(category.id).length
-  }))
-})
+interface Section { id: string; title: string; description?: string; items: MenuItem[] }
 
-const topCategories = computed(() => {
-  return categoriesWithCount.value
-    .sort((a, b) => b.itemsCount - a.itemsCount)
-    .slice(0, 5)
-})
-
-const filteredItems = computed(() => {
-  let items = menuStore.menuItems
-
-  if (selectedCategories.value.length > 0) {
-    items = items.filter(item => selectedCategories.value.includes(item.categoryId))
+const sections = computed<Section[]>(() => {
+  const list: Section[] = []
+  const popular = menu.featuredItems
+  if (popular.length >= 3 && menu.visibleCategories.length > 1) {
+    list.push({ id: 'popular', title: 'Popular', description: 'What everyone’s ordering', items: popular.slice(0, 6) })
   }
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    items = items.filter(item =>
-      item.name.toLowerCase().includes(query) ||
-      item.description.toLowerCase().includes(query) ||
-      item.tags?.some(tag => tag.toLowerCase().includes(query))
-    )
+  for (const category of menu.visibleCategories) {
+    list.push({
+      id: `cat-${category.id}`,
+      title: category.name,
+      description: category.description,
+      items: menu.getItemsByCategory(category.id),
+    })
   }
-
-  items = items.filter(item => item.price <= maxPrice.value)
-
-  items = [...items].sort((a, b) => {
-    switch (sortBy.value) {
-      case 'price-low':
-        return a.price - b.price
-      case 'price-high':
-        return b.price - a.price
-      case 'popular':
-        return (b.popularity || 0) - (a.popularity || 0)
-      default: // 'name'
-        return a.name.localeCompare(b.name)
-    }
-  })
-
-  return items
+  return list
 })
 
-const priceFilteredCount = computed(() => {
-  return menuStore.menuItems.filter(item => item.price <= maxPrice.value).length
+const results = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  if (!query) return []
+  return menu.items.filter((item) =>
+    [item.name, item.description, ...(item.tags ?? [])].some((text) => text?.toLowerCase().includes(query)),
+  )
 })
 
-const popularItems = computed(() => {
-  return [...menuStore.menuItems]
-    .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-    .slice(0, 3)
+const open = (item: MenuItem) => { selected.value = item }
+
+// Keep the search in the address so Back and shared links keep it.
+watch(search, (value) => {
+  router.replace({ query: { ...route.query, search: value || undefined }, hash: route.hash })
 })
 
-const paginatedItems = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filteredItems.value.slice(start, end)
+// Highlights the tab of the section being read.
+const tabsEl = ref<HTMLElement>()
+let observer: IntersectionObserver | undefined
+const visible = new Map<string, number>()
+
+// While a tapped tab scrolls the page, the tapped tab stays highlighted.
+let lockedUntil = 0
+
+const goTo = (id: string) => {
+  activeSection.value = id
+  lockedUntil = Date.now() + 1200
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  history.replaceState(history.state, '', `#${id}`)
+}
+
+watch(activeSection, async (id) => {
+  await nextTick()
+  tabsEl.value?.querySelector<HTMLElement>(`[data-section="${id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
 })
 
-const totalPages = computed(() => {
-  return Math.ceil(filteredItems.value.length / itemsPerPage.value)
-})
-
-const activeFilters = computed(() => {
-  const filters: string[] = []
-  if (selectedCategories.value.length > 0) {
-    const cats = menuStore.categories.filter(c => selectedCategories.value.includes(c.id))
-    filters.push(...cats.map(c => c.name))
-  }
-  if (searchQuery.value) filters.push(`"${searchQuery.value}"`)
-  if (maxPrice.value < 30000) filters.push(`Under ₦${maxPrice.value}`)
-  return filters
-})
-
-const handleCategoryFilter = (categoryId: string) => {
-  if (selectedCategories.value.includes(categoryId)) {
-    selectedCategories.value = selectedCategories.value.filter(id => id !== categoryId)
-  } else {
-    selectedCategories.value.push(categoryId)
-  }
-  currentPage.value = 1
-}
-
-const handleSearch = (query: string) => {
-  searchQuery.value = query
-  currentPage.value = 1
-}
-
-const handlePriceFilter = (price: number) => {
-  maxPrice.value = price
-  currentPage.value = 1
-}
-
-// The cart store shows the confirmation, or a stock warning when it can't add.
-const handleAddToCart = (item: MenuItem, specialInstructions?: string) => {
-  cart.addItem(item, 1, specialInstructions)
-}
-
-const handleViewDetails = (item: MenuItem) => {
-  selectedItem.value = item
-}
-
-const handlePageChange = (page: number) => {
-  currentPage.value = page
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-const removeFilter = (filter: string) => {
-  if (filter.startsWith('"')) {
-    searchQuery.value = ''
-  } else if (filter.startsWith('Under ₦')) {
-    maxPrice.value = 30000
-  } else {
-    const category = menuStore.categories.find(c => c.name === filter)
-    if (category) {
-      selectedCategories.value = selectedCategories.value.filter(id => id !== category.id)
-    }
-  }
-  currentPage.value = 1
-}
-
-const clearAllFilters = () => {
-  selectedCategories.value = []
-  searchQuery.value = ''
-  maxPrice.value = 30000
-  currentPage.value = 1
-  sortBy.value = 'name'
-}
-
-  
 onMounted(async () => {
-  if (route.query.category) {
-    selectedCategories.value = [route.query.category as string]
-  }
-  
-  await Promise.all([
-    menuStore.fetchCategories(),
-    menuStore.fetchMenuItems()
-  ])
-  
-  window.scrollTo({ top: 0, behavior: 'instant' })
+  observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const id = (entry.target as HTMLElement).dataset.section ?? ''
+        if (entry.isIntersecting) visible.set(id, entry.boundingClientRect.top)
+        else visible.delete(id)
+      }
+      if (Date.now() < lockedUntil) return
+      const first = sections.value.find((section) => visible.has(section.id))
+      if (first) activeSection.value = first.id
+    },
+    // The band just below the sticky search and tabs.
+    { rootMargin: '-210px 0px -50% 0px' },
+  )
+
+  await menu.load()
+  await nextTick()
+  document.querySelectorAll<HTMLElement>('section[data-section]').forEach((el) => observer?.observe(el))
+  activeSection.value ||= sections.value[0]?.id ?? ''
+
+  // Old links: ?category=3 and ?item=12; new ones use #cat-3.
+  const category = route.query.category
+  const target = typeof category === 'string' ? `cat-${category}` : route.hash.slice(1)
+  if (target && document.getElementById(target)) goTo(target)
+  const itemId = route.query.item
+  if (typeof itemId === 'string') selected.value = menu.items.find((item) => item.id === itemId) ?? null
 })
+
+onBeforeUnmount(() => observer?.disconnect())
 </script>
-
-<style scoped>
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-.smooth-transition {
-  transition: all 0.3s ease-in-out;
-}
-
-.fixed {
-  z-index: 40;
-}
-</style>

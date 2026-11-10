@@ -1,489 +1,377 @@
 <template>
-    <div class="mt-[-30px]">
-     
-      <PageHeader
-      title-before="Your"
-      highlight-text="Order"
-      title-after=""
-      subtitle="Review your items and complete your order"
-      :narrow="true"
-      :alignment="'center'"
-      variant="gradient"
-    />
-  
-      <div class="mt-[-60px] md:mt-[-80px] py-6 md:py-12">
-        <div class="container-narrow px-4 sm:px-6 lg:px-8">
-
-          <div v-if="cart.items.length === 0" class="text-center py-12">
-            <ShoppingCart class="w-24 h-24 text-gray-300 dark:text-gray-700 mx-auto mb-6" />
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Your cart is empty</h2>
-            <p class="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
-              Add some delicious items from our menu to get started!
-            </p>
-            <NuxtLink to="/menu" class="btn-primary text-lg px-8 py-4">
-              <ShoppingBag class="w-5 h-5 inline mr-2" />
-              Browse Menu
-            </NuxtLink>
-          </div>
-  
-
-          <div v-else>
-
-            <div
-              v-if="orderBlockedReason && settingsStatus !== 'loading'"
-              role="alert"
-              class="mt-4 p-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
-            >
-              {{ orderBlockedReason }}
-              <NuxtLink v-if="businessSettings" to="/contact" class="underline font-medium ml-1">See opening hours</NuxtLink>
-            </div>
-
-            <div class="my-5 md:my-8 py-3 md:py-8">
-              <div class="flex items-center justify-center gap-3 sm:gap-6 md:gap-12 flex-wrap">
-                <div v-for="(step, index) in steps" :key="step.id" class="flex items-center">
-                  <div class="flex flex-col items-center">
-                    <div
-                      class="w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all"
-                      :class="[
-                        currentStep >= index
-                          ? 'bg-brand-500 text-white'
-                          : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
-                      ]"
-                    >
-                      {{ index + 1 }}
-                    </div>
-                    <span class="mt-2 text-xs sm:text-sm font-medium" :class="[
-                      currentStep >= index
-                        ? 'text-brand-500'
-                        : 'text-gray-500 dark:text-gray-400'
-                    ]">
-                      {{ step.name }}
-                    </span>
-                  </div>
-                  <div
-                    v-if="index < steps.length - 1"
-                    class="hidden md:block w-24 h-1 mx-4"
-                    :class="currentStep > index ? 'bg-brand-500' : 'bg-gray-200 dark:bg-slate-700'"
-                  ></div>
-                </div>
-              </div>
-            </div>
-  
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 py-6 md:py-8">
-
-              <div class="order-2 lg:order-1 lg:col-span-2 min-w-0">
-
-                <div v-if="currentStep === 0" class="space-y-4">
-                  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Review Your Order</h2>
-                  <div class="space-y-4 w-full">
-                    <CartItem
-                      v-for="item in cart.items"
-                      :key="item.menuItem.id"
-                      :item="item"
-                      @update-quantity="(change) => updateQuantity(item, change)"
-                      @remove="removeItem(item)"
-                    />
-                  </div>
-                  <div class="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t">
-                    <NuxtLink to="/menu" class="w-full sm:w-auto text-brand-500 hover:text-brand-600 font-medium flex items-center justify-center">
-                      <ArrowLeft class="w-4 h-4 mr-2" />
-                      Continue Shopping
-                    </NuxtLink>
-                    <button @click="currentStep = 1" class="btn-primary w-full sm:w-auto">
-                      Continue to Delivery
-                      <ArrowRight class="w-4 h-4 ml-2" />
-                    </button>
-                  </div>
-                </div>
-  
-
-                <div v-if="currentStep === 1" class="space-y-8">
-                  <OrderTypeSelector
-                    :selected-type="orderData.orderType"
-                    :delivery-fee="businessSettings?.deliveryFee"
-                    @select="orderData.orderType = $event"
-                  />
-                  
-                  <!-- Submitting the form is the only way on to payment, so an
-                       order can't be placed without the customer's details. -->
-                  <CustomerInfoForm
-                    :order-type="orderData.orderType"
-                    :initial-data="customerInfo"
-                    @submit="handleCustomerInfo"
-                    submit-text="Continue to Payment"
-                  />
-                  
-                  <div class="flex justify-start pt-6 border-t">
-                    <button @click="currentStep = 0" class="btn-secondary w-full sm:w-auto">
-                      Back to Cart
-                    </button>
-                  </div>
-                </div>
-  
-
-                <div v-if="currentStep === 2" class="space-y-8">
-                  <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Payment Method</h3>
-                    <div class="mb-4 p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-sm text-gray-700 dark:text-gray-300">
-                      <p class="font-medium">{{ customerInfo.customerName }} · {{ customerInfo.customerPhone }}</p>
-                      <p>{{ customerInfo.customerEmail }}</p>
-                      <p v-if="orderData.orderType === 'delivery'">Deliver to: {{ customerInfo.deliveryAddress }}</p>
-                      <button type="button" class="mt-1 text-brand-500 hover:text-brand-600 font-medium" @click="currentStep = 1">
-                        Edit details
-                      </button>
-                    </div>
-                    <div class="space-y-4">
-                      <label
-                        v-for="method in paymentMethods"
-                        :key="method.id"
-                        class="flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all"
-                        :class="[
-                          selectedPayment === method.id
-                            ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
-                            : 'border-gray-200 dark:border-slate-700 hover:border-brand-300'
-                        ]"
-                      >
-                        <input
-                          v-model="selectedPayment"
-                          type="radio"
-                          :value="method.id"
-                          class="mr-4"
-                        />
-                        <component :is="method.icon" class="w-6 h-6 mr-3" :class="method.iconClass" />
-                        <div class="flex-1">
-                          <h4 class="font-bold">{{ method.name }}</h4>
-                          <p class="text-sm text-gray-600 dark:text-gray-400">{{ method.description }}</p>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-  
-                  <div class="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 border-t">
-                    <button @click="currentStep = 1" class="btn-secondary w-full sm:w-auto">
-                      Back to Details
-                    </button>
-                    <button
-                      @click="submitOrder"
-                      :disabled="isSubmitting || !!orderBlockedReason"
-                      class="btn-primary w-full sm:w-auto"
-                    >
-                      <template v-if="isSubmitting">
-                        <Loader2 class="w-5 h-5 animate-spin inline mr-2" />
-                        Placing Order...
-                      </template>
-                      <template v-else>
-                        Place Order - ₦{{ orderTotal.toFixed(2) }}
-                      </template>
-                    </button>
-                  </div>
-                </div>
-              </div>
-  
-
-              <div class="order-1 lg:order-2 lg:col-span-1">
-                <CartSummary
-                  :items="cart.items"
-                  :delivery-fee="deliveryFee"
-                  :tax-rate="taxRate"
-                  :is-loading="isSubmitting"
-                  @checkout="currentStep = 1"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-  
-
-      <OrderConfirmation
-        v-if="showConfirmation"
-        :order-number="orderNumber"
-        :estimated-time="estimatedTime"
-        :customer-phone="lastOrder?.customerPhone || ''"
-        :invoice-number="lastOrder?.invoiceNumber"
-        :order-type="lastOrder?.orderType"
-        :total-amount="lastOrder?.totalAmount"
-        :payment-method="lastOrder?.paymentMethod"
-        :payment-status="lastOrder?.paymentStatus"
-        :payment-account-number="lastOrder?.paymentAccountNumber"
-        :payment-account-name="lastOrder?.paymentAccountName"
-        :payment-bank-name="lastOrder?.paymentBankName"
-        :payment-expires-at="lastOrder?.paymentExpiresAt"
-        @close="showConfirmation = false"
-      />
+  <div class="container-narrow py-5 md:py-10">
+    <div class="flex items-center gap-2">
+      <NuxtLink to="/menu" class="icon-btn -ml-2" aria-label="Back to the menu">
+        <ArrowLeft class="h-5 w-5" aria-hidden="true" />
+      </NuxtLink>
+      <h1 class="font-display text-2xl font-bold text-ink-900 dark:text-white md:text-3xl">Checkout</h1>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, computed, onMounted, watch } from 'vue'
-  import { useCartStore } from '../../stores/cart'
-  import { useState } from 'nuxt/app'
-  import type { CustomerInfo, InvoiceLookup, Order, OrderCreatePayload, PaymentMethod } from '../../types/order'
-  import type { CartItem as CartItemType } from '../../types/menu'
-  import {
-    ShoppingCart,
-    ShoppingBag,
-    ArrowLeft,
-    ArrowRight,
-    Loader2,
-    Landmark,
-    Banknote,
-    CreditCard
-  } from 'lucide-vue-next'
-  
-  import PageHeader from '../../components/layout/PageHeader.vue'
-  import CartItem from '../../components/order/CartItem.vue'
-  import CartSummary from '../../components/order/CartSummary.vue'
-  import OrderTypeSelector from '../../components/order/OrderTypeSelector.vue'
-  import CustomerInfoForm from '../../components/order/CustomerInfoForm.vue'
-  import OrderConfirmation from '../../components/order/OrderConfirmation.vue'
-  import { useApi } from '../../utils/api'
-  import { checkoutKeyFor, clearCheckoutKey } from '../../utils/checkoutKey'
-  import { usePaystack } from '../../composables/usePaystack'
-  import { useAuthStore } from '../../stores/auth'
-  import { useBusinessSettings } from '../../composables/useBusinessSettings'
-  
-  const cart = useCartStore()
-  const api = useApi()
-  const auth = useAuthStore()
-  const { cardPaymentsEnabled, payWithCard } = usePaystack()
-  const { $toast } = useNuxtApp()
-  const { settings: businessSettings, status: settingsStatus, load: loadBusinessSettings } = useBusinessSettings()
-  
-  const currentStep = ref(0)
-  const isSubmitting = ref(false)
-  const showConfirmation = ref(false)
-  const orderNumber = ref('')
-  const estimatedTime = ref('')
-  const selectedPayment = ref<PaymentMethod>('transfer')
-  const lastOrder = ref<Order | null>(null)
-  
-  const orderData = ref<Pick<Order, 'orderType'>>({
-    orderType: 'pickup',
-  })
-  
-  const emptyCustomerInfo = (): CustomerInfo => ({
-    customerName: '',
-    customerPhone: '',
-    customerEmail: '',
-    deliveryAddress: '',
-    notes: ''
-  })
-  const customerInfo = ref<CustomerInfo>(emptyCustomerInfo())
-  const hasCustomerInfo = computed(() =>
-    Boolean(customerInfo.value.customerName && customerInfo.value.customerPhone && customerInfo.value.customerEmail) &&
-    (orderData.value.orderType !== 'delivery' || Boolean(customerInfo.value.deliveryAddress))
-  )
-  
-  const steps = [
-    { id: 'cart', name: 'Cart' },
-    { id: 'details', name: 'Details' },
-    { id: 'payment', name: 'Payment' }
-  ]
-  
-  const payOnDeliveryEnabled = computed(() => Boolean(businessSettings.value?.payOnDeliveryEnabled))
-  
-  // Pay on delivery is only offered while the admin allows it; online payment
-  // is always available.
-  const paymentMethods = computed(() => {
-    const methods: { id: PaymentMethod; name: string; description: string; icon: typeof Landmark; iconClass: string }[] = []
-    if (payOnDeliveryEnabled.value) {
-      const isDelivery = orderData.value.orderType === 'delivery'
-      methods.push({
-        id: 'cash',
-        name: isDelivery ? 'Pay on Delivery' : 'Pay at Pickup',
-        description: `Pay with cash, POS or transfer when you ${isDelivery ? 'receive' : 'collect'} your order. We'll email you an invoice.`,
-        icon: Banknote,
-        iconClass: 'text-amber-500'
-      })
-    }
-    if (cardPaymentsEnabled) {
-      methods.push({
-        id: 'card',
-        name: 'Pay with Card',
-        description: "Pay instantly in Paystack's secure window. Your card details never reach us.",
-        icon: CreditCard,
-        iconClass: 'text-emerald-500'
-      })
-    }
-    methods.push({
-      id: 'transfer',
-      name: 'Bank Transfer',
-      description: 'Transfer to a dedicated account number (Paystack)',
-      icon: Landmark,
-      iconClass: 'text-blue-500'
-    })
-    return methods
-  })
-  
-  // Default to pay on delivery when it's offered, and never leave it selected
-  // after the admin turns it off.
-  watch(payOnDeliveryEnabled, (enabled) => {
-    selectedPayment.value = enabled ? 'cash' : 'transfer'
-  }, { immediate: true })
-  
-  // Fees come from the admin settings the API charges with; null (and checkout
-  // disabled) until they have loaded.
-  const deliveryFee = computed<number | null>(() => {
-    if (!businessSettings.value) return null
-    return orderData.value.orderType === 'delivery' ? businessSettings.value.deliveryFee : 0
-  })
-  
-  const taxRate = computed<number | null>(() => businessSettings.value?.taxRate ?? null)
-  
-  const orderTotal = computed(() => {
-    const subtotal = cart.items.reduce((sum, item) => sum + (item.menuItem.price * item.quantity), 0)
-    const tax = subtotal * ((taxRate.value ?? 0) / 100)
-    return subtotal + tax + (deliveryFee.value ?? 0)
-  })
-  
-  // Mirrors the API's checks so customers learn about a closure before they
-  // check out, not from a rejected order.
-  const orderBlockedReason = computed(() => {
-    const s = businessSettings.value
-    if (settingsStatus.value === 'loading') return 'Loading our prices and opening hours…'
-    if (!s) return "We couldn't load our prices and opening hours. Please refresh the page to try again."
-    if (!s.isOpenNow) return "We're closed right now, so orders can't be placed until we open again."
-    if (orderData.value.orderType === 'delivery' && !s.isDeliveryOpen) {
-      return 'Delivery is unavailable right now. Please choose pickup instead.'
-    }
-    if (orderData.value.orderType === 'pickup' && !s.isPickupOpen) {
-      return 'Pickup is unavailable right now. Please choose delivery instead.'
-    }
-    return ''
-  })
-  
-  const updateQuantity = (item: CartItemType, change: number) => {
-    const newQuantity = item.quantity + change
-    if (newQuantity > 0) {
-      cart.updateQuantity(item.menuItem.id, newQuantity)
+
+    <!-- Empty cart -->
+    <div v-if="mounted && cart.isEmpty" class="mx-auto max-w-sm py-16 text-center">
+      <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand-50 dark:bg-brand-900/30">
+        <ShoppingBag class="h-9 w-9 text-brand-500" aria-hidden="true" />
+      </div>
+      <h2 class="mt-4 text-xl font-semibold text-ink-900 dark:text-white">Your cart is empty</h2>
+      <p class="mt-1 text-ink-500 dark:text-ink-400">Add a few things from the menu, then come back here to order.</p>
+      <NuxtLink to="/menu" class="btn-primary btn-lg mt-6">Browse the menu</NuxtLink>
+      <p class="mt-6 text-sm text-ink-500 dark:text-ink-400">Looking for an order you placed? <NuxtLink to="/order/track" class="link">Track it</NuxtLink></p>
+    </div>
+
+    <form v-else-if="mounted" class="mt-4 grid gap-6 lg:grid-cols-[1fr_380px] lg:items-start" novalidate @submit.prevent="placeOrder">
+      <div class="min-w-0 space-y-4">
+        <p v-if="blockedReason && settingsStatus !== 'loading'" role="alert" class="rounded-2xl bg-accent-50 px-4 py-3 text-sm text-accent-800 dark:bg-accent-700/15 dark:text-accent-200">
+          {{ blockedReason }}
+        </p>
+
+        <!-- 1. How -->
+        <section class="card p-5" aria-labelledby="how-title">
+          <h2 id="how-title" class="mb-3 font-display text-lg font-semibold text-ink-900 dark:text-white">How would you like it?</h2>
+          <OrderTypeSelector
+            v-model="orderType"
+            :delivery-fee="settings?.deliveryFee ?? null"
+            :pickup-open="settings ? settings.isPickupOpen : undefined"
+            :delivery-open="settings ? settings.isDeliveryOpen : undefined"
+          />
+          <p class="mt-3 text-sm text-ink-500 dark:text-ink-400">
+            Feeding a crowd? <NuxtLink to="/catering" class="link">Request catering</NuxtLink>
+          </p>
+        </section>
+
+        <!-- 2. Items -->
+        <section class="card p-5" aria-labelledby="items-title">
+          <div class="flex items-center justify-between">
+            <h2 id="items-title" class="font-display text-lg font-semibold text-ink-900 dark:text-white">Your items</h2>
+            <NuxtLink to="/menu" class="link inline-flex min-h-[44px] items-center gap-1 text-sm"><Plus class="h-4 w-4" aria-hidden="true" />Add more</NuxtLink>
+          </div>
+          <ul class="divide-y divide-ink-100 dark:divide-ink-800">
+            <CartLine v-for="item in cart.items" :key="item.menuItem.id" :item="item" />
+          </ul>
+        </section>
+
+        <!-- 3. Details -->
+        <section class="card p-5" aria-labelledby="details-title">
+          <div class="mb-4 flex items-start justify-between gap-3">
+            <h2 id="details-title" class="font-display text-lg font-semibold text-ink-900 dark:text-white">Your details</h2>
+            <NuxtLink v-if="!signedIn" :to="{ path: '/account/login', query: { next: '/order' } }" class="link shrink-0 text-sm">Sign in to fill these in</NuxtLink>
+          </div>
+          <CustomerInfoForm ref="detailsForm" v-model="details" :order-type="orderType" />
+        </section>
+
+        <!-- 4. Payment -->
+        <section class="card p-5" aria-labelledby="pay-title">
+          <h2 id="pay-title" class="mb-3 font-display text-lg font-semibold text-ink-900 dark:text-white">Payment</h2>
+          <fieldset>
+            <legend class="sr-only">How would you like to pay?</legend>
+            <div class="space-y-2">
+              <label
+                v-for="method in paymentMethods"
+                :key="method.id"
+                class="flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500"
+                :class="payment === method.id ? 'border-brand-500 bg-brand-50/60 dark:bg-brand-900/15' : 'border-ink-200 hover:border-ink-300 dark:border-ink-700'"
+              >
+                <input v-model="payment" type="radio" name="payment" :value="method.id" class="sr-only" />
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" :class="method.tint">
+                  <component :is="method.icon" class="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block font-semibold text-ink-900 dark:text-white">{{ method.name }}</span>
+                  <span class="block text-sm text-ink-500 dark:text-ink-400">{{ method.description }}</span>
+                </span>
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2" :class="payment === method.id ? 'border-brand-600 bg-brand-600' : 'border-ink-300 dark:border-ink-600'" aria-hidden="true">
+                  <span v-if="payment === method.id" class="h-2 w-2 rounded-full bg-white" />
+                </span>
+              </label>
+            </div>
+          </fieldset>
+        </section>
+      </div>
+
+      <!-- Summary: under the form on phones, alongside on desktop. -->
+      <aside class="space-y-4 lg:sticky lg:top-24" aria-labelledby="summary-title">
+        <section class="card p-5">
+          <h2 id="summary-title" class="font-display text-lg font-semibold text-ink-900 dark:text-white">Summary</h2>
+
+          <!-- Promo code, checked by the server -->
+          <div class="mt-4">
+            <div v-if="promo.applied" class="flex items-center justify-between gap-3 rounded-xl bg-leaf-50 px-3 py-2.5 text-sm dark:bg-leaf-800/25">
+              <span class="inline-flex items-center gap-2 font-medium text-leaf-800 dark:text-leaf-200">
+                <TicketPercent class="h-4 w-4" aria-hidden="true" />
+                <span class="font-mono">{{ promo.applied }}</span> applied
+              </span>
+              <button type="button" class="min-h-[36px] px-2 font-medium text-ink-600 hover:text-brand-600 dark:text-ink-300" @click="removePromo">Remove</button>
+            </div>
+            <div v-else>
+              <label for="promo-code" class="form-label">Promo code</label>
+              <div class="flex gap-2">
+                <input
+                  id="promo-code"
+                  v-model="promo.input"
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  class="form-input font-mono"
+                  placeholder="Enter code"
+                  :aria-invalid="promo.error ? 'true' : undefined"
+                  :aria-describedby="promo.error ? 'promo-error' : undefined"
+                  @keydown.enter.prevent="applyPromo"
+                />
+                <button type="button" class="btn-secondary shrink-0" :disabled="!promo.input.trim() || promo.checking" @click="applyPromo">
+                  <Loader2 v-if="promo.checking" class="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Apply
+                </button>
+              </div>
+              <p v-if="promo.error" id="promo-error" class="form-error" role="alert">{{ promo.error }}</p>
+            </div>
+          </div>
+
+          <dl class="mt-4 space-y-2 text-sm">
+            <div class="flex justify-between text-ink-600 dark:text-ink-300"><dt>Items ({{ cart.totalItems }})</dt><dd class="tabular-nums">{{ naira(cart.subtotal) }}</dd></div>
+            <template v-if="settings">
+              <div v-if="orderType === 'delivery'" class="flex justify-between text-ink-600 dark:text-ink-300"><dt>Delivery</dt><dd class="tabular-nums">{{ deliveryFee ? naira(deliveryFee) : 'Free' }}</dd></div>
+              <div v-if="tax > 0" class="flex justify-between text-ink-600 dark:text-ink-300"><dt>Tax ({{ settings.taxRate }}%)</dt><dd class="tabular-nums">{{ naira(tax) }}</dd></div>
+              <div v-if="discount > 0" class="flex justify-between text-leaf-700 dark:text-leaf-300"><dt>Discount</dt><dd class="tabular-nums">−{{ naira(discount) }}</dd></div>
+              <div class="flex justify-between border-t border-ink-100 pt-3 text-lg font-bold text-ink-900 dark:border-ink-800 dark:text-white"><dt>Total</dt><dd class="tabular-nums">{{ naira(total) }}</dd></div>
+            </template>
+            <div v-else class="flex justify-between border-t border-ink-100 pt-3 text-ink-500 dark:border-ink-800">
+              <dt>Fees and total</dt><dd>{{ settingsStatus === 'loading' ? 'Loading…' : 'Unavailable' }}</dd>
+            </div>
+          </dl>
+          <p v-if="belowMinimum" class="mt-3 text-sm text-accent-700 dark:text-accent-300">
+            The minimum order is {{ naira(settings?.minOrderAmount ?? 0) }}. Add {{ naira((settings?.minOrderAmount ?? 0) - cart.subtotal) }} more to order.
+          </p>
+
+          <button type="submit" class="btn-primary btn-lg mt-5 hidden w-full lg:flex" :disabled="!canPlace">
+            <Loader2 v-if="placing" class="h-5 w-5 animate-spin" aria-hidden="true" />
+            {{ placeLabel }}
+          </button>
+          <p class="mt-3 flex items-center justify-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
+            <Lock class="h-3.5 w-3.5" aria-hidden="true" /> Card payments go through Paystack. We never see your card.
+          </p>
+        </section>
+      </aside>
+
+      <!-- Phones: the place-order button stays in reach. -->
+      <div class="fixed inset-x-0 z-40 border-t border-ink-200/70 bg-white/95 px-4 pt-3 backdrop-blur-xl dark:border-ink-800 dark:bg-ink-950/95 lg:hidden" style="bottom: calc(4rem + env(safe-area-inset-bottom)); padding-bottom: 0.75rem">
+        <button type="submit" class="btn-primary btn-lg w-full justify-between" :disabled="!canPlace">
+          <span class="inline-flex items-center gap-2">
+            <Loader2 v-if="placing" class="h-5 w-5 animate-spin" aria-hidden="true" />
+            {{ placing ? 'Placing order…' : 'Place order' }}
+          </span>
+          <span v-if="settings" class="tabular-nums">{{ naira(total) }}</span>
+        </button>
+      </div>
+      <!-- Room so the fixed button never covers the summary. -->
+      <div class="h-20 lg:hidden" aria-hidden="true" />
+    </form>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useNuxtApp, useState } from 'nuxt/app'
+import { ArrowLeft, Banknote, CreditCard, Landmark, Loader2, Lock, Plus, ShoppingBag, TicketPercent } from 'lucide-vue-next'
+import CartLine from '../../components/cart/CartLine.vue'
+import OrderTypeSelector from '../../components/order/OrderTypeSelector.vue'
+import CustomerInfoForm from '../../components/order/CustomerInfoForm.vue'
+import { useCartStore } from '../../stores/cart'
+import { useAuthStore } from '../../stores/auth'
+import { useApi } from '../../utils/api'
+import { checkoutKeyFor, clearCheckoutKey } from '../../utils/checkoutKey'
+import { rememberOrder } from '../../utils/recentOrders'
+import { naira } from '../../utils/format'
+import { usePaystack } from '../../composables/usePaystack'
+import { useBusinessSettings } from '../../composables/useBusinessSettings'
+import { usePageSeo } from '../../composables/usePageSeo'
+import type { CustomerInfo, InvoiceLookup, Order, OrderCreatePayload, OrderType, PaymentMethod } from '../../types/order'
+
+usePageSeo({ title: 'Checkout', description: 'Review your order and pay.', path: '/order', noindex: true })
+
+const cart = useCartStore()
+const auth = useAuthStore()
+const api = useApi()
+const router = useRouter()
+const { $toast } = useNuxtApp()
+const toast = $toast as { error?: (message: string) => void } | undefined
+const { cardPaymentsEnabled, payWithCard } = usePaystack()
+const { settings, status: settingsStatus, load: loadSettings } = useBusinessSettings()
+
+const mounted = ref(false)
+const signedIn = ref(false)
+const placing = ref(false)
+const orderType = ref<OrderType>('pickup')
+const payment = ref<PaymentMethod>('transfer')
+const details = ref<CustomerInfo>({ customerName: '', customerPhone: '', customerEmail: '', deliveryAddress: '', notes: '' })
+const detailsForm = ref<InstanceType<typeof CustomerInfoForm>>()
+
+// ---- Money ----
+const deliveryFee = computed(() => (orderType.value === 'delivery' ? settings.value?.deliveryFee ?? 0 : 0))
+const tax = computed(() => Math.round(cart.subtotal * ((settings.value?.taxRate ?? 0) / 100) * 100) / 100)
+const beforeDiscount = computed(() => cart.subtotal + tax.value + deliveryFee.value)
+
+// The server decides the discount; this shows what it said for this total.
+const promo = reactive({ input: '', applied: '', discount: 0, checkedFor: 0, checking: false, error: '' })
+const discount = computed(() => (promo.applied ? Math.min(promo.discount, beforeDiscount.value) : 0))
+const total = computed(() => Math.max(0, beforeDiscount.value - discount.value))
+const belowMinimum = computed(() => Boolean(settings.value?.minOrderAmount) && cart.subtotal < (settings.value?.minOrderAmount ?? 0))
+
+const checkCode = async (code: string) => {
+  promo.checking = true
+  promo.error = ''
+  try {
+    const result = await api.checkPromotion(code, beforeDiscount.value)
+    if (result.isValid) {
+      promo.applied = code
+      promo.discount = result.discount ?? 0
+      promo.checkedFor = beforeDiscount.value
+      promo.input = ''
+      cart.promoCode = promo.applied
     } else {
-      cart.removeItem(item.menuItem.id)
+      promo.applied = ''
+      promo.error = result.message || 'That code can’t be used on this order.'
+      cart.promoCode = ''
     }
+  } catch (err) {
+    promo.error = err instanceof Error ? err.message : 'We couldn’t check that code.'
+  } finally {
+    promo.checking = false
   }
-  
-  const removeItem = (item: CartItemType) => {
-    cart.removeItem(item.menuItem.id)
+}
+
+const applyPromo = () => {
+  const code = promo.input.trim()
+  if (code) checkCode(code)
+}
+
+const removePromo = () => {
+  promo.applied = ''
+  promo.discount = 0
+  cart.promoCode = ''
+}
+
+// A percentage discount changes with the total, so ask again when it does.
+let recheck: ReturnType<typeof setTimeout> | undefined
+watch(beforeDiscount, (amount) => {
+  if (!promo.applied || amount === promo.checkedFor) return
+  clearTimeout(recheck)
+  recheck = setTimeout(() => checkCode(promo.applied), 600)
+})
+
+// ---- Payment methods ----
+const paymentMethods = computed(() => {
+  const list: { id: PaymentMethod; name: string; description: string; icon: unknown; tint: string }[] = []
+  if (cardPaymentsEnabled) {
+    list.push({ id: 'card', name: 'Card', description: 'Pay now in Paystack’s secure window.', icon: CreditCard, tint: 'bg-leaf-50 text-leaf-700 dark:bg-leaf-800/30 dark:text-leaf-300' })
   }
-  
-  const handleCustomerInfo = (data: CustomerInfo) => {
-    customerInfo.value = { ...data }
-    currentStep.value = 2
+  list.push({ id: 'transfer', name: 'Bank transfer', description: 'We’ll give you an account number to pay into.', icon: Landmark, tint: 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300' })
+  if (settings.value?.payOnDeliveryEnabled) {
+    const delivery = orderType.value === 'delivery'
+    list.push({
+      id: 'cash',
+      name: delivery ? 'Pay on delivery' : 'Pay at pickup',
+      description: `Cash, POS or transfer when you ${delivery ? 'receive' : 'collect'} it.`,
+      icon: Banknote,
+      tint: 'bg-accent-50 text-accent-700 dark:bg-accent-700/20 dark:text-accent-300',
+    })
   }
-  
-  const submitOrder = async () => {
-    isSubmitting.value = true
-  
-    try {
-      // The page may have been open for a while; re-check before ordering.
-      await loadBusinessSettings(true)
-      if (orderBlockedReason.value) {
-        if ($toast && typeof $toast.error === 'function') {
-          $toast.error(orderBlockedReason.value)
-        }
-        return
-      }
-      if (!hasCustomerInfo.value) {
-        currentStep.value = 1
-        if ($toast && typeof $toast.error === 'function') {
-          $toast.error('Please enter your contact details first.')
-        }
-        return
-      }
+  return list
+})
 
-      const details = customerInfo.value
-      const orderPayload: OrderCreatePayload = {
-        customerName: details.customerName,
-        customerPhone: details.customerPhone,
-        customerEmail: details.customerEmail,
-        orderType: orderData.value.orderType,
-        paymentMethod: selectedPayment.value,
-        deliveryAddress: orderData.value.orderType === 'delivery' ? details.deliveryAddress : undefined,
-        notes: details.notes || undefined,
-        items: cart.items.map((item) => ({
-          menuItemId: Number(item.menuItem.id),
-          name: item.menuItem.name,
-          quantity: item.quantity,
-          unitPrice: item.menuItem.price,
-          specialInstructions: item.specialInstructions,
-        })),
-      }
+// Never leave a method selected that's no longer offered.
+watch(paymentMethods, (methods) => {
+  if (!methods.some((m) => m.id === payment.value)) payment.value = methods[0]?.id ?? 'transfer'
+}, { immediate: true })
 
-      // Reused if this same order is submitted again, so it is placed once.
-      let createdOrder = await api.createOrder(orderPayload, checkoutKeyFor(orderPayload))
-      clearCheckoutKey()
+// ---- Can the order be placed? (mirrors the server's checks) ----
+const blockedReason = computed(() => {
+  const s = settings.value
+  if (settingsStatus.value === 'loading') return ''
+  if (!s) return 'We couldn’t load our prices and opening hours. Please refresh the page.'
+  if (!s.isOpenNow) return 'We’re closed right now, so orders can’t be placed until we open. Your cart is saved.'
+  if (orderType.value === 'delivery' && !s.isDeliveryOpen) return 'Delivery isn’t available right now. Choose pickup instead.'
+  if (orderType.value === 'pickup' && !s.isPickupOpen) return 'Pickup isn’t available right now. Choose delivery instead.'
+  return ''
+})
 
-      // A card order opens Paystack's window straight away; the server then
-      // confirms the payment. Closing it leaves a "Pay with card" button on
-      // the confirmation.
-      if (createdOrder.paymentMethod === 'card' && createdOrder.paymentAccessCode) {
-        try {
-          if ((await payWithCard(createdOrder.paymentAccessCode)) === 'paid') {
-            createdOrder = (await api.refreshPaymentStatus(createdOrder.orderNumber, details.customerPhone)).order
-          }
-        } catch (err) {
-          if ($toast && typeof $toast.error === 'function') {
-            $toast.error(err instanceof Error ? err.message : 'The card payment window could not open.')
-          }
-        }
-      }
+const canPlace = computed(() => !placing.value && !!settings.value && !blockedReason.value && !belowMinimum.value && !cart.isEmpty)
+const placeLabel = computed(() => (placing.value ? 'Placing order…' : settings.value ? `Place order · ${naira(total.value)}` : 'Place order'))
 
-      orderNumber.value = createdOrder.orderNumber
-      lastOrder.value = createdOrder
+const fail = (message: string) => toast?.error?.(message)
 
-      if (createdOrder.estimatedReadyTime) {
-        estimatedTime.value = new Date(createdOrder.estimatedReadyTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      } else {
-        const now = new Date()
-        now.setMinutes(now.getMinutes() + 30)
-        estimatedTime.value = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-  
-      cart.clearCart()
-  
-      showConfirmation.value = true
-      currentStep.value = 0
-
-      if ($toast && typeof $toast.success === 'function') {
-        $toast.success('Order submitted successfully.')
-      }
-  
-      // Lets the invoice page open this order without asking again.
-      if (createdOrder.invoiceNumber) {
-        useState<InvoiceLookup | null>('invoice-lookup', () => null).value = {
-          orderNumber: createdOrder.orderNumber,
-          phone: details.customerPhone,
-        }
-      }
-
-      orderData.value = { orderType: 'pickup' }
-      customerInfo.value = emptyCustomerInfo()
-  
-    } catch (error) {
-      console.error('Order submission failed:', error)
-        if ($toast && typeof $toast.error === 'function') {
-          const message = error instanceof Error ? error.message : 'Failed to submit order'
-          $toast.error(message)
-        }
-    } finally {
-      isSubmitting.value = false
+const placeOrder = async () => {
+  if (!canPlace.value) return
+  if (!detailsForm.value?.validate()) {
+    fail('Please check your details.')
+    return
+  }
+  placing.value = true
+  try {
+    // The page may have been open a while: check hours and fees again.
+    await loadSettings(true)
+    if (blockedReason.value) {
+      fail(blockedReason.value)
+      return
     }
-  }
-  
-  onMounted(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-    loadBusinessSettings()
-    // Signed-in customers start with their details filled in; they can still
-    // change them for this order. Done after mounting, where the saved
-    // session is available.
-    const user = auth.user
-    if (user && !customerInfo.value.customerName && !customerInfo.value.customerPhone) {
-      customerInfo.value = {
-        ...customerInfo.value,
-        customerName: user.fullName,
-        customerPhone: user.phone,
-        customerEmail: user.email ?? '',
+
+    const d = details.value
+    const payload: OrderCreatePayload = {
+      customerName: d.customerName.trim(),
+      customerPhone: d.customerPhone.trim(),
+      customerEmail: d.customerEmail.trim(),
+      orderType: orderType.value,
+      paymentMethod: payment.value,
+      deliveryAddress: orderType.value === 'delivery' ? d.deliveryAddress.trim() : undefined,
+      notes: d.notes.trim() || undefined,
+      promotionCode: promo.applied || undefined,
+      items: cart.items.map((item) => ({
+        menuItemId: Number(item.menuItem.id),
+        name: item.menuItem.name,
+        quantity: item.quantity,
+        unitPrice: item.menuItem.price,
+        specialInstructions: item.specialInstructions,
+      })),
+    }
+
+    // The same key is reused if this exact order is sent again, so it's placed once.
+    let order: Order = await api.createOrder(payload, checkoutKeyFor(payload))
+    clearCheckoutKey()
+    rememberOrder({ orderNumber: order.orderNumber, phone: payload.customerPhone, placedAt: order.createdAt, total: order.totalAmount })
+    cart.clearCart()
+
+    // Card orders open Paystack straight away; closing it leaves a pay button
+    // on the order page.
+    if (order.paymentMethod === 'card' && order.paymentAccessCode) {
+      try {
+        if ((await payWithCard(order.paymentAccessCode)) === 'paid') {
+          order = (await api.refreshPaymentStatus(order.orderNumber, payload.customerPhone)).order
+        }
+      } catch (err) {
+        fail(err instanceof Error ? err.message : 'The card payment window could not open.')
       }
     }
-  })
-  </script>
+
+    useState<InvoiceLookup | null>('track-lookup', () => null).value = { orderNumber: order.orderNumber, phone: payload.customerPhone }
+    await router.push('/order/track')
+  } catch (err) {
+    fail(err instanceof Error ? err.message : 'Your order didn’t go through. Please try again.')
+  } finally {
+    placing.value = false
+  }
+}
+
+onMounted(() => {
+  mounted.value = true
+  signedIn.value = auth.isSignedIn
+  loadSettings()
+  // Signed-in customers start with their details filled in.
+  const user = auth.user
+  if (user) {
+    details.value = { ...details.value, customerName: user.fullName, customerPhone: user.phone, customerEmail: user.email ?? '' }
+  }
+  // A code chosen on the deals page.
+  if (cart.promoCode) {
+    promo.input = cart.promoCode
+    watch(settings, (s) => { if (s && promo.input && !promo.applied) checkCode(promo.input) }, { immediate: true })
+  }
+})
+</script>

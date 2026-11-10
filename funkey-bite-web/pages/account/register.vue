@@ -16,30 +16,30 @@
       <div>
         <label for="reg-password" class="form-label">Password</label>
         <input id="reg-password" v-model="details.password" type="password" required minlength="8" autocomplete="new-password" class="form-input" />
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">At least 8 characters, with upper and lower case letters and a number.</p>
+        <p class="text-xs text-ink-500 dark:text-ink-400 mt-1">At least 8 characters, with upper and lower case letters and a number.</p>
       </div>
-      <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
-      <button type="submit" class="btn-primary w-full dark:text-white" :disabled="busy">
+      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+      <button type="submit" class="btn-primary btn-lg w-full" :disabled="busy">
         <Loader2 v-if="busy" class="w-4 h-4 animate-spin inline mr-2" />Create account
       </button>
     </form>
 
     <form v-else class="space-y-4" @submit.prevent="confirm">
-      <p class="text-sm text-gray-700 dark:text-gray-300">
+      <p class="text-sm text-ink-700 dark:text-ink-200">
         This number has orders from before. To link them to your account, enter the 6-digit code we sent to <strong>{{ sentTo }}</strong>.
       </p>
       <div>
         <label for="reg-code" class="form-label">Code</label>
         <input id="reg-code" v-model="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required class="form-input tracking-widest text-center text-lg" />
       </div>
-      <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
-      <button type="submit" class="btn-primary w-full dark:text-white" :disabled="busy">
+      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+      <button type="submit" class="btn-primary btn-lg w-full" :disabled="busy">
         <Loader2 v-if="busy" class="w-4 h-4 animate-spin inline mr-2" />Confirm and create account
       </button>
-      <button type="button" class="text-sm text-brand-600 hover:underline" :disabled="busy" @click="submit">Send a new code</button>
+      <button type="button" class="link text-sm" :disabled="busy" @click="submit">Send a new code</button>
     </form>
 
-    <p class="text-sm">Already have an account? <NuxtLink to="/account/login" class="text-brand-600 hover:underline">Sign in</NuxtLink></p>
+    <p class="text-sm">Already have an account? <NuxtLink to="/account/login" class="link">Sign in</NuxtLink></p>
   </AccountCard>
 </template>
 

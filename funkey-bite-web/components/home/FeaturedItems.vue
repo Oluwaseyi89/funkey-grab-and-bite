@@ -1,44 +1,49 @@
 <template>
-    <section class="section-padding bg-gradient-to-b mt-8 mb-8 md:mt-12 mx-5 py-3 px-3 md:mb-12 from-white to-gray-50 dark:from-slate-900 dark:to-slate-800">
-      <div class="container-narrow">
-        <div class="flex justify-between items-center mb-12">
-          <div>
-            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-              <span class="text-gradient">Featured</span> Items
-            </h2>
-            <p class="text-gray-600 dark:text-gray-300 mt-2">Customer favorites you'll love</p>
-          </div>
-          <NuxtLink to="/menu" class="btn-secondary">
-            View All Menu
-            <ArrowRight class="w-4 h-4 inline ml-2" />
-          </NuxtLink>
-        </div>
-  
-        <!-- Loading Skeleton -->
-        <div v-if="isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <div v-for="i in 6" :key="i" class="animate-pulse">
-            <div class="h-48 bg-gray-200 dark:bg-slate-700 rounded-2xl mb-4"></div>
-            <div class="h-4 bg-gray-200 dark:bg-slate-700 rounded mb-2"></div>
-            <div class="h-4 bg-gray-200 dark:bg-slate-700 rounded w-2/3"></div>
-          </div>
-        </div>
-  
-        <!-- Items Grid -->
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-3 md:px-8 py-3 md:py-8">
-          <FoodCard v-for="item in items" :key="item.id" :item="item" />
-        </div>
+  <section v-if="menu.isLoading || items.length" class="py-6 md:py-10" aria-labelledby="popular-title">
+    <div class="container-narrow flex items-end justify-between gap-4">
+      <div>
+        <p class="eyebrow">Popular now</p>
+        <h2 id="popular-title" class="section-title mt-1">Crowd favourites</h2>
       </div>
-    </section>
-  </template>
-  
-  <script setup lang="ts">
-  import { ArrowRight } from 'lucide-vue-next'
-  import FoodCard from '../menu/FoodCard.vue'
-  import type { MenuItem } from '../../types/menu'
+      <NuxtLink to="/menu" class="link inline-flex min-h-[44px] items-center gap-1 text-sm">
+        Full menu <ArrowRight class="h-4 w-4" aria-hidden="true" />
+      </NuxtLink>
+    </div>
 
-  
-  defineProps<{
-    items: MenuItem[]
-    isLoading: boolean
-  }>()
-  </script>
+    <!-- A swipeable row on phones, a grid on larger screens. -->
+    <div class="container-narrow mt-4">
+      <ul class="scroll-row -mx-4 px-4 pb-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-5 lg:overflow-visible lg:px-0">
+        <template v-if="menu.isLoading && !items.length">
+          <li v-for="i in 4" :key="i" class="w-[16.5rem] shrink-0 lg:w-auto">
+            <div class="card overflow-hidden">
+              <div class="skeleton aspect-[4/3] rounded-none" />
+              <div class="space-y-2 p-4">
+                <div class="skeleton h-4 w-2/3" />
+                <div class="skeleton h-3 w-full" />
+                <div class="skeleton h-10 w-full rounded-full" />
+              </div>
+            </div>
+          </li>
+        </template>
+        <li v-for="(item, index) in items" :key="item.id" class="flex w-[16.5rem] shrink-0 snap-start lg:w-auto">
+          <MenuItemCard :item="item" layout="tile" :eager="index < 2" @open="selected = item" />
+        </li>
+      </ul>
+    </div>
+
+    <ItemSheet :item="selected" @close="selected = null" />
+  </section>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { ArrowRight } from 'lucide-vue-next'
+import MenuItemCard from '../menu/MenuItemCard.vue'
+import ItemSheet from '../menu/ItemSheet.vue'
+import { useMenuStore } from '../../stores/menu'
+import type { MenuItem } from '../../types/menu'
+
+const menu = useMenuStore()
+const items = computed(() => menu.featuredItems)
+const selected = ref<MenuItem | null>(null)
+</script>

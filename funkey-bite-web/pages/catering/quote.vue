@@ -1,5 +1,5 @@
 <template>
-  <div class="mt-[-30px]">
+  <div>
     <PageHeader
       title-before="Your"
       highlight-text="Catering"
@@ -11,12 +11,12 @@
     />
 
     <div class="container-narrow px-4 sm:px-6 lg:px-8 py-8 max-w-2xl">
-      <div v-if="isLoading" class="flex justify-center py-12 text-gray-500">
+      <div v-if="isLoading" class="flex justify-center py-12 text-ink-500">
         <Loader2 class="w-6 h-6 animate-spin" />
       </div>
 
-      <div v-else-if="error" class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700 space-y-4">
-        <p class="text-gray-800 dark:text-gray-200" role="alert">{{ error }}</p>
+      <div v-else-if="error" class="bg-white dark:bg-ink-800 rounded-xl p-6 border border-ink-200 dark:border-ink-700 space-y-4">
+        <p class="text-ink-800 dark:text-ink-200" role="alert">{{ error }}</p>
         <NuxtLink to="/catering/request" class="btn-primary dark:text-white inline-block">Find my booking</NuxtLink>
       </div>
 

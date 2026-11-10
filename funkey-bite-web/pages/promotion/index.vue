@@ -1,179 +1,44 @@
-
 <template>
-    <div>
-      <PageHeader
-        title="All Promotions"
-        subtitle="Browse all active and upcoming promotions"
-        variant="gradient"
-        alignment="center"
-      />
-  
-      <div class="section-padding">
-        <div class="container-narrow">
+  <div>
+    <PageHeader eyebrow="Deals" title="Save on your next order" subtitle="Tap “Use code” and it’s applied at checkout. We check every code when you order." />
 
-          <div class="flex flex-wrap gap-4 mb-8">
-            <button
-              v-for="filter in filters"
-              :key="filter.id"
-              @click="activeFilter = filter.id"
-              class="px-4 py-2 rounded-full font-medium transition-colors"
-              :class="[
-                activeFilter === filter.id
-                  ? 'bg-brand-500 text-white'
-                  : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700'
-              ]"
-            >
-              {{ filter.label }} ({{ filteredPromotions(filter.id).length }})
-            </button>
-          </div>
-  
+    <div class="container-narrow py-6 md:py-10">
+      <div v-if="loading" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading deals">
+        <div v-for="i in 3" :key="i" class="skeleton h-56 rounded-3xl" />
+      </div>
 
-          <div v-if="filteredPromotions(activeFilter).length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div
-              v-for="promotion in filteredPromotions(activeFilter)"
-              :key="promotion.id"
-              class="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
-            >
+      <ul v-else-if="promotions.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <li v-for="promotion in promotions" :key="promotion.id" :id="`deal-${promotion.id}`">
+          <PromoCard :promotion="promotion" />
+        </li>
+      </ul>
 
-              <div class="relative h-48 overflow-hidden">
-                <img 
-                  :src="getPromotionImage(promotion)"
-                  :alt="promotion.title"
-                  class="w-full h-full object-cover"
-                />
-
-                <div class="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full font-bold">
-                  {{ formatDiscountValue(promotion.discountValue, promotion.discountType) }}
-                </div>
-
-                <div class="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm">
-                  {{ getTimeRemaining(promotion.validUntil) }}
-                </div>
-              </div>
-  
-
-              <div class="p-6">
-                <div class="flex items-center justify-between mb-3">
-                  <span class="px-3 py-1 bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 rounded-full text-xs font-medium">
-                    {{ formatDiscountType(promotion.discountType) }}
-                  </span>
-                  <span class="text-sm text-gray-500">
-                    {{ formatDate(promotion.validFrom) }} - {{ formatDate(promotion.validUntil) }}
-                  </span>
-                </div>
-  
-                <h3 class="text-xl font-bold mb-2">{{ promotion.title }}</h3>
-                <p class="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-                  {{ promotion.description }}
-                </p>
-  
-
-                <div v-if="promotion.applicableItems?.length" class="mb-4">
-                  <div class="text-sm text-gray-500 mb-2">Applies to {{ promotion.applicableItems.length }} items</div>
-                  <div class="flex flex-wrap gap-2">
-                    <span
-                      v-for="itemId in promotion.applicableItems.slice(0, 3)"
-                      :key="itemId"
-                      class="px-2 py-1 bg-gray-100 dark:bg-slate-700 rounded text-xs"
-                    >
-                      Item #{{ itemId }}
-                    </span>
-                    <span v-if="promotion.applicableItems.length > 3" class="text-xs text-gray-500">
-                      +{{ promotion.applicableItems.length - 3 }} more
-                    </span>
-                  </div>
-                </div>
-  
-
-                <div class="flex gap-3">
-                  <NuxtLink
-                    :to="`/promotion/${promotion.id}`"
-                    class="flex-1 text-center px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    View Details
-                  </NuxtLink>
-                  <button
-                    @click="claimPromotion(promotion)"
-                    class="flex-1 px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors"
-                  >
-                    Claim Offer
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-  
-
-          <div v-else class="text-center py-16">
-            <div class="text-6xl mb-6">🎁</div>
-            <h3 class="text-2xl font-bold mb-4">No Promotions Available</h3>
-            <p class="text-gray-600 dark:text-gray-400 mb-6">
-              Check back later for new promotions!
-            </p>
-            <NuxtLink to="/menu" class="btn-primary">
-              Browse Menu
-            </NuxtLink>
-          </div>
-        </div>
+      <div v-else class="card mx-auto max-w-md p-8 text-center">
+        <TicketPercent class="mx-auto h-10 w-10 text-ink-300" aria-hidden="true" />
+        <p class="mt-3 font-semibold text-ink-900 dark:text-white">No deals running right now</p>
+        <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">Check back soon. In the meantime, the full menu is a tap away.</p>
+        <NuxtLink to="/menu" class="btn-primary mt-5">Browse the menu</NuxtLink>
       </div>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, computed } from 'vue'
-   import { mockPromotions, mockMenuItems } from '../../utils/mockData'
-  import type { Promotion, MenuItem } from '../../types/menu'
+  </div>
+</template>
 
-  import { 
-    formatDiscountType, 
-    formatDiscountValue,
-    formatDate,
-    formatDateFull,
-    getTimeRemaining,
-    getDiscountedPrice  
-} from '../../utils/helperFunctions'
-import { useRoute, useRouter } from 'vue-router'
-  
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { TicketPercent } from 'lucide-vue-next'
+import PageHeader from '../../components/layout/PageHeader.vue'
+import PromoCard from '../../components/promo/PromoCard.vue'
+import { useApi } from '../../utils/api'
+import { usePageSeo } from '../../composables/usePageSeo'
+import type { Promotion } from '../../types/menu'
 
-  const route = useRoute()
-  const router = useRouter()
-  const promotionId = route.params.id as string
-  
-  const filters = [
-    { id: 'all', label: 'All Promotions' },
-    { id: 'active', label: 'Active Now' },
-    { id: 'upcoming', label: 'Upcoming' },
-    { id: 'ending', label: 'Ending Soon' }
-  ]
+usePageSeo({ title: 'Deals', description: 'Current promo codes for Funkey Grab & Bite orders.', path: '/promotion' })
 
-  const promotion = computed(() => {
-    return mockPromotions.find(p => p.id === promotionId)
-  })
-  
-  const applicableItems = computed(() => {
-    if (!promotion.value?.applicableItems?.length) {
-      return mockMenuItems.slice(0, 6) // Show first 6 items if no specific items
-    }
-    
-    return mockMenuItems.filter(item => 
-      promotion.value?.applicableItems?.includes(item.id)
-    )
-  })
-  
-  const activeFilter = ref('all')
-  
-  const filteredPromotions = (filterId: string) => {
-    return mockPromotions
-  }
+const promotions = ref<Promotion[]>([])
+const loading = ref(true)
 
-  const claimPromotion = (promo: Promotion) => {
-    console.log('Claiming promotion:', promo.id)
-  }
-
-  const getPromotionImage = (promo: Promotion) => {
-    if (applicableItems.value.length > 0) {
-      return applicableItems.value[0].imageUrl
-    }
-    return '/images/promotion-default.jpg'
-  }
-  </script>
+onMounted(async () => {
+  promotions.value = await useApi().getActivePromotions()
+  loading.value = false
+})
+</script>

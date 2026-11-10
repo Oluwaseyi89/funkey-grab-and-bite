@@ -7,27 +7,32 @@
       </div>
       <div>
         <label for="login-password" class="form-label">Password</label>
-        <input id="login-password" v-model="password" type="password" required autocomplete="current-password" class="form-input" />
+        <div class="relative">
+          <input id="login-password" v-model="password" :type="showPassword ? 'text' : 'password'" required autocomplete="current-password" class="form-input pr-12" />
+          <button type="button" class="icon-btn absolute right-1 top-1/2 -translate-y-1/2" :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword" @click="showPassword = !showPassword">
+            <component :is="showPassword ? EyeOff : Eye" class="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
       </div>
-      <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
-      <button type="submit" class="btn-primary w-full dark:text-white" :disabled="busy">
+      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+      <button type="submit" class="btn-primary btn-lg w-full" :disabled="busy">
         <Loader2 v-if="busy" class="w-4 h-4 animate-spin inline mr-2" />Sign in
       </button>
     </form>
-    <div class="flex justify-between text-sm">
-      <NuxtLink to="/account/forgot-password" class="text-brand-600 hover:underline">Forgot password?</NuxtLink>
-      <NuxtLink :to="{ path: '/account/register', query: next ? { next } : {} }" class="text-brand-600 hover:underline">Create an account</NuxtLink>
+    <div class="flex flex-wrap justify-between gap-2 text-sm">
+      <NuxtLink to="/account/forgot-password" class="link">Forgot password?</NuxtLink>
+      <NuxtLink :to="{ path: '/account/register', query: next ? { next } : {} }" class="link">Create an account</NuxtLink>
     </div>
-    <p class="text-xs text-gray-500 dark:text-gray-400">An account is optional; you can always check out as a guest.</p>
+    <p class="text-center text-xs text-ink-500 dark:text-ink-400">An account is optional; you can always check out as a guest.</p>
   </AccountCard>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Loader2 } from 'lucide-vue-next'
+import { Eye, EyeOff, Loader2 } from 'lucide-vue-next'
 import AccountCard from '../../components/account/AccountCard.vue'
-import { useApi } from '../../utils/api'
+import { ApiRequestError, useApi } from '../../utils/api'
 import { useAuthStore } from '../../stores/auth'
 
 const route = useRoute()
@@ -36,6 +41,7 @@ const auth = useAuthStore()
 const next = typeof route.query.next === 'string' && route.query.next.startsWith('/') ? route.query.next : ''
 const phone = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const error = ref('')
 const busy = ref(false)
 
@@ -45,8 +51,12 @@ const submit = async () => {
   try {
     auth.setSession(await useApi().login(phone.value.trim(), password.value))
     await router.push(next || '/account')
-  } catch {
-    error.value = 'That phone number and password don’t match an account.'
+  } catch (err) {
+    // A wrong password is a 400/401; anything else (offline, server down)
+    // shouldn't be blamed on what the customer typed.
+    error.value = err instanceof ApiRequestError && (err.status === 400 || err.status === 401)
+      ? 'That phone number and password don’t match an account.'
+      : 'We couldn’t sign you in right now. Check your connection and try again.'
   } finally {
     busy.value = false
   }

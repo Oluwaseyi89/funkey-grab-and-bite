@@ -6,63 +6,114 @@ module.exports = {
     './layouts/**/*.vue',
     './pages/**/*.vue',
     './plugins/**/*.{js,ts}',
+    './composables/**/*.{js,ts}',
+    './utils/**/*.{js,ts}',
     './nuxt.config.{js,ts}',
     './app.vue'
   ],
   theme: {
     extend: {
       colors: {
+        // Brand red. 500 is the site's original bright red, for accents; buttons
+        // use 600, which keeps white text readable (5.9:1). 700 is the logo's red.
         brand: {
-          50: '#ffebee',
-          100: '#ffcdd2',
-          200: '#ef9a9a',
-          300: '#e57373',
+          50: '#fff2f1',
+          100: '#ffe1de',
+          200: '#fec7c1',
+          300: '#fb9e94',
           400: '#ef5350',
-          500: '#f44336', // Primary brand red
-          600: '#e53935',
-          700: '#d32f2f',
-          800: '#c62828',
-          900: '#b71c1c',
+          500: '#f44336',
+          600: '#c3241a',
+          700: '#9b1414',
+          800: '#7f1513',
+          900: '#681614',
         },
+        // Leaf green, from the logo's spoon (#8cc343 is 400): open, fresh, success.
+        leaf: {
+          50: '#f4fbea',
+          100: '#e6f5d0',
+          200: '#cdeaa3',
+          300: '#addb6f',
+          400: '#8cc343',
+          500: '#72a82f',
+          600: '#578624',
+          700: '#43671f',
+          800: '#37521d',
+        },
+        // Warm amber: highlights and the gradient's second stop.
         accent: {
-          50: '#fff5f5',
-          100: '#fed7d7',
-          500: '#f56565',
-          600: '#e53e3e',
-        }
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
+          400: '#fbbf24',
+          500: '#f59e0b',
+          600: '#d97706',
+          700: '#b45309',
+        },
+        // Neutrals for text and surfaces: the slate blues the site has always
+        // used. In dark mode the page is navy (950), cards a step lighter (900).
+        ink: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#3f4d63',
+          800: '#334155',
+          900: '#1e293b',
+          950: '#0f172a',
+        },
       },
       fontFamily: {
-        'display': ['Poppins', 'system-ui', 'sans-serif'],
-        'body': ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Poppins', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
       },
-      animation: {
-        'float': 'float 3s ease-in-out infinite',
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'slide-up': 'slideUp 0.3s ease-out',
-        'fade-in': 'fadeIn 0.5s ease-out',
+      boxShadow: {
+        soft: '0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px rgb(15 23 42 / 0.06)',
+        lift: '0 2px 4px rgb(15 23 42 / 0.06), 0 12px 32px rgb(15 23 42 / 0.12)',
+        glow: '0 8px 24px -8px rgb(195 36 26 / 0.55)',
+      },
+      spacing: {
+        // Space for the bottom tab bar on phones, including the home indicator.
+        tabbar: 'calc(4rem + env(safe-area-inset-bottom))',
       },
       keyframes: {
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-10px)' },
+        'sheet-up': {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
         },
-        slideUp: {
-          '0%': { transform: 'translateY(20px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
-        fadeIn: {
+        'fade-in': {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        'rise-in': {
+          '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        pop: {
+          '0%': { transform: 'scale(1)' },
+          '40%': { transform: 'scale(1.25)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        drift: {
+          '0%, 100%': { transform: 'translate3d(0, 0, 0) rotate(0deg)' },
+          '50%': { transform: 'translate3d(0, -8px, 0) rotate(2deg)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
       },
-      backgroundColor: {
-        'input-dark': 'transparent',
-      },
-      borderColor: {
-        'input-dark': '#4b5563', // gray-600
-      },
-      textColor: {
-        'input-dark': '#ffffff',
+      animation: {
+        'sheet-up': 'sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1)',
+        'fade-in': 'fade-in 0.2s ease-out',
+        'rise-in': 'rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+        pop: 'pop 0.35s ease-out',
+        drift: 'drift 6s ease-in-out infinite',
+        shimmer: 'shimmer 1.6s linear infinite',
       },
     },
   },

@@ -1,22 +1,22 @@
 <template>
     <div class="space-y-6">
-      <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Frequently Asked Questions</h3>
+      <h3 class="text-2xl font-bold text-ink-900 dark:text-white">Frequently Asked Questions</h3>
       
       <div class="space-y-4">
         <div
           v-for="(faq, index) in faqs"
           :key="index"
-          class="border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden"
+          class="border border-ink-200 dark:border-ink-700 rounded-xl overflow-hidden"
         >
           <button
             @click="toggleFAQ(index)"
-            class="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+            class="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors"
             :aria-expanded="openIndex === index"
             :aria-controls="`faq-panel-${index}`"
           >
-            <span class="font-medium text-gray-900 dark:text-white flex-1 mr-2">{{ faq.question }}</span>
+            <span class="font-medium text-ink-900 dark:text-white flex-1 mr-2">{{ faq.question }}</span>
             <ChevronDown 
-              class="w-5 h-5 text-gray-500 transition-transform duration-200" 
+              class="w-5 h-5 text-ink-500 transition-transform duration-200" 
               :class="{ 'rotate-180': openIndex === index }"
               aria-hidden="true"
             />
@@ -25,7 +25,7 @@
           <div
             :id="`faq-panel-${index}`"
             v-show="openIndex === index"
-            class="px-6 pb-4 text-gray-600 dark:text-gray-400"
+            class="px-6 pb-4 text-ink-600 dark:text-ink-400"
           >
             <p>
               <template v-for="(part, i) in faq.parts" :key="i">

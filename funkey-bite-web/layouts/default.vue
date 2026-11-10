@@ -1,27 +1,43 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gradient-to-br from-white via-red-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-
-    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-brand-500 focus:text-white focus:rounded-lg focus:shadow-lg">
+  <div class="flex min-h-dvh flex-col">
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-white"
+    >
       Skip to main content
     </a>
 
     <LayoutHeader />
 
-    <main id="main-content" class="flex-grow pt-28 pb-12 md:pt-32">
+    <main id="main-content" class="flex-1 pt-14 md:pt-16" tabindex="-1">
       <slot />
     </main>
-    
 
-    <LayoutFooter />
+    <!-- Room below the footer for the tab bar and the cart bar on phones. -->
+    <LayoutFooter class="pb-[calc(9rem+env(safe-area-inset-bottom))] md:pb-0" />
+
+    <CartBar />
+    <BottomNav />
+    <CartSheet />
+
+    <!-- Cart changes, read out by screen readers. -->
+    <p class="sr-only" aria-live="polite" aria-atomic="true">{{ cart.announcement }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useHead, useSeoMeta } from 'nuxt/app'; 
+import { useHead, useSeoMeta } from 'nuxt/app'
+import LayoutHeader from '../components/layout/LayoutHeader.vue'
+import LayoutFooter from '../components/layout/LayoutFooter.vue'
+import BottomNav from '../components/layout/BottomNav.vue'
+import CartBar from '../components/cart/CartBar.vue'
+import CartSheet from '../components/cart/CartSheet.vue'
 import { useBusinessSettings } from '../composables/useBusinessSettings'
+import { useCartStore } from '../stores/cart'
 
 const { settings, load } = useBusinessSettings()
+const cart = useCartStore()
 
 onMounted(() => load())
 
@@ -65,10 +81,10 @@ useHead(() => {
 })
 
 useSeoMeta({
-  title: 'Funkey Grab & Bite - Fast Food & Catering',
+  title: 'Fast Food & Catering',
   ogTitle: 'Funkey Grab & Bite - Fast Food & Catering',
-  description: 'Fast-food business offering quick take-out meals, lunch packs, and reliable indoor/outdoor catering services',
-  ogDescription: 'Fast-food business offering quick take-out meals, lunch packs, and reliable indoor/outdoor catering services',
+  description: 'Order chicken & chips, shawarma, noodles and lunch packs for pickup or delivery, or book catering for your event.',
+  ogDescription: 'Order chicken & chips, shawarma, noodles and lunch packs for pickup or delivery, or book catering for your event.',
   ogImage: 'https://funkey-static-assets.s3.amazonaws.com/branding/og-image.jpg',
   twitterCard: 'summary_large_image',
 })
