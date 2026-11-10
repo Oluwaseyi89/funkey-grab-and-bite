@@ -1,62 +1,68 @@
 <template>
-    <div>
-      <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Order Type</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <button
-          v-for="type in orderTypes"
-          :key="type.id"
-          @click="$emit('select', type.id)"
-          class="p-4 sm:p-6 border-2 rounded-xl text-center transition-all"
-          :class="[
-            selectedType === type.id
-              ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
-              : 'border-gray-200 dark:border-slate-700 hover:border-brand-300'
-          ]"
-        >
-          <component :is="type.icon" class="w-10 h-10 mx-auto mb-3" :class="type.iconClass" />
-          <h4 class="font-bold text-gray-900 dark:text-white mb-1">{{ type.name }}</h4>
-          <p class="text-sm text-gray-600 dark:text-gray-400">{{ type.description }}</p>
-          <div v-if="type.id === 'delivery' && deliveryFee" class="mt-2 text-brand-500 font-medium">
-            +₦{{ deliveryFee.toLocaleString('en-NG') }} fee
-          </div>
-        </button>
-      </div>
-      <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">
-        Planning an event or a large order?
-        <NuxtLink to="/catering" class="text-brand-500 hover:text-brand-600 font-medium">Request catering</NuxtLink>
-      </p>
+  <fieldset>
+    <legend class="sr-only">How do you want your order?</legend>
+    <div class="grid grid-cols-2 gap-1 rounded-2xl bg-ink-100 p-1 dark:bg-ink-800">
+      <label
+        v-for="type in types"
+        :key="type.id"
+        class="relative flex cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-3 text-center transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500"
+        :class="modelValue === type.id
+          ? 'bg-white text-ink-900 shadow-soft dark:bg-ink-900 dark:text-white'
+          : 'text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white'"
+      >
+        <input
+          type="radio"
+          name="order-type"
+          class="sr-only"
+          :value="type.id"
+          :checked="modelValue === type.id"
+          @change="$emit('update:modelValue', type.id)"
+        />
+        <span class="inline-flex items-center gap-2 font-semibold">
+          <component :is="type.icon" class="h-5 w-5" aria-hidden="true" />
+          {{ type.name }}
+        </span>
+        <span class="text-xs" :class="type.unavailable ? 'text-brand-700 dark:text-brand-300' : 'text-ink-500 dark:text-ink-400'">
+          {{ type.hint }}
+        </span>
+      </label>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { Store, Truck } from 'lucide-vue-next'
-  import type { OrderType } from '../../types/order'
-  
-  const orderTypes = [
-    {
-      id: 'pickup' as OrderType,
-      name: 'Pickup',
-      description: 'Order online, pick up in-store',
-      icon: Store,
-      iconClass: 'text-blue-500',
-    },
-    {
-      id: 'delivery' as OrderType,
-      name: 'Delivery',
-      description: 'Get it delivered to your door',
-      icon: Truck,
-      iconClass: 'text-green-500',
-    },
-  ]
-  
-  // Catering has its own request flow on the catering page, so the cart only
-  // offers pickup and delivery. The fee comes from the business settings.
-  defineProps<{
-    selectedType?: OrderType
-    deliveryFee?: number
-  }>()
-  
-  defineEmits<{
-    select: [type: OrderType]
-  }>()
-  </script>
+  </fieldset>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import { Bike, Store } from 'lucide-vue-next'
+import { naira } from '../../utils/format'
+import type { OrderType } from '../../types/order'
+
+// Pickup or delivery, chosen first so the fee and availability are clear
+// before anything else. Catering has its own page.
+const props = defineProps<{
+  modelValue: OrderType
+  deliveryFee?: number | null
+  pickupOpen?: boolean
+  deliveryOpen?: boolean
+}>()
+
+defineEmits<{ 'update:modelValue': [type: OrderType] }>()
+
+const types = computed(() => [
+  {
+    id: 'pickup' as OrderType,
+    name: 'Pickup',
+    icon: Store,
+    unavailable: props.pickupOpen === false,
+    hint: props.pickupOpen === false ? 'Not available now' : 'Free',
+  },
+  {
+    id: 'delivery' as OrderType,
+    name: 'Delivery',
+    icon: Bike,
+    unavailable: props.deliveryOpen === false,
+    hint: props.deliveryOpen === false
+      ? 'Not available now'
+      : props.deliveryFee ? `${naira(props.deliveryFee)} fee` : props.deliveryFee === 0 ? 'Free' : 'Fee at checkout',
+  },
+])
+</script>
