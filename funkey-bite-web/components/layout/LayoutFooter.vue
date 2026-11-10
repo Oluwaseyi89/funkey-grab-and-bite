@@ -1,179 +1,99 @@
 <template>
-  <footer class="mt-auto bg-gray-50 dark:bg-slate-900 px-8 md:px-12 py-8 md:py-12">
-    <!-- Main Footer -->
-    <div class="container-narrow px-4">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-16">
-        
-        <!-- Brand & Description -->
-        <div class="space-y-6">
-          <NuxtLink to="/" class="flex items-center space-x-4 group">
-            <div class="w-14 h-14 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-lg">
-              <span class="text-white font-bold text-2xl">{{ businessInitial }}</span>
-            </div>
-            <div>
-              <h2 v-if="businessName" class="text-2xl font-bold text-gray-900 dark:text-white leading-tight">{{ businessName }}</h2>
-              <span v-else class="block h-7 w-44 rounded bg-gray-200 dark:bg-slate-700 animate-pulse" aria-label="Loading business name"></span>
-              <p class="text-brand-500 dark:text-brand-300 text-sm mt-1">Fast Food & Catering</p>
-            </div>
-          </NuxtLink>
-          <p class="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
-            From crispy chicken & chips to authentic shawarma, we serve happiness in every bite. 
-            Perfect for quick meals, lunch packs, and unforgettable catering experiences.
-          </p>
-          <div class="flex space-x-5 pt-2">
-            <a href="#" aria-label="Follow us on Facebook" class="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-white transition-colors transform hover:scale-110 duration-200">
-              <Facebook class="w-6 h-6" aria-hidden="true" />
-            </a>
-            <a href="#" aria-label="Follow us on Instagram" class="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-white transition-colors transform hover:scale-110 duration-200">
-              <Instagram class="w-6 h-6" aria-hidden="true" />
-            </a>
-            <a href="#" aria-label="Follow us on Twitter" class="text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-white transition-colors transform hover:scale-110 duration-200">
-              <Twitter class="w-6 h-6" aria-hidden="true" />
-            </a>
-          </div>
-        </div>
-
-        <!-- Quick Links -->
-        <div>
-          <h3 class="text-xl font-bold mb-6 text-gray-900 dark:text-white pb-2 border-b border-gray-200 dark:border-slate-800/50">Quick Links</h3>
-          <ul class="space-y-4">
-            <li v-for="link in quickLinks" :key="link.name">
-              <NuxtLink 
-                :to="link.href" 
-                class="text-gray-700 hover:text-brand-500 dark:text-gray-300 dark:hover:text-brand-300 transition-colors flex items-center group py-2"
-              >
-                <div class="w-1.5 h-1.5 bg-brand-500 rounded-full mr-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <span class="group-hover:translate-x-1 transition-transform duration-200">
-                  {{ link.name }}
-                </span>
-              </NuxtLink>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Menu Categories -->
-        <div>
-          <h3 class="text-xl font-bold mb-6 text-gray-900 dark:text-white pb-2 border-b border-gray-200 dark:border-slate-800/50">Our Menu</h3>
-          <ul class="space-y-4">
-            <li v-for="category in mockCategories" :key="category.id">
-              <NuxtLink
-                :to="`/menu?category=${category.id}`"
-                class="text-gray-700 hover:text-brand-500 dark:text-gray-300 dark:hover:text-brand-300 transition-colors flex items-center group py-2"
-              >
-                <div class="w-1.5 h-1.5 bg-brand-500 rounded-full mr-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <span class="group-hover:translate-x-1 transition-transform duration-200">
-                  {{ category.name }}
-                </span>
-              </NuxtLink>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Contact & Hours -->
-        <div>
-          <h3 class="text-xl font-bold mb-6 text-gray-900 dark:text-white pb-2 border-b border-gray-200 dark:border-slate-800/50">Contact Us</h3>
-          <div class="space-y-5">
-            <div class="flex items-start space-x-4">
-              <MapPin class="w-5 h-5 text-brand-500 dark:text-brand-400 mt-1 flex-shrink-0" />
-              <p class="text-gray-700 dark:text-gray-300 text-sm">
-                {{ status === 'ready' ? fullAddress : status === 'unavailable' ? 'Address unavailable right now' : 'Loading…' }}
-              </p>
-            </div>
-            <div v-if="phoneHref" class="flex items-center space-x-4">
-              <Phone class="w-5 h-5 text-brand-500 dark:text-brand-400 flex-shrink-0" />
-              <a :href="phoneHref" class="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-sm">
-                {{ settings?.phoneNumber }}
-              </a>
-            </div>
-            <div v-if="settings?.email" class="flex items-center space-x-4">
-              <Mail class="w-5 h-5 text-brand-500 dark:text-brand-400 flex-shrink-0" />
-              <a :href="`mailto:${settings.email}`" class="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-sm">
-                {{ settings.email }}
-              </a>
-            </div>
-            
-            <!-- Business Hours -->
-            <div v-if="status === 'ready'" class="pt-6">
-              <h4 class="font-bold mb-4 text-gray-800 dark:text-gray-200 text-lg">Opening Hours</h4>
-              <div class="space-y-3 text-sm">
-                <div
-                  v-for="group in hoursGroups"
-                  :key="group.label"
-                  class="flex justify-between items-center gap-4 py-2 border-b border-gray-200 dark:border-slate-800/30 last:border-0"
-                >
-                  <span class="text-gray-600 dark:text-gray-400">{{ group.label }}:</span>
-                  <span class="text-gray-800 dark:text-gray-300 font-medium text-right">{{ group.hours }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+  <footer class="border-t border-ink-200/70 bg-white dark:border-ink-800 dark:bg-ink-900">
+    <div class="container-narrow grid gap-8 py-10 md:grid-cols-[1.4fr_1fr_1fr_1.2fr] md:py-14">
+      <div class="space-y-3">
+        <NuxtLink to="/" class="inline-flex h-11" aria-label="Funkey Grab & Bite home">
+          <BrandLogo alt="" />
+        </NuxtLink>
+        <p class="max-w-xs text-sm text-ink-600 dark:text-ink-300">
+          Chicken &amp; chips, shawarma, noodles and lunch packs for pickup or delivery, plus catering for your events.
+        </p>
+        <StoreStatus />
       </div>
 
-      <!-- Divider -->
-      <div class="border-t border-gray-200 dark:border-slate-800 my-12"></div>
+      <nav aria-label="Food" class="hidden md:block">
+        <h2 class="mb-3 text-sm font-semibold text-ink-900 dark:text-white">Food</h2>
+        <ul class="space-y-2 text-sm">
+          <li><NuxtLink to="/menu" class="footer-link">Full menu</NuxtLink></li>
+          <li v-for="category in menu.visibleCategories.slice(0, 5)" :key="category.id">
+            <NuxtLink :to="`/menu#cat-${category.id}`" class="footer-link">{{ category.name }}</NuxtLink>
+          </li>
+        </ul>
+      </nav>
 
-      <!-- Bottom Bar -->
-      <div class="flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
-        <div class="text-gray-600 dark:text-gray-500 text-sm text-center md:text-left">
-          © {{ new Date().getFullYear() }}{{ businessName ? ` ${businessName}` : '' }}. All rights reserved.
-        </div>
-        <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
-          <NuxtLink to="/legal/privacy" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors hover:underline">
-            Privacy Policy
-          </NuxtLink>
-          <div class="w-px h-4 bg-gray-300 dark:bg-slate-700"></div>
-          <NuxtLink to="/legal/terms" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors hover:underline">
-            Terms of Service
-          </NuxtLink>
-          <div class="w-px h-4 bg-gray-300 dark:bg-slate-700"></div>
-          <NuxtLink to="/catering" class="text-brand-500 hover:text-brand-600 dark:text-brand-300 dark:hover:text-brand-200 font-medium flex items-center group">
-            <span class="mr-2">Book Catering</span>
-            <ArrowRight class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-          </NuxtLink>
-        </div>
+      <nav aria-label="Help">
+        <h2 class="mb-3 text-sm font-semibold text-ink-900 dark:text-white">Help</h2>
+        <ul class="grid grid-cols-2 gap-2 text-sm md:grid-cols-1">
+          <li><NuxtLink to="/order/track" class="footer-link">Track an order</NuxtLink></li>
+          <li><NuxtLink to="/catering" class="footer-link">Catering</NuxtLink></li>
+          <li><NuxtLink to="/promotion" class="footer-link">Deals</NuxtLink></li>
+          <li><NuxtLink to="/order/invoice" class="footer-link">Find an invoice</NuxtLink></li>
+          <li><NuxtLink to="/contact" class="footer-link">Contact us</NuxtLink></li>
+          <li><NuxtLink to="/account" class="footer-link">My account</NuxtLink></li>
+        </ul>
+      </nav>
+
+      <div class="space-y-3 text-sm">
+        <h2 class="text-sm font-semibold text-ink-900 dark:text-white">Visit or call</h2>
+        <p v-if="fullAddress" class="flex gap-2 text-ink-600 dark:text-ink-300">
+          <MapPin class="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden="true" />
+          <a v-if="mapsUrl" :href="mapsUrl" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ fullAddress }}</a>
+        </p>
+        <p v-if="phoneHref" class="flex gap-2">
+          <Phone class="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden="true" />
+          <a :href="phoneHref" class="text-ink-700 hover:underline dark:text-ink-200">{{ settings?.phoneNumber }}</a>
+        </p>
+        <p v-if="settings?.email" class="flex gap-2">
+          <Mail class="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden="true" />
+          <a :href="`mailto:${settings.email}`" class="break-all text-ink-700 hover:underline dark:text-ink-200">{{ settings.email }}</a>
+        </p>
+        <details v-if="status === 'ready'" class="group rounded-xl bg-ink-50 px-4 py-2 dark:bg-ink-800/60">
+          <summary class="flex min-h-[40px] cursor-pointer list-none items-center justify-between font-medium text-ink-800 dark:text-ink-100">
+            Opening hours
+            <ChevronDown class="h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <dl class="space-y-1.5 pb-2 pt-1">
+            <div v-for="group in hoursGroups" :key="group.label" class="flex justify-between gap-4">
+              <dt class="text-ink-500 dark:text-ink-400">{{ group.label }}</dt>
+              <dd class="text-right font-medium text-ink-800 dark:text-ink-100">{{ group.hours }}</dd>
+            </div>
+          </dl>
+        </details>
       </div>
     </div>
 
-    <!-- WhatsApp Float Button -->
-    <a 
-      href="https://wa.me/1234567890" 
-      target="_blank"
-      rel="noopener noreferrer"
-      class="fixed bottom-8 right-8 bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-all duration-300 z-40 hover:scale-110 hover:shadow-2xl"
-      aria-label="Chat on WhatsApp"
-    >
-      <MessageCircle class="w-7 h-7" />
-    </a>
+    <div class="border-t border-ink-100 dark:border-ink-800">
+      <div class="container-narrow flex flex-col items-center justify-between gap-2 py-5 text-xs text-ink-500 dark:text-ink-400 md:flex-row">
+        <p>© {{ year }} Funkey Grab &amp; Bite</p>
+        <p class="flex gap-4">
+          <NuxtLink to="/legal/privacy" class="hover:underline">Privacy</NuxtLink>
+          <NuxtLink to="/legal/terms" class="hover:underline">Terms</NuxtLink>
+        </p>
+      </div>
+    </div>
   </footer>
 </template>
 
 <script setup lang="ts">
-import { 
-  Facebook, 
-  Instagram, 
-  Twitter, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  ArrowRight,
-  MessageCircle 
-} from 'lucide-vue-next'
-
 import { onMounted } from 'vue'
-import { mockCategories } from '../../utils/mockData';
+import { ChevronDown, Mail, MapPin, Phone } from 'lucide-vue-next'
+import BrandLogo from './BrandLogo.vue'
+import StoreStatus from './StoreStatus.vue'
 import { useBusinessSettings } from '../../composables/useBusinessSettings'
+import { useMenuStore } from '../../stores/menu'
 
-const { settings, status, businessName, businessInitial, fullAddress, hoursGroups, phoneHref, load } = useBusinessSettings()
+const { settings, status, fullAddress, mapsUrl, hoursGroups, phoneHref, load } = useBusinessSettings()
+const menu = useMenuStore()
+const year = new Date().getFullYear()
 
-onMounted(() => load())
-
-const quickLinks = [
-  { name: 'Home', href: '/' },
-  { name: 'Menu', href: '/menu' },
-  { name: 'Order Online', href: '/order' },
-  { name: 'Catering Services', href: '/catering' },
-  { name: 'Promotions', href: '/promotion' },
-  { name: 'Contact', href: '/contact' },
-]
+onMounted(() => {
+  load()
+  menu.load()
+})
 </script>
+
+<style scoped>
+.footer-link {
+  @apply inline-flex min-h-[32px] items-center text-ink-600 transition hover:text-brand-600 dark:text-ink-300 dark:hover:text-brand-400;
+}
+</style>
