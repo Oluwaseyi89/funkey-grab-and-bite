@@ -17,7 +17,7 @@
   }
 
   body {
-    @apply bg-ink-50 font-body text-ink-900 antialiased dark:bg-ink-950 dark:text-ink-100;
+    @apply bg-white font-body text-ink-900 antialiased dark:bg-ink-950 dark:text-ink-100;
   }
 
   h1,
@@ -146,11 +146,11 @@
   /* Loading placeholders */
   .skeleton {
     @apply rounded-lg bg-[length:200%_100%] animate-shimmer;
-    background-image: linear-gradient(90deg, rgb(231 224 217 / 0.6) 0%, rgb(243 239 235) 50%, rgb(231 224 217 / 0.6) 100%);
+    background-image: linear-gradient(90deg, rgb(226 232 240 / 0.7) 0%, rgb(241 245 249) 50%, rgb(226 232 240 / 0.7) 100%);
   }
 
   .dark .skeleton {
-    background-image: linear-gradient(90deg, rgb(42 36 32) 0%, rgb(68 60 54) 50%, rgb(42 36 32) 100%);
+    background-image: linear-gradient(90deg, rgb(30 41 59) 0%, rgb(51 65 85) 50%, rgb(30 41 59) 100%);
   }
 
   /* Horizontal scrollers without a visible scrollbar. */
