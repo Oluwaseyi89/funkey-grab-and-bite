@@ -83,6 +83,8 @@ const routeSets = {
     ['post', '/api/v1/orders/lookup'],
     ['post', '/api/v1/orders/payment-details'],
     ['post', '/api/v1/orders/payment-status'],
+    ['get', '/api/v1/auth/orders'],
+    ['get', '/api/v1/auth/orders/{id}'],
     ['post', '/api/v1/auth/orders/{id}/payment-status'],
     ['post', '/api/v1/auth/register'],
     ['post', '/api/v1/auth/register/confirm'],
