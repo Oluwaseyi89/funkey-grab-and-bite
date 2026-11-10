@@ -1,167 +1,98 @@
 <template>
-    <div ref="heroRef" class="relative overflow-hidden bg-gradient-to-br px-5 py-5 from-brand-50 to-white dark:from-slate-900 dark:to-slate-800 rounded-3xl mx-4 md:mx-8 lg:mx-16 mb-8 md:mb-12">
-      <div class="absolute inset-0">
-        <div 
-    class="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
-    :style="{ backgroundImage: `url(${heroBannerBackgroundImages[currentImageIndex]})` }"
-  ></div>
-  <div class="absolute inset-0 bg-black/20 dark:bg-black/40"></div>
+  <section class="relative overflow-hidden" aria-labelledby="hero-title">
+    <!-- Warm glow behind the page, in the logo's colours. -->
+    <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+      <div class="absolute -left-24 -top-32 h-80 w-80 rounded-full bg-brand-300/40 blur-3xl dark:bg-brand-600/20" />
+      <div class="absolute -right-20 top-10 h-72 w-72 rounded-full bg-accent-300/40 blur-3xl dark:bg-accent-500/10" />
+      <div class="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-leaf-200/50 blur-3xl dark:bg-leaf-500/10" />
+    </div>
 
-        <div class="absolute top-0 left-0 w-64 h-64 bg-brand-100 dark:bg-brand-900/20 rounded-full -translate-x-32 -translate-y-32"></div>
-        <div class="absolute bottom-0 right-0 w-96 h-96 bg-accent-100 dark:bg-accent-900/20 rounded-full translate-x-48 translate-y-48"></div>
+    <div class="container-narrow relative grid items-center gap-8 pb-8 pt-6 md:grid-cols-[1.1fr_1fr] md:gap-12 md:pb-16 md:pt-14">
+      <div class="animate-rise-in">
+        <StoreStatus />
+        <h1 id="hero-title" class="mt-4 font-display text-[2.6rem] font-extrabold leading-[1.02] tracking-tight text-ink-900 dark:text-white sm:text-6xl lg:text-7xl">
+          Hot, fresh &amp;<br />
+          <span class="text-gradient">seriously funkey.</span>
+        </h1>
+        <p class="mt-4 max-w-md text-base text-ink-600 dark:text-ink-300 md:text-lg">
+          Crispy chicken &amp; chips, juicy shawarma and loaded noodles. Order for pickup or delivery, or let us cater your event.
+        </p>
+        <div class="mt-6 grid grid-cols-[1.3fr_1fr] gap-3 sm:flex">
+          <NuxtLink to="/menu" class="btn-primary btn-lg">
+            <UtensilsCrossed class="h-5 w-5" aria-hidden="true" />
+            Order now
+          </NuxtLink>
+          <NuxtLink to="/catering" class="btn-secondary btn-lg">
+            <CalendarHeart class="h-5 w-5" aria-hidden="true" />
+            Catering
+          </NuxtLink>
+        </div>
+        <ul class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink-600 dark:text-ink-300">
+          <li v-for="point in points" :key="point.text" class="inline-flex items-center gap-1.5">
+            <component :is="point.icon" class="h-4 w-4 text-leaf-600 dark:text-leaf-400" aria-hidden="true" />
+            {{ point.text }}
+          </li>
+        </ul>
       </div>
-      
-      <div class="relative z-10 section-padding">
-        <div class="grid lg:grid-cols-2 gap-12 items-center">
 
-          <div>
-            <h1 ref="titleRef" class="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-              Taste the<br>
-              <span class="text-gradient">Funkey</span> Difference
-            </h1>
-            
-            <p ref="descRef" class="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl">
-              From crispy chicken & chips to authentic shawarma, we serve happiness in every bite.
-              Perfect for quick meals, lunch packs, and unforgettable catering experiences.
-            </p>
-            
-            <div ref="buttonsRef" class="flex flex-wrap gap-4">
-              <NuxtLink to="/menu" class="btn-primary text-lg px-8 py-4">
-                <ShoppingBag class="w-5 h-5 inline mr-2" />
-                Order Now
-              </NuxtLink>
-              <NuxtLink to="/catering" class="btn-secondary text-lg px-8 py-4">
-                <Calendar class="w-5 h-5 inline mr-2" />
-                Book Catering
-              </NuxtLink>
-            </div>
-            
-
-            <div ref="statsRef" class="mt-12 grid grid-cols-3 gap-6">
-              <div class="text-center">
-                <div class="text-3xl font-bold text-brand-500 dark:text-brand-400">500+</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">Happy Customers</div>
-              </div>
-              <div class="text-center">
-                <div class="text-3xl font-bold text-brand-500 dark:text-brand-400">50+</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">Menu Items</div>
-              </div>
-              <div class="text-center">
-                <div class="text-3xl font-bold text-brand-500 dark:text-brand-400">24/7</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">Online Orders</div>
-              </div>
-            </div>
+      <!-- Dishes from the real menu; a brand composition until photos load. -->
+      <div class="relative mx-auto aspect-square w-full max-w-[22rem] md:max-w-md" aria-hidden="true">
+        <div class="absolute inset-[8%] rounded-full bg-gradient-to-br from-brand-500 via-brand-400 to-accent-400 shadow-glow" />
+        <div class="absolute inset-[8%] rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.35),transparent_55%)]" />
+        <template v-if="photos.length">
+          <div
+            v-for="(photo, index) in photos"
+            :key="photo"
+            class="absolute overflow-hidden rounded-full border-4 border-white shadow-lift dark:border-ink-900 motion-safe:animate-drift"
+            :class="slots[index]"
+            :style="{ animationDelay: `${index * -2}s` }"
+          >
+            <img :src="photo" alt="" class="h-full w-full object-cover" :loading="index === 0 ? 'eager' : 'lazy'" decoding="async" />
           </div>
-          
-
-          <div ref="imageRef" class="relative">
-            <div class="relative w-full h-64 md:h-96 lg:h-[500px]">
-
-              <div class="absolute top-0 left-1/4 w-32 h-32 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl transform -rotate-12 animate-float">
-                <div class="p-4">
-                  <Utensils class="w-16 h-16 mx-auto text-brand-500" />
-                  <div class="text-center mt-2 font-semibold">Fresh Food</div>
-                </div>
-              </div>
-              
-              <div class="absolute top-1/3 right-0 w-28 h-28 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl transform rotate-12 animate-float" style="animation-delay: 0.5s">
-                <div class="p-3">
-                  <Clock class="w-12 h-12 mx-auto text-green-500" />
-                  <div class="text-center mt-1 text-sm font-semibold">Quick Service</div>
-                </div>
-              </div>
-              
-              <div class="absolute bottom-0 left-0 w-36 h-36 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl transform -rotate-6 animate-float" style="animation-delay: 1s">
-                <div class="p-4">
-                  <Users class="w-16 h-16 mx-auto text-purple-500" />
-                  <div class="text-center mt-2 font-semibold">Catering</div>
-                </div>
-              </div>
-            </div>
+        </template>
+        <div v-else class="absolute inset-0 flex items-center justify-center">
+          <div class="flex h-1/2 w-1/2 items-center justify-center rounded-full bg-white/95 p-6 shadow-lift dark:bg-ink-900">
+            <BrandLogo alt="" />
           </div>
+        </div>
+        <div v-if="readyIn" class="absolute bottom-[6%] left-0 rounded-2xl bg-white px-4 py-2.5 shadow-lift dark:bg-ink-900 motion-safe:animate-drift" style="animation-delay: -3s">
+          <p class="text-xs text-ink-500 dark:text-ink-400">Popular picks ready in</p>
+          <p class="font-display text-sm font-bold text-ink-900 dark:text-white">about {{ readyIn }} minutes</p>
         </div>
       </div>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ShoppingBag, Calendar, Utensils, Clock, Users } from 'lucide-vue-next'
-  import { useNuxtApp } from 'nuxt/app'
-  import { ref } from 'vue'
-  import { onMounted } from 'vue'
-  import { heroBannerBackgroundImages } from '../../utils/mockData';
-  
-  const { $gsap, $animations } = useNuxtApp()
-  const gsap = $gsap as typeof import('gsap')
+  </section>
+</template>
 
-  const heroRef = ref<HTMLElement>()
-  const titleRef = ref<HTMLElement>()
-  const descRef = ref<HTMLElement>()
-  const buttonsRef = ref<HTMLElement>()
-  const statsRef = ref<HTMLElement>()
-  const imageRef = ref<HTMLElement>()
-  const currentImageIndex = ref(0)
+<script setup lang="ts">
+import { computed } from 'vue'
+import { Bike, CalendarHeart, CreditCard, ShoppingBag, UtensilsCrossed } from 'lucide-vue-next'
+import BrandLogo from '../layout/BrandLogo.vue'
+import StoreStatus from '../layout/StoreStatus.vue'
+import { useMenuStore } from '../../stores/menu'
 
-  
-  onMounted(() => {
-    if (import.meta.client) {
+const menu = useMenuStore()
 
-      const tl = gsap.timeline()
-      tl.from(titleRef.value!, {
-        opacity: 0,
-        y: 50,
-        duration: 0.8,
-        ease: 'power2.out'
-      })
-      .from(descRef.value!, {
-        opacity: 0,
-        y: 30,
-        duration: 0.6,
-        ease: 'power2.out'
-      }, '-=0.4')
-      .from(buttonsRef.value?.children!, {
-        opacity: 0,
-        y: 20,
-        duration: 0.5,
-        stagger: 0.1,
-        ease: 'power2.out'
-      }, '-=0.3')
-      .from(statsRef.value?.children!, {
-        opacity: 0,
-        y: 20,
-        duration: 0.4,
-        stagger: 0.1,
-        ease: 'power2.out'
-      }, '-=0.2')
-      .from(imageRef.value?.children!, {
-        opacity: 0,
-        scale: 0.8,
-        duration: 0.8,
-        stagger: 0.2,
-        ease: 'back.out(1.7)'
-      }, '-=0.4')
-  
-      gsap.from(heroRef.value!, {
-        scrollTrigger: {
-          trigger: heroRef.value,
-          start: 'top top',
-          end: 'bottom top',
-          scrub: 1,
-        },
-        y: 50,
-      })
-    }
+const points = [
+  { icon: ShoppingBag, text: 'Pickup' },
+  { icon: Bike, text: 'Delivery' },
+  { icon: CreditCard, text: 'Card, transfer or pay on delivery' },
+]
 
-  const interval = setInterval(() => {
-    currentImageIndex.value = (currentImageIndex.value + 1) % heroBannerBackgroundImages.length
-  }, 10000)
-  
-  return () => clearInterval(interval)
-  })
-  </script>
+const photos = computed(() =>
+  menu.featuredItems.map((item) => item.imageUrl).filter(Boolean).slice(0, 3),
+)
 
-<style scoped>
-    .bg-transition {
-      transition: background-image 1s ease-in-out;
-    }
-</style>
+// The quickest of the popular dishes, from the menu's preparation times.
+const readyIn = computed(() => {
+  const times = menu.featuredItems.map((item) => item.preparationTime).filter((time) => time > 0)
+  return times.length ? Math.min(...times) : 0
+})
+
+// Where each photo sits on the circle: big centre-left, two smaller ones.
+const slots = [
+  'left-[6%] top-[14%] h-[58%] w-[58%]',
+  'right-[2%] top-[4%] h-[38%] w-[38%]',
+  'bottom-[10%] right-[8%] h-[44%] w-[44%]',
+]
+</script>
