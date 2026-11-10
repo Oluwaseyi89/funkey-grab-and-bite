@@ -25,7 +25,7 @@
           <li v-for="order in orders" :key="order.id" class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-gray-200 dark:border-slate-700">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p class="font-semibold text-gray-900 dark:text-white">#{{ order.orderNumber }}</p>
+                <NuxtLink :to="`/account/orders/${order.id}`" class="font-semibold text-gray-900 dark:text-white hover:underline">#{{ order.orderNumber }}</NuxtLink>
                 <p class="text-sm text-gray-500 dark:text-gray-400">{{ formatDate(order.createdAt) }} · {{ order.items.length }} item{{ order.items.length === 1 ? '' : 's' }}</p>
               </div>
               <p class="font-bold text-gray-900 dark:text-white">{{ formatNaira(order.totalAmount) }}</p>
@@ -44,16 +44,22 @@
 
             <p v-if="messages[order.id]" class="mt-3 text-sm text-gray-700 dark:text-gray-300" role="status">{{ messages[order.id] }}</p>
 
-            <div v-if="isOnline(order) && order.paymentStatus === 'pending'" class="mt-3 flex flex-wrap gap-2">
+            <div class="mt-3 flex flex-wrap gap-2">
+              <NuxtLink :to="`/account/orders/${order.id}`" class="btn-secondary text-sm">View details</NuxtLink>
               <button
-                v-if="order.paymentMethod === 'card' && cardPaymentsEnabled"
+                v-if="order.paymentMethod === 'card' && order.paymentStatus === 'pending' && cardPaymentsEnabled"
                 class="btn-primary text-sm dark:text-white"
                 :disabled="busy[order.id]"
                 @click="payNow(order)"
               >
                 Pay with card
               </button>
-              <button class="btn-secondary text-sm inline-flex items-center gap-2" :disabled="busy[order.id]" @click="refresh(order)">
+              <button
+                v-if="isOnline(order) && order.paymentStatus === 'pending'"
+                class="btn-secondary text-sm inline-flex items-center gap-2"
+                :disabled="busy[order.id]"
+                @click="refresh(order)"
+              >
                 <Loader2 v-if="busy[order.id]" class="w-4 h-4 animate-spin" /><RefreshCw v-else class="w-4 h-4" />
                 Refresh payment status
               </button>

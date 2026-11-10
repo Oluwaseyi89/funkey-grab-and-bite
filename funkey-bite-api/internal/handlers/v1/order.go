@@ -335,54 +335,38 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	})
 }
 
-// GetUserOrder gets a specific order for the authenticated user
-// @Summary Get user order by ID
-// @Description Get a specific order for the authenticated user
+// GetUserOrder returns one of the signed-in customer's orders with its
+// invoice (null for orders paid online). Another customer's order answers
+// "not found", like a missing one, so order IDs can't be probed.
+// @Summary Get one of the signed-in customer's orders
 // @Tags orders
-// @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Order ID"
-// @Success 200 {object} models.Order
+// @Success 200 {object} map[string]interface{}
 // @Router /auth/orders/{id} [get]
 func (h *OrderHandler) GetUserOrder(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-		return
-	}
-
 	orderID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid order ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
 		return
 	}
-
+	userID, _ := c.Get("user_id")
 	order, err := h.orderService.GetOrderByID(orderID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch order",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch order"})
+		return
+	}
+	if order == nil || order.UserID == nil || *order.UserID != userID.(int) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
 		return
 	}
 
-	if order == nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Order not found",
-		})
-		return
+	invoice, err := h.invoices.BuildInvoice(order)
+	if err != nil {
+		log.Printf("Failed to build invoice for order #%s: %v", order.OrderNumber, err)
 	}
-
-	if order.UserID == nil || *order.UserID != userID.(int) {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Access denied",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, order)
+	c.JSON(http.StatusOK, gin.H{"order": order, "invoice": invoice})
 }
 
 func (h *OrderHandler) TrackOrder(c *gin.Context) {

@@ -485,6 +485,16 @@ export class ApiService {
     return { orders: (payload.orders || []).map((o) => this.normalizeOrder(o)), totalPages: payload.pagination?.totalPages ?? 0 }
   }
 
+  // One of the signed-in customer's orders with its invoice (null for orders
+  // paid online). Another customer's order comes back as not found.
+  async getMyOrder(orderId: string): Promise<OrderLookupResult> {
+    const payload = await this.fetchJSON<{ order: BackendOrder; invoice: OrderLookupResult['invoice'] }>(
+      `/auth/orders/${encodeURIComponent(orderId)}`,
+      { headers: this.headers },
+    )
+    return { order: this.normalizeOrder(payload.order), invoice: payload.invoice ?? null }
+  }
+
   // ---- Payment status ----
 
   // Asks our server to check an unpaid online order with Paystack, by order
