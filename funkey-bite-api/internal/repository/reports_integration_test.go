@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"funkey-grab-and-bite/funkey-bite-api/internal/domain/models"
 )
 
 // Runs only with TEST_DATABASE_URL. Orders are dated in 2001 so other data
@@ -81,5 +83,34 @@ func TestReportsCountPaidRevenueWithEveryDay(t *testing.T) {
 	}
 	if len(hours) != 24 || hours[12].Orders != 4 {
 		t.Fatalf("expected 4 orders at noon across 24 hours, got %d hours, noon %+v", len(hours), hours[12])
+	}
+}
+
+// "active" lists the orders the kitchen still has to finish.
+func TestOrderListActiveFilter(t *testing.T) {
+	db := openIntegrationDB(t)
+	tag := fmt.Sprint(time.Now().UnixNano())
+	for _, status := range []string{"pending", "preparing", "ready", "completed", "cancelled"} {
+		if _, err := db.Exec(`
+			INSERT INTO orders (order_number, customer_name, customer_phone, order_type, status, total_amount, payment_method, payment_status)
+			VALUES ($1, 'Active filter', '08000000000', 'pickup', $2, 100, 'cash', 'pending')`, fmt.Sprintf("ACT-%s-%s", tag, status), status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() { db.Exec(`DELETE FROM orders WHERE order_number LIKE $1`, "ACT-"+tag+"-%") })
+
+	repo := NewAdminRepository(db)
+	orders, err := repo.GetAllOrders(1000, 0, models.OrderListFilter{Status: "active"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, o := range orders {
+		if len(o.OrderNumber) > 4 && o.OrderNumber[:4] == "ACT-" {
+			found[string(o.Status)] = true
+		}
+	}
+	if !found["pending"] || !found["preparing"] || !found["ready"] || found["completed"] || found["cancelled"] {
+		t.Fatalf("expected only unfinished orders, got %v", found)
 	}
 }
