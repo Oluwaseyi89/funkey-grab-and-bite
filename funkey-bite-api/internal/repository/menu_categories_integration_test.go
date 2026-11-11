@@ -48,3 +48,31 @@ func TestHiddenCategoriesAreListedForTheAdminOnly(t *testing.T) {
 		t.Fatal("the admin must still see a hidden category")
 	}
 }
+
+// The admin's menu list includes dishes marked unavailable; the customer
+// menu doesn't.
+func TestUnavailableDishesAreListedForTheAdminOnly(t *testing.T) {
+	db := openIntegrationDB(t)
+	name := fmt.Sprintf("Unavailable test %d", time.Now().UnixNano())
+	var id int
+	if err := db.QueryRow(`INSERT INTO menu_items (category_id, name, description, price, is_available) VALUES (1, $1, '', 100, false) RETURNING id`, name).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Exec(`DELETE FROM menu_items WHERE id = $1`, id) })
+
+	repo := NewMenuRepository(db)
+	public, _, err := repo.Search(name, nil, 50, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, _, err := repo.SearchAll(name, nil, 50, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(public) != 0 {
+		t.Fatal("an unavailable dish must not be on the customer menu")
+	}
+	if len(all) != 1 || all[0].ID != id {
+		t.Fatalf("the admin must still find an unavailable dish, got %d", len(all))
+	}
+}
