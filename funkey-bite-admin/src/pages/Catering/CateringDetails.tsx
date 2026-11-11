@@ -47,6 +47,7 @@ import {
   formatEventDate,
   naira,
 } from './cateringLabels';
+import { useConfirm } from '../../components/ui/ConfirmProvider';
 
 const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => (
   <section className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -89,7 +90,7 @@ const NotesForm: React.FC<NotesFormProps> = ({ request, saving, onSave }) => {
         onChange={(e) => setNotes(e.target.value)}
         rows={4}
         maxLength={2000}
-        placeholder="Only visible to admins"
+        placeholder="Only visible to admins" aria-label="Only visible to admins"
         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
       />
       <div className="flex justify-end mt-2 print:hidden">
@@ -106,6 +107,7 @@ const NotesForm: React.FC<NotesFormProps> = ({ request, saving, onSave }) => {
 };
 
 const CateringDetails: React.FC = () => {
+  const confirm = useConfirm();
   const { id } = useParams<{ id: string }>();
   const requestId = Number(id);
   const navigate = useNavigate();
@@ -184,12 +186,20 @@ const CateringDetails: React.FC = () => {
   const canQuote = request.status === 'pending' || request.status === 'quoted';
   const paymentDue = (request.status === 'accepted' || request.status === 'confirmed') && contract.account;
 
-  const changeStatus = (next: CateringStatus) => {
+  const changeStatus = async (next: CateringStatus) => {
     let note: string | undefined;
     if (next === 'declined' || next === 'cancelled') {
-      const reason = window.prompt(`Reason for ${next === 'declined' ? 'declining' : 'cancelling'} (shown in the history)`);
-      if (reason === null) return;
-      note = reason.trim() || undefined;
+      const verb = next === 'declined' ? 'Decline' : 'Cancel';
+      const { confirmed, reason } = await confirm({
+        title: `${verb} this catering request?`,
+        message: 'The customer can see the status on their booking page.',
+        confirmLabel: `${verb} request`,
+        cancelLabel: 'Go back',
+        tone: 'danger',
+        reason: { label: 'Reason (kept in the history)', placeholder: 'e.g. Fully booked on that date' },
+      });
+      if (!confirmed) return;
+      note = reason || undefined;
     }
     statusMutation.mutate({ status: next, note });
   };
