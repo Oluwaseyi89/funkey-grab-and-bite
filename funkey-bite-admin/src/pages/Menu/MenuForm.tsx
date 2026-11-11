@@ -265,10 +265,10 @@ const MenuForm: React.FC = () => {
             <div className="space-y-6">
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="menu-form-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Item Name *
                 </label>
-                <input
+                <input id="menu-form-field-1"
                   type="text"
                   {...register('name')}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -281,10 +281,10 @@ const MenuForm: React.FC = () => {
 
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="menu-form-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description *
                 </label>
-                <textarea
+                <textarea id="menu-form-field-2"
                   {...register('description')}
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -298,10 +298,10 @@ const MenuForm: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="menu-form-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Category *
                   </label>
-                  <select
+                  <select id="menu-form-field-3"
                     {...register('categoryId', { valueAsNumber: true })}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
@@ -318,12 +318,12 @@ const MenuForm: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="menu-form-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Price (₦) *
                   </label>
                   <div className="relative">
                     <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="menu-form-field-4"
                       type="number"
                       step="0.01"
                       min="0"
@@ -341,12 +341,12 @@ const MenuForm: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="menu-form-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Preparation Time (minutes) *
                   </label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="menu-form-field-5"
                       type="number"
                       min="1"
                       {...register('preparationTime', { valueAsNumber: true })}
@@ -425,7 +425,7 @@ const MenuForm: React.FC = () => {
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="Add tags (e.g., spicy, vegetarian, popular)"
+                  placeholder="Add tags (e.g., spicy, vegetarian, popular)" aria-label="Add tags (e.g., spicy, vegetarian, popular)"
                 />
                 <button
                   type="button"
@@ -476,10 +476,10 @@ const MenuForm: React.FC = () => {
             {showNutrition && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="menu-form-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Calories
                   </label>
-                  <input
+                  <input id="menu-form-field-6"
                     type="number"
                     min="0"
                     {...register('nutritionalInfo.calories', { valueAsNumber: true })}
@@ -489,10 +489,10 @@ const MenuForm: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="menu-form-field-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Protein (g)
                   </label>
-                  <input
+                  <input id="menu-form-field-7"
                     type="number"
                     min="0"
                     {...register('nutritionalInfo.protein', { valueAsNumber: true })}
@@ -502,10 +502,10 @@ const MenuForm: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="menu-form-field-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Carbs (g)
                   </label>
-                  <input
+                  <input id="menu-form-field-8"
                     type="number"
                     min="0"
                     {...register('nutritionalInfo.carbs', { valueAsNumber: true })}
@@ -515,10 +515,10 @@ const MenuForm: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="menu-form-field-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Fat (g)
                   </label>
-                  <input
+                  <input id="menu-form-field-9"
                     type="number"
                     min="0"
                     {...register('nutritionalInfo.fat', { valueAsNumber: true })}
