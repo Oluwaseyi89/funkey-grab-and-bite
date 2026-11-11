@@ -15,7 +15,6 @@ import {
   Eye,
   Copy,
   Trash2,
-  Download,
   BarChart3,
   Clock,
   CheckCircle,
@@ -34,8 +33,10 @@ import { getPromotions } from '../../api/adminApi';
 import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { Promotion, PromotionStatus, PromotionType } from '../../types';
 import { usePromotionStore } from '../../stores/promotionStore';
+import { useConfirm } from '../../components/ui/ConfirmProvider';
 
 const PromotionList: React.FC = () => {
+  const confirm = useConfirm();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -100,7 +101,13 @@ const PromotionList: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this promotion?')) return;
+    const { confirmed } = await confirm({
+      title: 'Delete this promotion?',
+      message: 'Its code will stop working at checkout straight away.',
+      confirmLabel: 'Delete promotion',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     
     try {
       toast.success('Promotion deleted successfully');
@@ -255,10 +262,6 @@ const PromotionList: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            <Download className="h-4 w-4" />
-            <span>Export</span>
-          </button>
           <Link
             to="/promotions/new"
             className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
@@ -396,7 +399,7 @@ const PromotionList: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="search"
-                placeholder="Search by code, title, or description..."
+                placeholder="Search by code, title, or description..." aria-label="Search by code, title, or description"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:text-white"
@@ -613,7 +616,7 @@ const PromotionList: React.FC = () => {
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-2">
                             <Link
-                              to={`/promotions/${promotion.id}`}
+                              to={`/promotions/${promotion.id}/edit`}
                               className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
                               title="View Details"
                             >
@@ -717,9 +720,6 @@ const PromotionList: React.FC = () => {
                 Top performing promotions by usage
               </p>
             </div>
-            <button className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
-              View Report
-            </button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -778,7 +778,7 @@ const PromotionList: React.FC = () => {
                           {formatDateRange(promotion.validFrom, promotion.validUntil)}
                         </span>
                         <Link
-                          to={`/promotions/${promotion.id}`}
+                          to={`/promotions/${promotion.id}/edit`}
                           className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
                         >
                           Details →
