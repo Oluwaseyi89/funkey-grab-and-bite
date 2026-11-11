@@ -15,6 +15,7 @@ import {
 import { Link } from 'react-router-dom';
 import { getOrders, getCateringRequests } from '../../api/adminApi';
 import type { Order, CateringRequest, OrderStatus, CateringStatus } from '../../types';
+import { naira } from '../../utils/format';
 
 const OrderCalendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -296,7 +297,7 @@ const OrderCalendar: React.FC = () => {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Today's Revenue</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                ₦{todaySummary.revenue.toFixed(2)}
+                {naira(todaySummary.revenue)}
               </p>
             </div>
             <div className="h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
@@ -463,7 +464,7 @@ const OrderCalendar: React.FC = () => {
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Total Amount</p>
                     <p className="font-semibold text-primary-600">
-                      ₦{selectedEvent.data.totalAmount.toFixed(2)}
+                      {naira(selectedEvent.data.totalAmount)}
                     </p>
                   </div>
                   <div>
