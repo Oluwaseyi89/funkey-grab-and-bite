@@ -45,6 +45,8 @@ type AdminService interface {
 	GetMenuItemByID(id int) (*models.MenuItem, error)
 	CreateMenuCategory(category *models.MenuCategory) (*models.MenuCategory, error)
 	GetMenuCategoryByID(id int) (*models.MenuCategory, error)
+	// Every category, hidden ones included.
+	GetAllMenuCategories() ([]models.MenuCategory, error)
 	UpdateMenuCategory(category *models.MenuCategory) error
 
 	GetAllCateringRequests(page, limit int, status string) ([]models.CateringRequest, int, error)
@@ -424,6 +426,10 @@ func (s *adminService) CreateMenuCategory(category *models.MenuCategory) (*model
 	}
 
 	return s.menuRepo.CreateCategory(category)
+}
+
+func (s *adminService) GetAllMenuCategories() ([]models.MenuCategory, error) {
+	return s.menuRepo.GetAllCategories()
 }
 
 func (s *adminService) GetMenuCategoryByID(id int) (*models.MenuCategory, error) {
