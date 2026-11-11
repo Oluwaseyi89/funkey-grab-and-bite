@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { 
   Search, 
   Filter, 
@@ -22,13 +22,17 @@ import toast from 'react-hot-toast';
 import { getMenuItems, deleteMenuItem } from '../../api/adminApi';
 import { isBackendUnavailableError } from '../../api/apiHelpers';
 import StockBadge from './StockBadge';
+import { useConfirm } from '../../components/ui/ConfirmProvider';
 
 const MenuList: React.FC = () => {
+  const confirm = useConfirm();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  // Opens filtered when linked from Categories (?category=3).
+  const [searchParams] = useSearchParams();
+  const [categoryFilter, setCategoryFilter] = useState<string>(searchParams.get('category') ?? '');
 
   const { data: menuItems, isLoading, refetch } = useQuery({
     queryKey: ['menu-items', page, limit, categoryFilter, searchQuery],
@@ -53,7 +57,13 @@ const MenuList: React.FC = () => {
   });
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this menu item?')) return;
+    const { confirmed } = await confirm({
+      title: 'Delete this menu item?',
+      message: 'It comes off the menu straight away. Past orders keep their record.',
+      confirmLabel: 'Delete item',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     
     try {
       await deleteMenuItem(id);
@@ -102,7 +112,7 @@ const MenuList: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="search"
-                placeholder="Search menu items by name or description..."
+                placeholder="Search menu items by name or description..." aria-label="Search menu items by name or description"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:text-white"
