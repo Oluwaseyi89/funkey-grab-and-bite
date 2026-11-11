@@ -306,6 +306,7 @@ func SetupEngine() (*gin.Engine, func()) {
 		admin.POST("/team", teamHandler.Create)
 		admin.PUT("/team/:id", teamHandler.Update)
 		admin.DELETE("/team/:id", teamHandler.Delete)
+		admin.GET("/menu/categories", adminHandler.GetMenuCategories)
 		admin.POST("/menu/categories", adminHandler.CreateMenuCategory)
 		admin.PUT("/menu/categories/:id", adminHandler.UpdateMenuCategory)
 		admin.GET("/catering/requests", cateringHandler.GetAllRequests)
