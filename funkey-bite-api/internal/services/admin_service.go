@@ -335,7 +335,8 @@ func (s *adminService) GetMenuItems(page, limit int, categoryID *int, query stri
 	}
 	offset := (page - 1) * limit
 
-	items, _, err := s.menuRepo.Search(query, categoryID, limit, offset)
+	// Unavailable dishes too, so staff can switch them back on.
+	items, _, err := s.menuRepo.SearchAll(query, categoryID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get menu items: %w", err)
 	}
