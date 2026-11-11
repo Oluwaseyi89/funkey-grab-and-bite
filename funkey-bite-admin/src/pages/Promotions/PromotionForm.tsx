@@ -30,6 +30,7 @@ import toast from 'react-hot-toast';
 import { getPromotions, createPromotion, updatePromotion, getPromotionByID } from '../../api/adminApi';
 import type { Promotion, PromotionType } from '../../types';
 import { usePromotionStore } from '../../stores/promotionStore';
+import { naira } from '../../utils/format';
 
 const promotionSchema = z.object({
   code: z.string()
@@ -394,7 +395,7 @@ const PromotionForm: React.FC = () => {
                       type="text"
                       {...register('code')}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white uppercase"
-                      placeholder="e.g., FUNKEY20"
+                      placeholder="e.g., FUNKEY20" aria-label="e.g., FUNKEY20"
                       onChange={(e) => {
                         const value = e.target.value.toUpperCase();
                         e.target.value = value;
@@ -408,10 +409,10 @@ const PromotionForm: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="promotion-form-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Title *
                   </label>
-                  <input
+                  <input id="promotion-form-field-1"
                     type="text"
                     {...register('title')}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -425,10 +426,10 @@ const PromotionForm: React.FC = () => {
 
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="promotion-form-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description
                 </label>
-                <textarea
+                <textarea id="promotion-form-field-2"
                   {...register('description')}
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -491,7 +492,7 @@ const PromotionForm: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="promotion-form-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {promotionType === 'percentage' ? 'Discount Percentage *' :
                      promotionType === 'fixed' ? 'Discount Amount (₦) *' :
                      'Free Item Value (₦) *'}
@@ -502,7 +503,7 @@ const PromotionForm: React.FC = () => {
                     ) : (
                       <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     )}
-                    <input
+                    <input id="promotion-form-field-3"
                       type="number"
                       step={promotionType === 'percentage' ? 0.1 : 0.01}
                       min="0"
@@ -522,12 +523,12 @@ const PromotionForm: React.FC = () => {
 
                 {promotionType === 'percentage' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="promotion-form-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Maximum Discount (₦)
                     </label>
                     <div className="relative">
                       <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                      <input
+                      <input id="promotion-form-field-4"
                         type="number"
                         step="0.01"
                         min="0"
@@ -545,12 +546,12 @@ const PromotionForm: React.FC = () => {
 
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="promotion-form-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Minimum Order Amount (₦)
                 </label>
                 <div className="relative">
                   <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
+                  <input id="promotion-form-field-5"
                     type="number"
                     step="0.01"
                     min="0"
@@ -575,12 +576,12 @@ const PromotionForm: React.FC = () => {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="promotion-form-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Start Date *
                   </label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="promotion-form-field-6"
                       type="date"
                       {...register('validFrom')}
                       min={new Date().toISOString().split('T')[0]}
@@ -593,12 +594,12 @@ const PromotionForm: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="promotion-form-field-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     End Date *
                   </label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="promotion-form-field-7"
                       type="date"
                       {...register('validUntil')}
                       min={validFrom}
@@ -666,12 +667,12 @@ const PromotionForm: React.FC = () => {
               <div className="space-y-6">
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="promotion-form-field-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Usage Limit
                   </label>
                   <div className="relative">
                     <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="promotion-form-field-8"
                       type="number"
                       min="1"
                       {...register('usageLimit', { valueAsNumber: true })}
@@ -773,7 +774,7 @@ const PromotionForm: React.FC = () => {
                     <p className="text-primary-100 text-sm">Discount Value</p>
                     <p className="text-2xl font-bold">
                       {promotionType === 'percentage' ? `${discountValue}%` :
-                       promotionType === 'fixed' ? `₦${discountValue.toFixed(2)}` :
+                       promotionType === 'fixed' ? naira(discountValue) :
                        'BOGO'}
                     </p>
                   </div>
@@ -798,7 +799,7 @@ const PromotionForm: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600 dark:text-gray-400">Sample Order:</span>
-                    <span className="font-medium">₦{preview.original.toFixed(2)}</span>
+                    <span className="font-medium">{naira(preview.original)}</span>
                   </div>
                   
                   <div className="flex items-center justify-between text-sm">
@@ -812,7 +813,7 @@ const PromotionForm: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-900 dark:text-white">Final Amount:</span>
                       <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
-                        ₦{preview.final.toFixed(2)}
+                        {naira(preview.final)}
                       </span>
                     </div>
                   </div>
