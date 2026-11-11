@@ -81,6 +81,7 @@ func (f *fakeAdminService) DeleteMenuItem(id int) error                { return 
 func (f *fakeAdminService) GetMenuItemByID(id int) (*models.MenuItem, error) {
 	return nil, nil
 }
+func (f *fakeAdminService) GetAllMenuCategories() ([]models.MenuCategory, error) { return nil, nil }
 func (f *fakeAdminService) CreateMenuCategory(category *models.MenuCategory) (*models.MenuCategory, error) {
 	return nil, nil
 }
