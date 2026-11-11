@@ -273,14 +273,23 @@ func (r *MenuRepository) GetByCategory(categoryID int) ([]models.MenuItem, error
 }
 
 func (r *MenuRepository) GetCategories() ([]models.MenuCategory, error) {
+	return r.listCategories(false)
+}
+
+// GetAllCategories includes hidden categories, for the admin.
+func (r *MenuRepository) GetAllCategories() ([]models.MenuCategory, error) {
+	return r.listCategories(true)
+}
+
+func (r *MenuRepository) listCategories(includeHidden bool) ([]models.MenuCategory, error) {
 	query := `
 		SELECT id, name, description, display_order, is_active, created_at
 		FROM menu_categories
-		WHERE is_active = true
-		ORDER BY display_order
+		WHERE is_active = true OR $1
+		ORDER BY display_order, id
 	`
 
-	rows, err := r.db.Query(query)
+	rows, err := r.db.Query(query, includeHidden)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get menu categories: %w", err)
 	}
