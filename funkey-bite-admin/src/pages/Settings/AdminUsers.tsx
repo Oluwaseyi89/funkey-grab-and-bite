@@ -36,6 +36,7 @@ import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { AdminUser } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
 import SettingsTabs from '../../components/settings/SettingsTabs';
+import { useConfirm } from '../../components/ui/ConfirmProvider';
 
 const adminUserSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
@@ -53,6 +54,7 @@ type AdminUserFormOutput = z.output<typeof adminUserSchema>;
 type UpdateAdminFormData = z.infer<typeof updateAdminSchema>;
 
 const AdminUsers: React.FC = () => {
+  const confirm = useConfirm();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
@@ -158,8 +160,14 @@ const AdminUsers: React.FC = () => {
     updateMutation.mutate({ id: selectedAdmin.id, data });
   };
 
-  const handleDelete = (admin: AdminUser) => {
-    if (!confirm(`Are you sure you want to delete admin user "${admin.username}"? This action cannot be undone.`)) return;
+  const handleDelete = async (admin: AdminUser) => {
+    const { confirmed } = await confirm({
+      title: `Delete ${admin.username}?`,
+      message: 'They won’t be able to sign in to the admin any more. This can’t be undone.',
+      confirmLabel: 'Delete admin',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     
     if (admin.id === currentUser?.id) {
       toast.error('You cannot delete your own account');
@@ -325,7 +333,7 @@ const AdminUsers: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="search"
-                placeholder="Search by username or email..."
+                placeholder="Search by username or email..." aria-label="Search by username or email"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:text-white"
@@ -568,12 +576,12 @@ const AdminUsers: React.FC = () => {
               
               <form onSubmit={handleSubmitCreate(handleCreate)} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="admin-users-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Username *
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="admin-users-field-1"
                       type="text"
                       {...registerCreate('username')}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -586,12 +594,12 @@ const AdminUsers: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="admin-users-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Email Address *
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="admin-users-field-2"
                       type="email"
                       {...registerCreate('email')}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -604,10 +612,10 @@ const AdminUsers: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="admin-users-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Password *
                   </label>
-                  <input
+                  <input id="admin-users-field-3"
                     type="password"
                     {...registerCreate('password')}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -620,10 +628,10 @@ const AdminUsers: React.FC = () => {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="admin-users-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Role *
                     </label>
-                    <select
+                    <select id="admin-users-field-4"
                       {...registerCreate('role')}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     >
@@ -703,12 +711,12 @@ const AdminUsers: React.FC = () => {
               
               <form onSubmit={handleSubmitEdit(handleEdit)} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="admin-users-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Username *
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="admin-users-field-5"
                       type="text"
                       {...registerEdit('username')}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -720,12 +728,12 @@ const AdminUsers: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="admin-users-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Email Address *
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="admin-users-field-6"
                       type="email"
                       {...registerEdit('email')}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -738,10 +746,10 @@ const AdminUsers: React.FC = () => {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="admin-users-field-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Role *
                     </label>
-                    <select
+                    <select id="admin-users-field-7"
                       {...registerEdit('role')}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     >
