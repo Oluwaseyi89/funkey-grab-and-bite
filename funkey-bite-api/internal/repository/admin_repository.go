@@ -209,6 +209,8 @@ func (r *AdminRepository) DeleteMenuItem(id int) error {
 	return err
 }
 
+// GetAllOrders lists orders, newest first. Status "active" means every order
+// the kitchen still has to finish (new, confirmed, cooking or ready).
 func (r *AdminRepository) GetAllOrders(limit, offset int, filter models.OrderListFilter) ([]models.Order, error) {
 	query := `
 		SELECT id, order_number, user_id, customer_name, customer_phone,
@@ -219,7 +221,7 @@ func (r *AdminRepository) GetAllOrders(limit, offset int, filter models.OrderLis
 		       delivery_address, invoice_number, subtotal_amount, delivery_fee,
 		       tax_amount, discount_amount, payment_collected_via
 		FROM orders
-		WHERE ($1 = '' OR status = $1)
+		WHERE ($1 = '' OR status = $1 OR ($1 = 'active' AND status IN ('pending', 'confirmed', 'preparing', 'ready')))
 		  AND ($2 = '' OR payment_status = $2)
 		  AND ($3 = '' OR payment_method = $3)
 		  AND ($4::int IS NULL OR user_id = $4)
@@ -328,7 +330,7 @@ func (r *AdminRepository) getOrderItems(orderID int) ([]models.OrderItem, error)
 func (r *AdminRepository) GetOrdersCount(filter models.OrderListFilter) (int, error) {
 	query := `
 		SELECT COUNT(*) FROM orders
-		WHERE ($1 = '' OR status = $1)
+		WHERE ($1 = '' OR status = $1 OR ($1 = 'active' AND status IN ('pending', 'confirmed', 'preparing', 'ready')))
 		  AND ($2 = '' OR payment_status = $2)
 		  AND ($3 = '' OR payment_method = $3)
 		  AND ($4::int IS NULL OR user_id = $4)
