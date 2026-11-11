@@ -261,7 +261,7 @@ const InventoryAlerts: React.FC = () => {
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse"></div>
           <div className="h-10 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-32 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
           ))}
@@ -303,8 +303,8 @@ const InventoryAlerts: React.FC = () => {
       </div>
 
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Active Alerts</p>
@@ -315,13 +315,13 @@ const InventoryAlerts: React.FC = () => {
                 {todayAlerts} new today
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center">
               <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Unread Alerts</p>
@@ -332,13 +332,13 @@ const InventoryAlerts: React.FC = () => {
                 Requires attention
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
               <Bell className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Critical Alerts</p>
@@ -349,13 +349,13 @@ const InventoryAlerts: React.FC = () => {
                 Immediate action needed
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
               <AlertCircle className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Alerts</p>
@@ -366,7 +366,7 @@ const InventoryAlerts: React.FC = () => {
                 All time
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
               <BarChart3 className="h-6 w-6 text-primary-600 dark:text-primary-400" />
             </div>
           </div>
