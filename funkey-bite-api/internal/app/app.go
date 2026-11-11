@@ -123,6 +123,8 @@ func SetupEngine() (*gin.Engine, func()) {
 	paymentService.SetCateringHandler(cateringContractHandler.HandlePaystackCharge)
 	teamHandler := v1.NewTeamHandler(teamService)
 	adminHandler := v1.NewAdminHandler(adminService)
+	// Dashboard and reports count money received, in the business timezone.
+	reportsHandler := v1.NewReportsHandler(repository.NewReportsRepository(db), services.LoadBusinessLocation())
 	uploadHandler := v1.NewUploadHandler(imageStorage)
 	settingsHandler := v1.NewSettingsHandler(settingsService)
 	promotionHandler := v1.NewPromotionHandler(promotionService)
@@ -283,6 +285,8 @@ func SetupEngine() (*gin.Engine, func()) {
 		admin.GET("/dashboard/stats", adminHandler.GetDashboardStats)
 		admin.GET("/dashboard/stats/today", adminHandler.GetTodayStats)
 		admin.GET("/reports/sales", adminHandler.GetSalesReport)
+		admin.GET("/dashboard/overview", reportsHandler.GetOverview)
+		admin.GET("/reports/summary", reportsHandler.GetSalesSummary)
 		admin.GET("/orders", adminHandler.GetAllOrders)
 		admin.GET("/orders/:id", orderHandler.GetOrder)
 		admin.PATCH("/orders/:id/status", adminHandler.UpdateOrderStatus)
