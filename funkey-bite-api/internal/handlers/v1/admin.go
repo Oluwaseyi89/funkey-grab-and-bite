@@ -531,6 +531,25 @@ func (h *AdminHandler) DeleteMenuItem(c *gin.Context) {
 // @Param category body models.MenuCategory true "Category details"
 // @Success 201 {object} models.MenuCategory
 // @Router /admin/menu/categories [post]
+// GetMenuCategories lists every category for the admin, hidden ones included.
+// @Summary List all menu categories
+// @Tags admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} models.MenuCategory
+// @Router /admin/menu/categories [get]
+func (h *AdminHandler) GetMenuCategories(c *gin.Context) {
+	categories, err := h.adminService.GetAllMenuCategories()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load categories"})
+		return
+	}
+	if categories == nil {
+		categories = []models.MenuCategory{}
+	}
+	c.JSON(http.StatusOK, categories)
+}
+
 func (h *AdminHandler) CreateMenuCategory(c *gin.Context) {
 	var category models.MenuCategory
 
