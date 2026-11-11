@@ -162,7 +162,7 @@ const PackageForm: React.FC<PackageFormProps> = ({ pkg, onClose }) => {
             <input id="pkg-choices" type="number" min={0} max={20} className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" value={form.dishChoices} onChange={(e) => set('dishChoices', Number(e.target.value))} />
             <span className="text-sm text-gray-600 dark:text-gray-400">of the {form.menuItemIds.length} selected dishes (0 = fixed menu)</span>
           </div>
-          <input type="search" className={inputClass} placeholder="Search menu items…" value={dishSearch} onChange={(e) => setDishSearch(e.target.value)} />
+          <input type="search" className={inputClass} placeholder="Search menu items…" aria-label="Search menu items" value={dishSearch} onChange={(e) => setDishSearch(e.target.value)} />
           <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
             {filteredMenu.length === 0 && <p className="p-3 text-sm text-gray-500">No menu items found.</p>}
             {filteredMenu.map((item) => (
