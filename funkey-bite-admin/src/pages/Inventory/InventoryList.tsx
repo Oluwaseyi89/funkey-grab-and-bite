@@ -216,7 +216,7 @@ const InventoryList: React.FC = () => {
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse"></div>
           <div className="h-10 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-32 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
           ))}
@@ -257,8 +257,8 @@ const InventoryList: React.FC = () => {
       </div>
 
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Items</p>
@@ -266,13 +266,13 @@ const InventoryList: React.FC = () => {
                 {inventoryItems.length}
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
               <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Low Stock Items</p>
@@ -280,13 +280,13 @@ const InventoryList: React.FC = () => {
                 {lowStockItems.length}
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center">
               <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Out of Stock</p>
@@ -294,13 +294,13 @@ const InventoryList: React.FC = () => {
                 {outOfStockCount}
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
               <PackageX className="h-6 w-6 text-gray-600 dark:text-gray-300" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Active Alerts</p>
@@ -308,7 +308,7 @@ const InventoryList: React.FC = () => {
                 {unreadAlerts}
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
               <AlertTriangle className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
           </div>
@@ -400,7 +400,39 @@ const InventoryList: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Phones: one row per alert with its buttons. */}
+              <ul className="divide-y divide-gray-100 dark:divide-gray-800 md:hidden">
+                {alerts.map((alert) => {
+                  const statusInfo = getAlertStatus(alert);
+                  const relatedItem = inventoryItems.find(item => item.id === alert.inventoryItemId);
+                  return (
+                    <li key={alert.id} className="space-y-2 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-white">{relatedItem?.name ?? 'Item not found'}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{alert.message}</p>
+                          <p className="text-xs text-gray-500">{formatDate(alert.createdAt)}</p>
+                        </div>
+                        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color}`}>
+                          {statusInfo.icon}
+                          <span>{statusInfo.text}</span>
+                        </span>
+                      </div>
+                      {(!alert.isResolved || relatedItem) && (
+                        <div className="flex gap-2">
+                          {relatedItem && (
+                            <button type="button" onClick={() => openStockDialog(relatedItem)} className="btn-primary flex-1">Restock</button>
+                          )}
+                          {!alert.isResolved && (
+                            <button type="button" onClick={() => handleMarkAlertAsResolved(alert.id)} className="btn-secondary flex-1">Resolve</button>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
@@ -517,7 +549,38 @@ const InventoryList: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Phones: a compact row per item, with stock and the restock button in reach. */}
+              <ul className="divide-y divide-gray-100 dark:divide-gray-800 md:hidden">
+                {pagedItems.map((item) => {
+                  const statusInfo = getStockStatus(item);
+                  const needsRestock = item.currentStock <= item.reorderPoint;
+                  return (
+                    <li key={item.id} className="flex items-center gap-3 p-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-gray-900 dark:text-white">{item.name}</p>
+                        <p className="text-sm">
+                          <span className={`font-bold tabular-nums ${needsRestock ? 'text-red-600' : 'text-gray-900 dark:text-white'}`}>{item.currentStock}</span>
+                          <span className="text-gray-500"> {item.unit} · reorder at {item.reorderPoint}</span>
+                        </p>
+                        <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color}`}>
+                          {statusInfo.icon}
+                          <span>{statusInfo.text}</span>
+                          {!item.isActive && <span> · inactive</span>}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 flex-col gap-2">
+                        <button type="button" onClick={() => openStockDialog(item, 'add')} className={needsRestock ? 'btn-primary' : 'btn-secondary'} aria-label={`Restock ${item.name}`}>
+                          Restock
+                        </button>
+                        <button type="button" onClick={() => openStockDialog(item, 'set')} className="btn-ghost text-xs" aria-label={`Adjust stock of ${item.name}`}>
+                          Adjust
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
@@ -689,7 +752,7 @@ const InventoryList: React.FC = () => {
 
       
       {lowStockItems.length > 0 && activeTab !== 'alerts' && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
