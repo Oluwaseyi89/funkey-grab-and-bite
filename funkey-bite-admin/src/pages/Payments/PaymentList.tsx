@@ -175,7 +175,7 @@ const PaymentList: React.FC = () => {
           type="search"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Order number, customer, phone or reference"
+          placeholder="Order number, customer, phone or reference" aria-label="Order number, customer, phone or reference"
           className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white"
         />
       </div>
