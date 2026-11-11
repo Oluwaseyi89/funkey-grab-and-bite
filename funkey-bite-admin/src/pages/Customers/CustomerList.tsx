@@ -8,7 +8,6 @@ import {
   Phone, 
   Calendar,
   Eye,
-  Edit,
   CheckCircle,
   XCircle,
   ChevronLeft,
@@ -18,6 +17,8 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { downloadCsv } from '../../utils/csv';
+import { isoDate } from '../../utils/format';
 import { getUsers, updateUserStatus } from '../../api/adminApi';
 import type { CustomerStatusFilter } from '../../types';
 
@@ -71,8 +72,20 @@ const CustomerList: React.FC = () => {
     }
   };
 
+  const exportCsv = () => {
+    if (!customers.length) {
+      toast.error('There are no customers here to export');
+      return;
+    }
+    downloadCsv(
+      `customers-${isoDate(new Date())}.csv`,
+      ['Name', 'Phone', 'Email', 'Orders', 'Total spent (NGN)', 'Active', 'Verified', 'Joined'],
+      customers.map((c) => [c.fullName, c.phone, c.email ?? '', c.orderCount, c.totalSpent, c.isActive ? 'yes' : 'no', c.isVerified ? 'yes' : 'no', formatDate(c.createdAt)]),
+    );
+  };
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('en-NG', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -90,16 +103,10 @@ const CustomerList: React.FC = () => {
           </p>
         </div>
         
-        <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            <Download className="h-4 w-4" />
-            <span>Export</span>
-          </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
-            <UserPlus className="h-4 w-4" />
-            <span>Add Customer</span>
-          </button>
-        </div>
+        {/* Customers create their own records by ordering or signing up. */}
+        <button type="button" className="btn-secondary" onClick={exportCsv}>
+          <Download className="h-4 w-4" aria-hidden="true" /> Export this list
+        </button>
       </div>
 
       
@@ -111,7 +118,7 @@ const CustomerList: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="search"
-                placeholder="Search by name, email, or phone..."
+                placeholder="Search by name, email, or phone..." aria-label="Search by name, email, or phone"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:text-white"
@@ -154,7 +161,27 @@ const CustomerList: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Phones: one card per customer. */}
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800 md:hidden">
+              {customers.map((customer) => (
+                <li key={customer.id}>
+                  <Link to={`/customers/${customer.id}`} className="flex items-center gap-3 px-4 py-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 font-semibold text-primary-700 dark:bg-primary-500/10 dark:text-primary-300" aria-hidden="true">
+                      {customer.fullName.charAt(0)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-gray-900 dark:text-white">{customer.fullName}</span>
+                      <span className="block truncate text-sm text-gray-500">{customer.phone}</span>
+                    </span>
+                    <span className="shrink-0 text-right text-sm">
+                      <span className="block font-semibold tabular-nums">{formatNaira(customer.totalSpent)}</span>
+                      <span className="block text-xs text-gray-500">{customer.orderCount} orders{customer.isActive ? '' : ' · inactive'}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
@@ -254,6 +281,7 @@ const CustomerList: React.FC = () => {
                             onClick={() => handleStatusUpdate(customer.id, !customer.isActive)}
                             className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
                             title={customer.isActive ? 'Deactivate' : 'Activate'}
+                            aria-label={`${customer.isActive ? 'Deactivate' : 'Activate'} ${customer.fullName}`}
                           >
                             {customer.isActive ? (
                               <XCircle className="h-4 w-4" />
@@ -275,12 +303,10 @@ const CustomerList: React.FC = () => {
                             to={`/customers/${customer.id}`}
                             className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
                             title="View Details"
+                            aria-label={`View ${customer.fullName}`}
                           >
                             <Eye className="h-5 w-5" />
                           </Link>
-                          <button className="p-1 text-gray-400 hover:text-primary-500 transition-colors" title="Edit">
-                            <Edit className="h-5 w-5" />
-                          </button>
                         </div>
                       </td>
                     </tr>
