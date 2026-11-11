@@ -240,7 +240,7 @@ const PromotionList: React.FC = () => {
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse"></div>
           <div className="h-10 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-32 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
           ))}
@@ -273,8 +273,8 @@ const PromotionList: React.FC = () => {
       </div>
 
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Active Promotions</p>
@@ -285,13 +285,13 @@ const PromotionList: React.FC = () => {
                 of {promotions.length} total
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
               <Zap className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Discount Value</p>
@@ -302,13 +302,13 @@ const PromotionList: React.FC = () => {
                 Combined discount amount
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
               <Banknote className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Usage</p>
@@ -319,13 +319,13 @@ const PromotionList: React.FC = () => {
                 Times used by customers
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
               <Users className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Expiring Soon</p>
@@ -336,7 +336,7 @@ const PromotionList: React.FC = () => {
                 Within 7 days
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
               <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
           </div>
@@ -710,7 +710,7 @@ const PromotionList: React.FC = () => {
 
       
       {promotions.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
