@@ -29,6 +29,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useBusinessSettings, BUSINESS_SETTINGS_QUERY_KEY } from '../../hooks/useBusinessSettings';
 import type { BusinessSettings, OpeningHours } from '../../types';
 import SettingsTabs from '../../components/settings/SettingsTabs';
+import { naira } from '../../utils/format';
 
 const settingsSchema = z.object({
   businessName: z.string().min(2, 'Business name must be at least 2 characters'),
@@ -307,12 +308,12 @@ const GeneralSettings: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="general-settings-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Business Name *
               </label>
               <div className="relative">
                 <Store className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <input
+                <input id="general-settings-field-1"
                   type="text"
                   {...register('businessName')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -326,12 +327,12 @@ const GeneralSettings: React.FC = () => {
 
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="general-settings-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Phone Number *
               </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <input
+                <input id="general-settings-field-2"
                   type="tel"
                   {...register('phoneNumber')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -345,12 +346,12 @@ const GeneralSettings: React.FC = () => {
 
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="general-settings-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Email Address *
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <input
+                <input id="general-settings-field-3"
                   type="email"
                   {...register('email')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -364,12 +365,12 @@ const GeneralSettings: React.FC = () => {
 
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="general-settings-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Street Address *
               </label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <input
+                <input id="general-settings-field-4"
                   type="text"
                   {...register('address')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -388,10 +389,10 @@ const GeneralSettings: React.FC = () => {
               { name: 'country', label: 'Country *', placeholder: 'Country' },
             ] as const).map((field) => (
               <div key={field.name}>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor={`settings-${field.name}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {field.label}
                 </label>
-                <input
+                <input id={`settings-${field.name}`}
                   type="text"
                   {...register(field.name)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -447,9 +448,9 @@ const GeneralSettings: React.FC = () => {
                             type="checkbox"
                             checked={dayHours.isOpen}
                             onChange={() => toggleDayOpen(day.id)}
-                            className="sr-only"
+                            className="peer sr-only"
                           />
-                          <div className={`w-10 h-6 rounded-full transition-colors ${dayHours.isOpen ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                          <div className={`w-10 h-6 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary-500 ${dayHours.isOpen ? 'bg-leaf-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
                             <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${dayHours.isOpen ? 'left-5' : 'left-1'}`}></div>
                           </div>
                         </div>
@@ -459,11 +460,12 @@ const GeneralSettings: React.FC = () => {
                       </label>
                     </div>
                   
-                    <div className="flex items-center space-x-3">
+                    <div className="flex flex-wrap items-center gap-3">
                     
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Open:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400" id={`open-${day.id}`}>Open</span>
                         <select
+                          aria-labelledby={`open-${day.id}`}
                           value={dayHours.openTime}
                           onChange={(e) => updateDayHours(day.id, 'openTime', e.target.value)}
                           disabled={!dayHours.isOpen}
@@ -478,9 +480,10 @@ const GeneralSettings: React.FC = () => {
                       </div>
                     
                     
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Close:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400" id={`close-${day.id}`}>Close</span>
                         <select
+                          aria-labelledby={`close-${day.id}`}
                           value={dayHours.closeTime}
                           onChange={(e) => updateDayHours(day.id, 'closeTime', e.target.value)}
                           disabled={!dayHours.isOpen}
@@ -525,12 +528,12 @@ const GeneralSettings: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="general-settings-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Delivery Fee (₦)
               </label>
               <div className="relative">
                 <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <input
+                <input id="general-settings-field-6"
                   type="number"
                   step="0.01"
                   min="0"
@@ -546,12 +549,12 @@ const GeneralSettings: React.FC = () => {
 
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="general-settings-field-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Minimum Order Amount (₦)
               </label>
               <div className="relative">
                 <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <input
+                <input id="general-settings-field-7"
                   type="number"
                   step="0.01"
                   min="0"
@@ -567,12 +570,12 @@ const GeneralSettings: React.FC = () => {
 
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="general-settings-field-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Tax Rate (%)
               </label>
               <div className="relative">
                 <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <input
+                <input id="general-settings-field-8"
                   type="number"
                   step="0.1"
                   min="0"
@@ -636,7 +639,7 @@ const GeneralSettings: React.FC = () => {
               </div>
               {isDeliveryOpen && (
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Delivery fee: ₦{deliveryFee.toFixed(2)}
+                  Delivery fee: {naira(deliveryFee)}
                 </div>
               )}
             </div>
@@ -678,7 +681,7 @@ const GeneralSettings: React.FC = () => {
               </div>
               {isPickupOpen && (
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Minimum order: ₦{minOrderAmount.toFixed(2)}
+                  Minimum order: {naira(minOrderAmount)}
                 </div>
               )}
             </div>
@@ -769,7 +772,7 @@ const GeneralSettings: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Delivery Fee:</span>
-                  <span>₦{deliveryFee.toFixed(2)}</span>
+                  <span>{naira(deliveryFee)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Tax ({taxRate}%):</span>
@@ -818,7 +821,7 @@ const GeneralSettings: React.FC = () => {
                 </div>
                 
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Minimum order for pickup: ₦{minOrderAmount.toFixed(2)}
+                  Minimum order for pickup: {naira(minOrderAmount)}
                 </div>
               </div>
             </div>
