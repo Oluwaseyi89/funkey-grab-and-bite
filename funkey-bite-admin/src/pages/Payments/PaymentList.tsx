@@ -137,6 +137,33 @@ const PaymentList: React.FC = () => {
   const totalPages = data?.pagination.totalPages ?? 0;
   const totalAll = Object.values(counts).reduce((sum, n) => sum + n, 0);
 
+  // The buttons for a payment, shared by the phone cards and the table.
+  const paymentActions = (payment: (typeof payments)[number]) => (
+    <>
+      {payment.paymentStatus === 'needs_review' && (
+        <>
+          <button type="button" onClick={() => openDecision(payment, 'accept')} className="btn-success flex-1 sm:flex-none">
+            <CheckCircle className="h-4 w-4" aria-hidden="true" /> Accept
+          </button>
+          <button type="button" onClick={() => openDecision(payment, 'refund')} className="btn flex-1 border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20 sm:flex-none">
+            <Undo2 className="h-4 w-4" aria-hidden="true" /> Refund
+          </button>
+        </>
+      )}
+      {payment.paymentStatus === 'refund_due' && (
+        <button type="button" onClick={() => openDecision(payment, 'refunded')} className="btn-secondary flex-1 sm:flex-none">
+          <RotateCcw className="h-4 w-4" aria-hidden="true" /> Mark refunded
+        </button>
+      )}
+      {payment.paymentStatus === 'pending' && payment.paymentReference && (
+        <button type="button" onClick={() => recheck(payment)} disabled={checkingId === payment.orderId} className="btn-secondary flex-1 sm:flex-none">
+          {checkingId === payment.orderId ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
+          Re-check with Paystack
+        </button>
+      )}
+    </>
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -190,7 +217,39 @@ const PaymentList: React.FC = () => {
             {status === 'needs_review' ? 'Nothing needs your review.' : 'No payments here.'}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Phones: one card per payment, with its buttons in reach. */}
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800 md:hidden">
+            {payments.map((payment) => (
+              <li key={payment.orderId} className="space-y-2 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link to={`/orders/${payment.orderId}`} className="font-mono text-sm font-bold text-primary-600 hover:underline dark:text-primary-400">
+                      #{payment.orderNumber}
+                    </Link>
+                    <p className="truncate text-sm text-gray-900 dark:text-white">{payment.customerName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{payment.customerPhone} · {formatDate(payment.createdAt)}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLE[payment.paymentStatus] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+                    {TABS.find((t) => t.status === payment.paymentStatus)?.label ?? payment.paymentStatus}
+                  </span>
+                </div>
+                <dl className="grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-3 text-sm dark:bg-gray-800/60">
+                  <div><dt className="text-xs text-gray-500">Expected</dt><dd className="font-semibold tabular-nums">{formatNaira(payment.totalAmount)}</dd></div>
+                  <div><dt className="text-xs text-gray-500">Received</dt><dd className={`font-semibold tabular-nums ${payment.receivedAmount != null && payment.receivedAmount !== payment.totalAmount ? 'text-red-600' : ''}`}>{payment.receivedAmount != null ? formatNaira(payment.receivedAmount) : '—'}</dd></div>
+                  <div><dt className="text-xs text-gray-500">Method</dt><dd className="font-semibold">{payment.paymentMethod === 'card' ? 'Card' : 'Transfer'}</dd></div>
+                </dl>
+                {payment.reviewReason && (
+                  <p className="flex items-start gap-1.5 text-sm text-red-700 dark:text-red-300">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    {REVIEW_REASONS[payment.reviewReason] ?? payment.reviewReason}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">{paymentActions(payment)}</div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700/50 text-left text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 <tr>
@@ -236,31 +295,7 @@ const PaymentList: React.FC = () => {
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatDate(payment.createdAt)}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2 flex-wrap">
-                        {payment.paymentStatus === 'needs_review' && (
-                          <>
-                            <button onClick={() => openDecision(payment, 'accept')} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium">
-                              <CheckCircle className="h-3.5 w-3.5" /> Accept
-                            </button>
-                            <button onClick={() => openDecision(payment, 'refund')} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-300 text-red-700 dark:border-red-800 dark:text-red-300 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-900/20">
-                              <Undo2 className="h-3.5 w-3.5" /> Refund
-                            </button>
-                          </>
-                        )}
-                        {payment.paymentStatus === 'refund_due' && (
-                          <button onClick={() => openDecision(payment, 'refunded')} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700">
-                            <RotateCcw className="h-3.5 w-3.5" /> Mark refunded
-                          </button>
-                        )}
-                        {payment.paymentStatus === 'pending' && payment.paymentReference && (
-                          <button
-                            onClick={() => recheck(payment)}
-                            disabled={checkingId === payment.orderId}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-                          >
-                            {checkingId === payment.orderId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                            Re-check with Paystack
-                          </button>
-                        )}
+                        {paymentActions(payment)}
                       </div>
                     </td>
                   </tr>
@@ -268,6 +303,7 @@ const PaymentList: React.FC = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-sm">
