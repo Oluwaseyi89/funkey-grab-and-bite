@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuthStore } from '../stores/authStore';
+
+type Handler = (payload: any) => void;
 
 type RealtimeSocket = {
-  on: (event: string, handler: (payload: any) => void) => void;
-  off: (event: string, handler: (payload: any) => void) => void;
-  disconnect: () => void;
+  on: (event: string, handler: Handler) => void;
+  off: (event: string, handler: Handler) => void;
 };
 
 interface SocketContextType {
@@ -20,165 +22,111 @@ const SocketContext = createContext<SocketContextType>({
 
 export const useSocket = () => useContext(SocketContext);
 
-const WEBSOCKET_RECONNECT_BASE_DELAY_MS = 1000;
-const WEBSOCKET_RECONNECT_MAX_DELAY_MS = 30000;
+const BASE_DELAY_MS = 1000;
+const MAX_DELAY_MS = 30000;
 
 const buildRealtimeUrl = () => {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-  const baseUrl = new URL(apiUrl);
-  baseUrl.protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-  baseUrl.pathname = '/api/v1/admin/realtime/ws';
-  return baseUrl;
+  const url = new URL(apiUrl);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  url.pathname = '/api/v1/admin/realtime/ws';
+  return url.toString();
 };
 
+// The live connection for admin events (new orders, payments, catering).
+// It opens as soon as someone signs in, reconnects with backoff when it
+// drops, and closes on sign-out.
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const realtimeMode = (import.meta.env.VITE_REALTIME_MODE || 'websocket').toLowerCase();
   const isRealtimeEnabled = realtimeMode === 'websocket' || realtimeMode === 'socket-io';
+  const token = useAuthStore((state) => state.token);
   const [isConnected, setIsConnected] = useState(false);
-  const [socket, setSocket] = useState<RealtimeSocket | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectAttemptRef = useRef(0);
-  const isConnectingRef = useRef(false);
-  const shouldReconnectRef = useRef(true);
-  const listenersRef = useRef<Map<string, Set<(payload: any) => void>>>(new Map());
+  const listeners = useRef<Map<string, Set<Handler>>>(new Map());
 
-  const socketApi = useMemo<RealtimeSocket>(
+  const socket = useMemo<RealtimeSocket>(
     () => ({
       on: (event, handler) => {
-        const current = listenersRef.current.get(event) || new Set();
-        current.add(handler);
-        listenersRef.current.set(event, current);
+        const set = listeners.current.get(event) ?? new Set();
+        set.add(handler);
+        listeners.current.set(event, set);
       },
       off: (event, handler) => {
-        const current = listenersRef.current.get(event);
-        if (!current) return;
-        current.delete(handler);
-        if (current.size === 0) {
-          listenersRef.current.delete(event);
-        }
-      },
-      disconnect: () => {
-        shouldReconnectRef.current = false;
-        isConnectingRef.current = false;
-        reconnectAttemptRef.current = 0;
-        if (reconnectTimerRef.current) {
-          clearTimeout(reconnectTimerRef.current);
-          reconnectTimerRef.current = null;
-        }
-        wsRef.current?.close();
-        wsRef.current = null;
-        setIsConnected(false);
+        listeners.current.get(event)?.delete(handler);
       },
     }),
     [],
   );
 
   useEffect(() => {
-    if (!isRealtimeEnabled) {
-      setSocket(null);
+    const authToken = token || localStorage.getItem('admin_token');
+    if (!isRealtimeEnabled || !authToken) {
       setIsConnected(false);
-      console.info('Realtime is disabled. Set VITE_REALTIME_MODE=websocket to enable live admin events.');
       return;
     }
 
-    shouldReconnectRef.current = true;
-    setSocket(socketApi);
-
-    const scheduleReconnect = () => {
-      if (!shouldReconnectRef.current) return;
-
-      reconnectAttemptRef.current += 1;
-      const exponentialDelay = Math.min(
-        WEBSOCKET_RECONNECT_BASE_DELAY_MS * (2 ** (reconnectAttemptRef.current - 1)),
-        WEBSOCKET_RECONNECT_MAX_DELAY_MS,
-      );
-      const jitter = Math.floor(Math.random() * 500);
-      const delay = exponentialDelay + jitter;
-
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-      }
-      reconnectTimerRef.current = setTimeout(connect, delay);
-    };
+    // Everything below belongs to this run of the effect only. A later run
+    // (new token, or React mounting twice in development) starts its own, and
+    // events from an old connection are ignored.
+    let active = true;
+    let ws: WebSocket | null = null;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     const connect = () => {
-      if (isConnectingRef.current) {
-        return;
-      }
+      if (!active) return;
+      ws = new WebSocket(buildRealtimeUrl(), [`jwt.${authToken}`]);
+      const current = ws;
 
-      const existingWs = wsRef.current;
-      if (existingWs && (existingWs.readyState === WebSocket.OPEN || existingWs.readyState === WebSocket.CONNECTING)) {
-        return;
-      }
-
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        reconnectAttemptRef.current = 0;
-        setIsConnected(false);
-        return;
-      }
-
-      isConnectingRef.current = true;
-      const wsUrl = buildRealtimeUrl();
-      const ws = new WebSocket(wsUrl.toString(), [`jwt.${token}`]);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        isConnectingRef.current = false;
-        reconnectAttemptRef.current = 0;
+      current.onopen = () => {
+        if (!active) return;
+        attempts = 0;
         setIsConnected(true);
       };
-
-      ws.onmessage = (event) => {
+      current.onmessage = (event) => {
+        if (!active) return;
         try {
-          const payload = JSON.parse(event.data);
-          const eventName = payload?.event;
-          if (typeof eventName !== 'string') return;
-
-          const handlers = listenersRef.current.get(eventName);
-          if (!handlers || handlers.size === 0) return;
-
-          handlers.forEach((handler) => {
-            handler(payload.data);
-          });
-        } catch (error) {
-          console.error('Failed to parse realtime message', error);
+          const message = JSON.parse(event.data);
+          if (typeof message?.event !== 'string') return;
+          listeners.current.get(message.event)?.forEach((handler) => handler(message.data));
+        } catch {
+          // Not an event we understand.
         }
       };
-
-      ws.onclose = () => {
-        isConnectingRef.current = false;
+      current.onclose = () => {
+        if (!active) return;
         setIsConnected(false);
-        wsRef.current = null;
-
-        if (!shouldReconnectRef.current) return;
-        scheduleReconnect();
+        attempts += 1;
+        const delay = Math.min(BASE_DELAY_MS * 2 ** (attempts - 1), MAX_DELAY_MS) + Math.floor(Math.random() * 500);
+        timer = setTimeout(connect, delay);
       };
+      current.onerror = () => current.close();
+    };
 
-      ws.onerror = () => {
-        ws.close();
-      };
+    // Reconnect straight away when the phone wakes up or comes back online.
+    const reconnectNow = () => {
+      if (!active || document.visibilityState !== 'visible') return;
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+      clearTimeout(timer);
+      attempts = 0;
+      connect();
     };
 
     connect();
+    document.addEventListener('visibilitychange', reconnectNow);
+    window.addEventListener('online', reconnectNow);
 
     return () => {
-      shouldReconnectRef.current = false;
-      isConnectingRef.current = false;
-      reconnectAttemptRef.current = 0;
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
-      wsRef.current?.close();
-      wsRef.current = null;
+      active = false;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', reconnectNow);
+      window.removeEventListener('online', reconnectNow);
+      ws?.close();
       setIsConnected(false);
     };
-  }, [isRealtimeEnabled, socketApi]);
+  }, [isRealtimeEnabled, token]);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected, isRealtimeEnabled }}>
+    <SocketContext.Provider value={{ socket: isRealtimeEnabled ? socket : null, isConnected, isRealtimeEnabled }}>
       {children}
     </SocketContext.Provider>
   );
