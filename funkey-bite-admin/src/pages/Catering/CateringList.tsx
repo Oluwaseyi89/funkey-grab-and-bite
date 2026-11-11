@@ -74,7 +74,7 @@ const CateringList: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
           <input
             type="search"
-            placeholder="Search reference, customer, phone, area…"
+            placeholder="Search reference, customer, phone, area…" aria-label="Search reference, customer, phone, area"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white"
