@@ -296,10 +296,10 @@ const ProfileSettings: React.FC = () => {
               <form onSubmit={handleSubmitProfile(handleProfileUpdate)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="profile-settings-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Username
                     </label>
-                    <input
+                    <input id="profile-settings-field-1"
                       type="text"
                       value={user.username}
                       disabled
@@ -311,12 +311,12 @@ const ProfileSettings: React.FC = () => {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="profile-settings-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Email Address *
                     </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                      <input
+                      <input id="profile-settings-field-2"
                         type="email"
                         {...registerProfile('email')}
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -331,10 +331,10 @@ const ProfileSettings: React.FC = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="profile-settings-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Role
                     </label>
-                    <input
+                    <input id="profile-settings-field-3"
                       type="text"
                       value={user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                       disabled
@@ -389,12 +389,12 @@ const ProfileSettings: React.FC = () => {
               <form onSubmit={handleSubmitPassword(handlePasswordChange)} className="space-y-6">
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="profile-settings-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Current Password *
                   </label>
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="profile-settings-field-4"
                       type={showCurrentPassword ? 'text' : 'password'}
                       {...registerPassword('currentPassword')}
                       className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -419,12 +419,12 @@ const ProfileSettings: React.FC = () => {
                 
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="profile-settings-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     New Password *
                   </label>
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="profile-settings-field-5"
                       type={showNewPassword ? 'text' : 'password'}
                       {...registerPassword('newPassword')}
                       className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -449,12 +449,12 @@ const ProfileSettings: React.FC = () => {
                 
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="profile-settings-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Confirm New Password *
                   </label>
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
+                    <input id="profile-settings-field-6"
                       type={showConfirmPassword ? 'text' : 'password'}
                       {...registerPassword('confirmPassword')}
                       className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"

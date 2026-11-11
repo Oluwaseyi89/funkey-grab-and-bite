@@ -5,6 +5,7 @@ import { ArrowLeft, ChefHat, Clock, Edit, Tag, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { deleteMenuItem, getCategories, getMenuItemByID } from '../../api/adminApi';
 import StockBadge from './StockBadge';
+import { useConfirm } from '../../components/ui/ConfirmProvider';
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(price);
@@ -20,6 +21,7 @@ const Detail: React.FC<{ label: string; children: React.ReactNode }> = ({ label,
 );
 
 const MenuDetails: React.FC = () => {
+  const confirm = useConfirm();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const itemId = Number(id);
@@ -40,7 +42,14 @@ const MenuDetails: React.FC = () => {
   });
 
   const handleDelete = async () => {
-    if (!item || !confirm('Are you sure you want to delete this menu item?')) return;
+    if (!item) return;
+    const { confirmed } = await confirm({
+      title: `Delete ${item.name}?`,
+      message: 'It comes off the menu straight away. Past orders keep their record.',
+      confirmLabel: 'Delete item',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       await deleteMenuItem(item.id);

@@ -16,12 +16,17 @@ import {
   User,
   ChevronDown
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useIdempotencyKey } from '../../hooks/useIdempotencyKey';
 import { getOrder, getOrderInvoice, markOrderPaymentCollected, updateOrderStatus } from '../../api/adminApi';
 import InvoiceDocument from '../../components/orders/InvoiceDocument';
 import type { Order, OrderStatus, PaymentCollectedVia } from '../../types';
+import { NEXT_STATUS, ORDER_STATUS } from '../../components/ui/StatusPill';
+import { useConfirm } from '../../components/ui/ConfirmProvider';
+import { naira } from '../../utils/format';
+
+const FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', 'completed'];
 
 const COLLECTION_OPTIONS: { value: PaymentCollectedVia; label: string }[] = [
   { value: 'cash', label: 'Cash' },
@@ -32,6 +37,8 @@ const COLLECTION_OPTIONS: { value: PaymentCollectedVia; label: string }[] = [
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [isUpdating, setIsUpdating] = useState(false);
   const [collectedVia, setCollectedVia] = useState<PaymentCollectedVia>('cash');
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
@@ -82,7 +89,9 @@ const OrderDetails: React.FC = () => {
     setIsUpdating(true);
     try {
       await updateOrderStatus(parseInt(id), { status: newStatus });
-      toast.success(`Order status updated to ${newStatus}`);
+      toast.success(`Order ${ORDER_STATUS[newStatus]?.label.toLowerCase() ?? newStatus}`);
+      queryClient.invalidateQueries({ queryKey: ['dashboard-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       refetch();
     } catch (error) {
       toast.error('Failed to update order status');
@@ -219,6 +228,21 @@ const OrderDetails: React.FC = () => {
   }
 
   const statusInfo = getStatusInfo(order.status);
+  const nextStep = NEXT_STATUS[order.status];
+  const flowIndex = FLOW.indexOf(order.status);
+  // One step back, for a tap made by mistake (not after completion).
+  const previousStep = flowIndex > 0 && order.status !== 'completed' ? FLOW[flowIndex - 1] : undefined;
+
+  const cancelOrder = async () => {
+    const { confirmed } = await confirm({
+      title: `Cancel order #${order.orderNumber}?`,
+      message: order.paymentStatus === 'paid' ? 'This order is paid. Cancelling doesn’t refund the customer; arrange the refund separately.' : 'The customer will see it as cancelled.',
+      confirmLabel: 'Cancel order',
+      cancelLabel: 'Keep order',
+      tone: 'danger',
+    });
+    if (confirmed) handleStatusUpdate('cancelled');
+  };
   const paymentMethodLabel = order.paymentMethod === 'transfer'
     ? 'Online (Paystack transfer)'
     : order.paymentMethod === 'card'
@@ -274,59 +298,45 @@ const OrderDetails: React.FC = () => {
       </div>
 
       
-      <div className={`p-4 rounded-xl border ${statusInfo.color}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {statusInfo.icon}
-            <div>
-              <p className="font-semibold">Current Status: {order.status.toUpperCase()}</p>
-              <p className="text-sm opacity-80">{statusInfo.text}</p>
-            </div>
-          </div>
-          
-          <div className="relative group">
-            <button 
-              disabled={isUpdating}
-              className="flex items-center space-x-2 px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <span>Update Status</span>
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-              <button
-                onClick={() => handleStatusUpdate('confirmed')}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                Mark as Confirmed
-              </button>
-              <button
-                onClick={() => handleStatusUpdate('preparing')}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                Mark as Preparing
-              </button>
-              <button
-                onClick={() => handleStatusUpdate('ready')}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                Mark as Ready
-              </button>
-              <button
-                onClick={() => handleStatusUpdate('completed')}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                Mark as Completed
-              </button>
-              <button
-                onClick={() => handleStatusUpdate('cancelled')}
-                className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                Cancel Order
-              </button>
-            </div>
+      {/* Where the order is, and the next step as one big tap (works on phones). */}
+      <section className={`rounded-2xl border p-4 ${statusInfo.color}`} aria-labelledby="order-status-title">
+        <div className="flex items-start gap-3">
+          {statusInfo.icon}
+          <div className="min-w-0">
+            <h2 id="order-status-title" className="font-semibold">{ORDER_STATUS[order.status]?.label ?? order.status}</h2>
+            <p className="text-sm opacity-80">{statusInfo.text}</p>
           </div>
         </div>
-      </div>
+        {order.status !== 'cancelled' && (
+          <ol className="mt-4 grid grid-cols-5 gap-1.5" aria-label="Order progress">
+            {FLOW.map((step, index) => (
+              <li key={step}>
+                <div className={`h-1.5 rounded-full bg-current ${index <= flowIndex ? '' : 'opacity-20'}`} />
+                <p className={`mt-1 truncate text-[11px] ${step === order.status ? 'font-semibold' : 'opacity-70'}`} aria-current={step === order.status ? 'step' : undefined}>
+                  {ORDER_STATUS[step]?.label}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          {nextStep && (
+            <button type="button" className="btn-primary flex-1 sm:flex-none" disabled={isUpdating} onClick={() => handleStatusUpdate(nextStep.status as OrderStatus)}>
+              {nextStep.label}
+            </button>
+          )}
+          {previousStep && (
+            <button type="button" className="btn-secondary" disabled={isUpdating} onClick={() => handleStatusUpdate(previousStep)}>
+              Back to {ORDER_STATUS[previousStep]?.label.toLowerCase()}
+            </button>
+          )}
+          {order.status !== 'completed' && order.status !== 'cancelled' && (
+            <button type="button" className="btn text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10" disabled={isUpdating} onClick={cancelOrder}>
+              Cancel order
+            </button>
+          )}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -359,10 +369,10 @@ const OrderDetails: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      ₦{(item.unitPrice * item.quantity).toFixed(2)}
+                      {naira(item.unitPrice * item.quantity)}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      ₦{item.unitPrice} each
+                      {naira(item.unitPrice)} each
                     </p>
                   </div>
                 </div>
@@ -372,30 +382,30 @@ const OrderDetails: React.FC = () => {
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
-                <span className="font-medium">₦{(order.subtotalAmount ?? itemsSubtotal).toFixed(2)}</span>
+                <span className="font-medium">{naira(order.subtotalAmount ?? itemsSubtotal)}</span>
               </div>
               {order.taxAmount != null && (
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-gray-600 dark:text-gray-400">Tax</span>
-                  <span className="font-medium">₦{order.taxAmount.toFixed(2)}</span>
+                  <span className="font-medium">{naira(order.taxAmount)}</span>
                 </div>
               )}
               {order.deliveryFee != null && (
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-gray-600 dark:text-gray-400">Delivery Fee</span>
-                  <span className="font-medium">₦{order.deliveryFee.toFixed(2)}</span>
+                  <span className="font-medium">{naira(order.deliveryFee)}</span>
                 </div>
               )}
               {!!order.discountAmount && (
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-gray-600 dark:text-gray-400">Discount</span>
-                  <span className="font-medium">-₦{order.discountAmount.toFixed(2)}</span>
+                  <span className="font-medium">-{naira(order.discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-lg font-semibold">Total</span>
                 <span className="text-2xl font-bold text-primary-600">
-                  ₦{order.totalAmount.toFixed(2)}
+                  {naira(order.totalAmount)}
                 </span>
               </div>
             </div>
@@ -502,7 +512,7 @@ const OrderDetails: React.FC = () => {
               {awaitingCollection && (
                 <div className="rounded-lg border border-yellow-200 dark:border-yellow-900/40 bg-yellow-50 dark:bg-yellow-900/10 p-4 space-y-3">
                   <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
-                    Collect ₦{order.totalAmount.toFixed(2)} on {order.orderType === 'delivery' ? 'delivery' : 'pickup'}
+                    Collect {naira(order.totalAmount)} on {order.orderType === 'delivery' ? 'delivery' : 'pickup'}
                   </p>
                   <label className="block text-sm text-gray-600 dark:text-gray-400">
                     Paid by

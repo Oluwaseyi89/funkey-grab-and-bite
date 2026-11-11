@@ -31,7 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       navigate('/dashboard');
     }
     
-    setTimeout(() => setLoading(false), 500); // Simulate loading
+    setLoading(false);
   }, [location.pathname, navigate]);
 
   if (loading) {

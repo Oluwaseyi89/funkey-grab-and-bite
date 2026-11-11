@@ -1,278 +1,203 @@
-import React, { useEffect, useState } from 'react';
-import { TrendingUp, Users, Package, AlertCircle, Clock, Banknote } from 'lucide-react';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useSocket } from '../contexts/SocketContext';
-import toast from 'react-hot-toast';
+import { AlertTriangle, ArrowRight, Banknote, ChefHat, CircleDollarSign, ClipboardList, Package2, PartyPopper, ShoppingBag, Timer } from 'lucide-react';
+import { getOrders } from '../api/adminApi';
 import StatCard from '../components/dashboard/StatCard';
-import RecentOrders from '../components/dashboard/RecentOrders';
-import SalesChart from '../components/dashboard/SalesChart';
-import { getDashboardStats, getTodayStats, getOrders } from '../api/adminApi';
-import type { AdminStats, Order } from '../types';
+import WeekChart from '../components/dashboard/WeekChart';
+import OrderCard from '../components/orders/OrderCard';
+import { useDashboardOverview } from '../hooks/useDashboardOverview';
+import { useAuthStore } from '../stores/authStore';
+import { hourLabel, naira, percentChange, plural } from '../utils/format';
 
+const greeting = () => {
+  const hour = new Date().getHours();
+  return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+};
+
+// The first screen: what needs doing now, today's real takings, and the
+// orders still in progress. Every number comes from the API.
 const Dashboard: React.FC = () => {
-  const { socket } = useSocket();
-  const [realtimeOrders, setRealtimeOrders] = useState<Order[]>([]);
-
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      try {
-        const data = await getTodayStats();
-        return data;
-      } catch (error) {
-        toast.error('Failed to load dashboard statistics');
-        throw error;
-      }
-    },
-    refetchInterval: 300000, // Refetch every 5 minutes
+  const user = useAuthStore((state) => state.user);
+  const { data: overview, isLoading, isError, refetch } = useDashboardOverview();
+  const { data: active, isLoading: activeLoading } = useQuery({
+    queryKey: ['orders', 'dashboard-in-progress'],
+    queryFn: () => getOrders({ page: 1, limit: 6, status: 'active' }),
   });
 
-  const { data: ordersData, refetch: refetchOrders } = useQuery({
-    queryKey: ['recent-orders'],
-    queryFn: async () => {
-      try {
-        const data = await getOrders({ page: 1, limit: 10 });
-        return data.data || [];
-      } catch (error) {
-        toast.error('Failed to load recent orders');
-        return [];
-      }
-    },
-  });
+  const queue = overview?.queue;
+  const inProgress = queue ? queue.pending + queue.confirmed + queue.preparing + queue.ready : 0;
+  const today = overview?.today;
+  const yesterday = overview?.yesterdaySoFar;
 
-  useEffect(() => {
-    if (!socket) return;
+  // Tiles for things waiting on someone; only the ones with something in them.
+  const attention = overview
+    ? [
+        { show: overview.queue.pending > 0, to: '/orders?status=pending', icon: ClipboardList, label: 'New orders to confirm', count: overview.queue.pending, tone: 'primary' },
+        { show: overview.queue.confirmed + overview.queue.preparing > 0, to: '/orders?status=preparing', icon: ChefHat, label: 'In the kitchen', count: overview.queue.confirmed + overview.queue.preparing, tone: 'neutral' },
+        { show: overview.queue.ready > 0, to: '/orders?status=ready', icon: ShoppingBag, label: 'Ready to hand over', count: overview.queue.ready, tone: 'leaf' },
+        { show: overview.paymentsToReview > 0, to: '/payments', icon: AlertTriangle, label: 'Payments to check', count: overview.paymentsToReview, tone: 'danger' },
+        { show: overview.lowStock > 0, to: '/inventory/alerts', icon: Package2, label: 'Items low on stock', count: overview.lowStock, tone: 'amber' },
+        { show: overview.cateringToQuote > 0, to: '/catering', icon: PartyPopper, label: 'Catering to quote', count: overview.cateringToQuote, tone: 'neutral' },
+      ].filter((tile) => tile.show)
+    : [];
 
-    const handleNewOrder = (order: Order) => {
-      toast.success(`New order received: #${order.orderNumber}`);
-      setRealtimeOrders((prev) => [order, ...prev.slice(0, 4)]);
-      refetchOrders();
-    };
+  const toneClass: Record<string, string> = {
+    primary: 'bg-primary-600 text-white',
+    danger: 'bg-red-600 text-white',
+    leaf: 'bg-leaf-600 text-white',
+    amber: 'bg-amber-500 text-white',
+    neutral: 'bg-gray-900 text-white dark:bg-white dark:text-gray-900',
+  };
 
-    const handleOrderUpdated = (order: Partial<Order> & { id?: number; status?: string }) => {
-      const orderLabel = order.orderNumber || order.id || 'Unknown';
-      const statusLabel = order.status || 'updated';
-      toast(`Order #${orderLabel} updated: ${statusLabel}`);
-      refetchOrders();
-    };
-
-    socket.on('new_order', handleNewOrder);
-    socket.on('order_updated', handleOrderUpdated);
-
-    return () => {
-      socket.off('new_order', handleNewOrder);
-      socket.off('order_updated', handleOrderUpdated);
-    };
-  }, [socket, refetchOrders]);
-
-  const statCards = [
-    {
-      title: "Today's Revenue",
-      value: `₦${stats?.totalRevenue?.toFixed(2) || '0.00'}`,
-      icon: Banknote,
-      change: 12.5,
-      color: 'primary' as const,
-    },
-    {
-      title: "Today's Orders",
-      value: stats?.totalOrders || 0,
-      icon: Package,
-      change: 8.2,
-      color: 'blue' as const,
-    },
-    {
-      title: 'Pending Orders',
-      value: stats?.pendingOrders || 0,
-      icon: Clock,
-      change: 0,
-      color: 'yellow' as const,
-    },
-    {
-      title: 'New Customers',
-      value: stats?.newCustomers || 0,
-      icon: Users,
-      change: 15.3,
-      color: 'green' as const,
-    },
-  ];
-
-  const allOrders = [...realtimeOrders, ...(ordersData || [])].slice(0, 10);
+  const busiest = overview?.hourly.reduce((best, h) => (h.orders > best.orders ? h : best), { hour: -1, orders: 0 });
 
   return (
     <div className="space-y-6">
-      
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-          Dashboard
+        <p className="text-sm text-gray-500 dark:text-gray-400">{new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">
+          {greeting()}{user?.username ? `, ${user.username}` : ''}
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Welcome back! Here's what's happening with your business today.
-        </p>
       </div>
 
-      
-      {realtimeOrders.length > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <div className="flex items-center space-x-2 mb-2">
-            <TrendingUp className="h-5 w-5 text-blue-500" />
-            <span className="font-medium text-blue-800 dark:text-blue-300">
-              Real-time Updates
-            </span>
-          </div>
-          <div className="text-sm text-blue-700 dark:text-blue-400">
-            {realtimeOrders.length} new order(s) received in real-time
-          </div>
+      {isError && (
+        <div className="card flex items-center justify-between gap-3 p-4" role="alert">
+          <p className="text-sm text-gray-700 dark:text-gray-200">Today’s figures didn’t load.</p>
+          <button type="button" className="btn-secondary" onClick={() => refetch()}>Try again</button>
         </div>
       )}
 
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {statCards.map((card, index) => (
+      {/* Needs attention */}
+      {overview && (
+        <section aria-labelledby="attention-title">
+          <h2 id="attention-title" className="sr-only">Needs attention</h2>
+          {attention.length === 0 ? (
+            <p className="card flex items-center gap-3 p-4 text-sm text-gray-700 dark:text-gray-200">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-leaf-50 text-leaf-600 dark:bg-leaf-500/10" aria-hidden="true">✓</span>
+              Nothing waiting. New orders will appear here and in the bell.
+            </p>
+          ) : (
+            <ul className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-6">
+              {attention.map((tile) => {
+                const Icon = tile.icon;
+                return (
+                  <li key={tile.label} className="w-40 shrink-0 snap-start sm:w-auto">
+                    <Link to={tile.to} className={`flex h-full flex-col justify-between gap-3 rounded-2xl p-4 shadow-soft transition active:scale-[0.98] ${toneClass[tile.tone]}`}>
+                      <Icon className="h-5 w-5 opacity-90" aria-hidden="true" />
+                      <span>
+                        <span className="block font-display text-3xl font-bold leading-none">{tile.count}</span>
+                        <span className="mt-1 block text-sm font-medium opacity-90">{tile.label}</span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* Today */}
+      <section aria-labelledby="today-title">
+        <h2 id="today-title" className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">Today so far</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard
-            key={index}
-            {...card}
-            loading={statsLoading}
+            label="Money received"
+            value={naira(today?.revenue)}
+            icon={Banknote}
+            change={today && yesterday ? percentChange(today.revenue, yesterday.revenue) : null}
+            comparison="vs yesterday by now"
+            loading={isLoading}
           />
-        ))}
-      </div>
-
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div className="lg:col-span-2">
-          <SalesChart loading={statsLoading} />
-        </div>
-
-        
-        <div>
-          <RecentOrders 
-            orders={allOrders} 
-            loading={statsLoading} 
+          <StatCard
+            label="Orders placed"
+            value={String(today?.orders ?? 0)}
+            icon={ClipboardList}
+            change={today && yesterday ? percentChange(today.orders, yesterday.orders) : null}
+            comparison="vs yesterday by now"
+            loading={isLoading}
+          />
+          <StatCard label="Average paid order" value={naira(today?.averageOrder)} icon={CircleDollarSign} loading={isLoading} />
+          <StatCard
+            label="Unpaid online orders"
+            value={String(overview?.awaitingPayment ?? 0)}
+            icon={Timer}
+            loading={isLoading}
           />
         </div>
-      </div>
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          Money received counts paid orders that weren’t cancelled. Pay-on-delivery orders count once their payment is recorded.
+        </p>
+      </section>
 
-      
-      {stats?.popularItems && stats.popularItems.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-            Popular Items
-          </h2>
-          <div className="space-y-4">
-            {stats.popularItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                    <span className="text-primary-600 dark:text-primary-400 font-bold">
-                      {item.name.charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {item.name}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {item.totalSold} sold
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900 dark:text-white">
-                    ₦{item.revenue.toFixed(2)}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Revenue
-                  </p>
-                </div>
-              </div>
-            ))}
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Orders in progress */}
+        <section className="lg:col-span-3" aria-labelledby="progress-title">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 id="progress-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+              In progress{inProgress ? ` (${inProgress})` : ''}
+            </h2>
+            <Link to="/orders" className="inline-flex min-h-[44px] items-center gap-1 text-sm font-semibold text-primary-600 dark:text-primary-400">
+              All orders <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
           </div>
+          {activeLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2">{[0, 1].map((i) => <div key={i} className="skeleton h-44 rounded-2xl" />)}</div>
+          ) : (active?.data ?? []).length === 0 ? (
+            <p className="card p-6 text-center text-sm text-gray-500">No orders in progress right now.</p>
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {(active?.data ?? []).map((order) => (
+                <li key={order.id}><OrderCard order={order} /></li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Week and best sellers */}
+        <div className="space-y-6 lg:col-span-2">
+          <section className="card p-4" aria-labelledby="week-title">
+            <h2 id="week-title" className="font-semibold text-gray-900 dark:text-white">Money received, this week</h2>
+            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">Each day compared with the same day last week</p>
+            {overview ? <WeekChart daily={overview.daily} /> : <div className="skeleton h-56" />}
+          </section>
+
+          <section className="card p-4" aria-labelledby="top-title">
+            <div className="flex items-baseline justify-between">
+              <h2 id="top-title" className="font-semibold text-gray-900 dark:text-white">Best sellers</h2>
+              <span className="text-xs text-gray-500">Last 7 days</span>
+            </div>
+            {overview && overview.topItems.length > 0 ? (
+              <ol className="mt-3 space-y-2">
+                {overview.topItems.map((item, index) => {
+                  const max = overview.topItems[0].quantity || 1;
+                  return (
+                    <li key={item.menuItemId} className="text-sm">
+                      <div className="flex justify-between gap-3">
+                        <span className="truncate text-gray-800 dark:text-gray-200"><span className="mr-2 text-gray-400">{index + 1}</span>{item.name}</span>
+                        <span className="shrink-0 tabular-nums text-gray-500">{plural(item.quantity, 'sold', 'sold')}</span>
+                      </div>
+                      <div className="mt-1 h-1.5 rounded-full bg-gray-100 dark:bg-gray-800" aria-hidden="true">
+                        <div className="h-1.5 rounded-full bg-primary-500" style={{ width: `${(item.quantity / max) * 100}%` }} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <p className="mt-3 text-sm text-gray-500">{overview ? 'No orders in the last 7 days.' : 'Loading…'}</p>
+            )}
+            {busiest && busiest.hour >= 0 && (
+              <p className="mt-4 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-800/60 dark:text-gray-300">
+                Busiest hour today: <strong>{hourLabel(busiest.hour)}</strong> ({plural(busiest.orders, 'order')})
+              </p>
+            )}
+          </section>
         </div>
-      )}
-
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <button className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 transition-colors text-left group">
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-800 transition-colors">
-              <Package className="h-5 w-5 text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">Process Orders</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {stats?.pendingOrders || 0} pending orders
-              </p>
-            </div>
-          </div>
-        </button>
-
-        <button className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 transition-colors text-left group">
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800 transition-colors">
-              <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">Check Inventory</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                View low stock items
-              </p>
-            </div>
-          </div>
-        </button>
-
-        <button className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 transition-colors text-left group">
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-800 transition-colors">
-              <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">View Reports</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Sales analytics & insights
-              </p>
-            </div>
-          </div>
-        </button>
       </div>
     </div>
   );
 };
 
 export default Dashboard;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

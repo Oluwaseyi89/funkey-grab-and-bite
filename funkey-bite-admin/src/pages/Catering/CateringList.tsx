@@ -74,7 +74,7 @@ const CateringList: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
           <input
             type="search"
-            placeholder="Search reference, customer, phone, area…"
+            placeholder="Search reference, customer, phone, area…" aria-label="Search reference, customer, phone, area"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white"
@@ -115,7 +115,43 @@ const CateringList: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Phones: one card per request; the whole card opens it. */}
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800 md:hidden">
+            {pageRequests.map((request) => (
+              <li key={request.id}>
+                <Link to={`/catering/${request.id}`} className="block space-y-2 p-4 active:bg-gray-50 dark:active:bg-gray-800/50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-gray-900 dark:text-white">
+                        {request.eventName || eventTypeLabel(request.eventType, request.eventTypeOther)}
+                      </p>
+                      <p className="truncate text-sm text-gray-600 dark:text-gray-300">{request.contactName} · <span className="font-mono text-xs">{request.reference}</span></p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]?.className ?? ''}`}>
+                      {STATUS_STYLES[request.status]?.label ?? request.status}
+                    </span>
+                  </div>
+                  <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" aria-hidden="true" />{formatEventDate(request.eventDate, request.eventTime)}</span>
+                    <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" aria-hidden="true" />{request.guestCount} guests</span>
+                    {(request.venueArea || request.venueState) && (
+                      <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" aria-hidden="true" />{[request.venueArea, request.venueState].filter(Boolean).join(', ')}</span>
+                    )}
+                  </p>
+                  <p className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-300">
+                      {request.requestType === 'package' || request.packageName ? request.packageName ?? 'Package' : 'Custom request'}
+                    </span>
+                    <span className="font-semibold tabular-nums text-gray-900 dark:text-white">
+                      {request.quotedAmount != null ? `${naira(request.quotedAmount)} quoted` : request.estimatedTotal != null ? `${naira(request.estimatedTotal)} est.` : 'Not quoted yet'}
+                    </span>
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700/50 text-left text-xs uppercase text-gray-500 dark:text-gray-400">
                 <tr>
@@ -178,6 +214,7 @@ const CateringList: React.FC = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {totalPages > 1 && (

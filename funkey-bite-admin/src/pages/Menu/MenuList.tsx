@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { 
   Search, 
   Filter, 
@@ -22,13 +22,17 @@ import toast from 'react-hot-toast';
 import { getMenuItems, deleteMenuItem } from '../../api/adminApi';
 import { isBackendUnavailableError } from '../../api/apiHelpers';
 import StockBadge from './StockBadge';
+import { useConfirm } from '../../components/ui/ConfirmProvider';
 
 const MenuList: React.FC = () => {
+  const confirm = useConfirm();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  // Opens filtered when linked from Categories (?category=3).
+  const [searchParams] = useSearchParams();
+  const [categoryFilter, setCategoryFilter] = useState<string>(searchParams.get('category') ?? '');
 
   const { data: menuItems, isLoading, refetch } = useQuery({
     queryKey: ['menu-items', page, limit, categoryFilter, searchQuery],
@@ -53,7 +57,13 @@ const MenuList: React.FC = () => {
   });
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this menu item?')) return;
+    const { confirmed } = await confirm({
+      title: 'Delete this menu item?',
+      message: 'It comes off the menu straight away. Past orders keep their record.',
+      confirmLabel: 'Delete item',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     
     try {
       await deleteMenuItem(id);
@@ -102,7 +112,7 @@ const MenuList: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="search"
-                placeholder="Search menu items by name or description..."
+                placeholder="Search menu items by name or description..." aria-label="Search menu items by name or description"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:text-white"
@@ -113,8 +123,10 @@ const MenuList: React.FC = () => {
           
           <div className="flex items-center space-x-4">
             <button
+              type="button"
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors md:inline-flex"
+              aria-label={viewMode === 'grid' ? 'Show as a list' : 'Show as cards'}
             >
               {viewMode === 'grid' ? (
                 <List className="h-5 w-5 text-gray-400" />
@@ -163,8 +175,39 @@ const MenuList: React.FC = () => {
             <span>Add Menu Item</span>
           </Link>
         </div>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      ) : (
+        <>
+        {/* Phones: a compact row per dish, whichever view is chosen. */}
+        <ul className="card divide-y divide-gray-100 dark:divide-gray-800 md:hidden">
+          {menuItems?.map((item) => (
+            <li key={item.id} className="flex items-center gap-3 p-3">
+              <Link to={`/menu/${item.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                {/* The chef icon shows when there's no photo or it fails to load. */}
+                <span className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
+                  <ChefHat className="h-6 w-6 text-gray-400" aria-hidden="true" />
+                  {item.imageUrl && (
+                    <img src={item.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-gray-900 dark:text-white">{item.name}</span>
+                  <span className="block text-sm font-semibold text-primary-600 dark:text-primary-400">{formatPrice(item.price)}</span>
+                  <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${item.isAvailable ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
+                      {item.isAvailable ? 'Available' : 'Unavailable'}
+                    </span>
+                    <StockBadge item={item} />
+                  </span>
+                </span>
+              </Link>
+              <Link to={`/menu/${item.id}/edit`} className="icon-btn shrink-0" aria-label={`Edit ${item.name}`}>
+                <Edit className="h-5 w-5" aria-hidden="true" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+        {viewMode === 'grid' ? (
+        <div className="hidden grid-cols-1 gap-6 sm:grid-cols-2 md:grid lg:grid-cols-3 xl:grid-cols-4">
           {menuItems?.map((item) => (
             <div
               key={item.id}
@@ -172,16 +215,16 @@ const MenuList: React.FC = () => {
             >
               
               <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
-                {item.imageUrl ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ChefHat className="h-12 w-12 text-gray-400" aria-hidden="true" />
+                </div>
+                {item.imageUrl && (
                   <img
                     src={item.imageUrl}
                     alt={item.name}
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ChefHat className="h-12 w-12 text-gray-400" />
-                  </div>
                 )}
                 
                 
@@ -278,8 +321,8 @@ const MenuList: React.FC = () => {
             </div>
           ))}
         </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        ) : (
+        <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 md:block">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700/50">
@@ -395,6 +438,8 @@ const MenuList: React.FC = () => {
             </table>
           </div>
         </div>
+        )}
+        </>
       )}
 
       

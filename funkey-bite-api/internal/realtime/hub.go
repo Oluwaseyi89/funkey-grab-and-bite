@@ -26,17 +26,15 @@ type client struct {
 	send    chan []byte
 }
 
+// Hub keeps every open admin connection. An admin may have several at once
+// (two tabs, or a phone and a laptop); each gets every event.
 type Hub struct {
-	mu             sync.RWMutex
-	clients        map[*client]struct{}
-	clientsByAdmin map[int]*client
+	mu      sync.RWMutex
+	clients map[*client]struct{}
 }
 
 func NewHub() *Hub {
-	return &Hub{
-		clients:        make(map[*client]struct{}),
-		clientsByAdmin: make(map[int]*client),
-	}
+	return &Hub{clients: make(map[*client]struct{})}
 }
 
 // GlobalBroadcaster acts as our globally accessible execution point.
@@ -51,13 +49,9 @@ func (h *Hub) RegisterConnection(conn *websocket.Conn, adminID int) {
 		send:    make(chan []byte, 32),
 	}
 
+	// Earlier connections from the same admin stay open: closing them made
+	// two tabs knock each other off in a loop.
 	h.mu.Lock()
-	if existing, exists := h.clientsByAdmin[adminID]; exists {
-		delete(h.clients, existing)
-		delete(h.clientsByAdmin, adminID)
-		_ = existing.conn.Close()
-	}
-	h.clientsByAdmin[adminID] = c
 	h.clients[c] = struct{}{}
 	h.mu.Unlock()
 
@@ -141,9 +135,6 @@ func (h *Hub) unregister(c *client) {
 	}
 
 	delete(h.clients, c)
-	if existing, exists := h.clientsByAdmin[c.adminID]; exists && existing == c {
-		delete(h.clientsByAdmin, c.adminID)
-	}
 	close(c.send)
 	_ = c.conn.Close()
 }

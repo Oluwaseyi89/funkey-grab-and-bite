@@ -261,7 +261,7 @@ const InventoryAlerts: React.FC = () => {
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse"></div>
           <div className="h-10 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-32 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
           ))}
@@ -303,8 +303,8 @@ const InventoryAlerts: React.FC = () => {
       </div>
 
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Active Alerts</p>
@@ -315,13 +315,13 @@ const InventoryAlerts: React.FC = () => {
                 {todayAlerts} new today
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center">
               <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Unread Alerts</p>
@@ -332,13 +332,13 @@ const InventoryAlerts: React.FC = () => {
                 Requires attention
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
               <Bell className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Critical Alerts</p>
@@ -349,13 +349,13 @@ const InventoryAlerts: React.FC = () => {
                 Immediate action needed
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
               <AlertCircle className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Alerts</p>
@@ -366,7 +366,7 @@ const InventoryAlerts: React.FC = () => {
                 All time
               </p>
             </div>
-            <div className="h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+            <div className="hidden sm:flex h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
               <BarChart3 className="h-6 w-6 text-primary-600 dark:text-primary-400" />
             </div>
           </div>
@@ -436,7 +436,7 @@ const InventoryAlerts: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="search"
-                placeholder="Search alert messages..."
+                placeholder="Search alert messages..." aria-label="Search alert messages"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:text-white"
@@ -628,16 +628,14 @@ const InventoryAlerts: React.FC = () => {
                             )}
                             
                             <Link
-                              to={`/inventory/${alert.inventoryItemId}`}
+                              to="/inventory"
                               className="p-1 text-gray-400 hover:text-primary-500 transition-colors"
-                              title="View Item"
+                              title="Open inventory"
+                              aria-label="Open inventory to restock"
                             >
                               <ExternalLink className="h-4 w-4" />
                             </Link>
                             
-                            <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                              <MoreVertical className="h-4 w-4" />
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -704,109 +702,6 @@ const InventoryAlerts: React.FC = () => {
       </div>
 
       
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Alert Configuration
-          </h2>
-          <button className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
-            Save Settings
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          
-          <div className="space-y-4">
-            <h3 className="font-medium text-gray-900 dark:text-white">Notification Settings</h3>
-            <div className="space-y-3">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <div className="relative">
-                  <input type="checkbox" className="sr-only" defaultChecked />
-                  <div className="w-10 h-6 rounded-full bg-primary-500">
-                    <div className="absolute top-1 left-5 w-4 h-4 rounded-full bg-white"></div>
-                  </div>
-                </div>
-                <span className="text-sm text-gray-700 dark:text-gray-300">Email Notifications</span>
-              </label>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <div className="relative">
-                  <input type="checkbox" className="sr-only" defaultChecked />
-                  <div className="w-10 h-6 rounded-full bg-primary-500">
-                    <div className="absolute top-1 left-5 w-4 h-4 rounded-full bg-white"></div>
-                  </div>
-                </div>
-                <span className="text-sm text-gray-700 dark:text-gray-300">SMS Alerts</span>
-              </label>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <div className="relative">
-                  <input type="checkbox" className="sr-only" />
-                  <div className="w-10 h-6 rounded-full bg-gray-300 dark:bg-gray-600">
-                    <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white"></div>
-                  </div>
-                </div>
-                <span className="text-sm text-gray-700 dark:text-gray-300">Push Notifications</span>
-              </label>
-            </div>
-          </div>
-
-          
-          <div className="space-y-4">
-            <h3 className="font-medium text-gray-900 dark:text-white">Alert Thresholds</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Low Stock Threshold (%)
-                </label>
-                <input
-                  type="number"
-                  defaultValue="30"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Critical Stock Level
-                </label>
-                <input
-                  type="number"
-                  defaultValue="10"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-            </div>
-          </div>
-
-          
-          <div className="space-y-4">
-            <h3 className="font-medium text-gray-900 dark:text-white">Staff Notifications</h3>
-            <div className="space-y-3">
-              <button className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                <div className="flex items-center space-x-3">
-                  <User className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Kitchen Manager</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">manager@funkey.com</p>
-                  </div>
-                </div>
-                <Mail className="h-4 w-4 text-gray-400" />
-              </button>
-              <button className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                <div className="flex items-center space-x-3">
-                  <User className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Head Chef</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">chef@funkey.com</p>
-                  </div>
-                </div>
-                <Mail className="h-4 w-4 text-gray-400" />
-              </button>
-              <button className="w-full text-center py-2 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
-                + Add Staff Member
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

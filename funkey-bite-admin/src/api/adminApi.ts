@@ -6,13 +6,14 @@ import type {
   MenuItem,
   MenuCategory,
   InventoryItem,
-  SalesReport,
   BusinessSettings,
   CateringRequest,
   Promotion,
   Customer,
   CustomerStatusFilter,
-  AdminStats,
+  DashboardOverview,
+  SalesSummary,
+  ReportGroup,
   PaginatedResponse,
   InventoryAlert,
   Invoice,
@@ -130,14 +131,13 @@ export const updateAdminUser = (id: number, data: Partial<AdminUser>) =>
 export const deleteAdminUser = (id: number) =>
   apiDelete<void>(`/api/v1/admin/users/admins/${id}`);
 
-export const getDashboardStats = () =>
-  apiGet<AdminStats>('/api/v1/admin/dashboard/stats');
+// Today so far, what needs doing, and the last 14 days.
+export const getDashboardOverview = () =>
+  apiGet<DashboardOverview>('/api/v1/admin/dashboard/overview');
 
-export const getTodayStats = () =>
-  apiGet<AdminStats>('/api/v1/admin/dashboard/stats/today');
-
-export const getSalesReport = (params: { from: string; to: string }) =>
-  apiGet<SalesReport[]>('/api/v1/admin/reports/sales', params);
+// Sales for a period, both dates included.
+export const getSalesSummary = (params: { from: string; to: string; group: ReportGroup }) =>
+  apiGet<SalesSummary>('/api/v1/admin/reports/summary', params);
 
 export const getOrders = (params?: {
   page?: number;
@@ -262,7 +262,11 @@ export const deleteTeamMember = (id: number) =>
 export const getCategories = () =>
   apiGet<MenuCategory[]>('/api/v1/menu/categories');
 
-export const createCategory = (data: MenuCategory) =>
+// Every category, hidden ones included (the public list shows active ones only).
+export const getAdminCategories = () =>
+  apiGet<MenuCategory[]>('/api/v1/admin/menu/categories');
+
+export const createCategory = (data: Partial<MenuCategory>) =>
   apiPost<MenuCategory>('/api/v1/admin/menu/categories', data);
 
 export const updateCategory = (id: number, data: Partial<MenuCategory>) =>

@@ -45,6 +45,8 @@ type AdminService interface {
 	GetMenuItemByID(id int) (*models.MenuItem, error)
 	CreateMenuCategory(category *models.MenuCategory) (*models.MenuCategory, error)
 	GetMenuCategoryByID(id int) (*models.MenuCategory, error)
+	// Every category, hidden ones included.
+	GetAllMenuCategories() ([]models.MenuCategory, error)
 	UpdateMenuCategory(category *models.MenuCategory) error
 
 	GetAllCateringRequests(page, limit int, status string) ([]models.CateringRequest, int, error)
@@ -333,7 +335,8 @@ func (s *adminService) GetMenuItems(page, limit int, categoryID *int, query stri
 	}
 	offset := (page - 1) * limit
 
-	items, _, err := s.menuRepo.Search(query, categoryID, limit, offset)
+	// Unavailable dishes too, so staff can switch them back on.
+	items, _, err := s.menuRepo.SearchAll(query, categoryID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get menu items: %w", err)
 	}
@@ -424,6 +427,10 @@ func (s *adminService) CreateMenuCategory(category *models.MenuCategory) (*model
 	}
 
 	return s.menuRepo.CreateCategory(category)
+}
+
+func (s *adminService) GetAllMenuCategories() ([]models.MenuCategory, error) {
+	return s.menuRepo.GetAllCategories()
 }
 
 func (s *adminService) GetMenuCategoryByID(id int) (*models.MenuCategory, error) {

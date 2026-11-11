@@ -19,7 +19,6 @@ const InventoryAlerts = lazy(() => import('../pages/Inventory/InventoryAlerts'))
 const PromotionList = lazy(() => import('../pages/Promotions/PromotionList'));
 const PromotionForm = lazy(() => import('../pages/Promotions/PromotionForm'));
 const SalesReport = lazy(() => import('../pages/Reports/SalesReport'));
-const Analytics = lazy(() => import('../pages/Reports/Analytics'));
 const GeneralSettings = lazy(() => import('../pages/Settings/GeneralSettings'));
 const ProfileSettings = lazy(() => import('../pages/Settings/ProfileSettings'));
 const AdminUsers = lazy(() => import('../pages/Settings/AdminUsers'));
@@ -95,7 +94,8 @@ const AppRoutes: React.FC = () => {
           
           
           <Route path="promotions" element={<PromotionList />} />
-          <Route path="/promotions/:id/edit" element={<PromotionForm />} />
+          <Route path="promotions/new" element={<PromotionForm />} />
+          <Route path="promotions/:id/edit" element={<PromotionForm />} />
 
           
           

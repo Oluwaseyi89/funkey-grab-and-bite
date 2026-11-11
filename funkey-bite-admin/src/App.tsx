@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -7,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AppRoutes from './routes/AppRoutes';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import { ConfirmProvider } from './components/ui/ConfirmProvider';
 import './styles/globals.css';
 
 const queryClient = new QueryClient({
@@ -20,28 +20,23 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  useEffect(() => {
-    const theme = localStorage.getItem('theme') || 'light';
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
         <ThemeProvider>
           <AuthProvider>
             <SocketProvider>
-              <ErrorBoundary fullScreen>
-                <AppRoutes />
-              </ErrorBoundary>
-              <Toaster 
-                position="top-right"
+              <ConfirmProvider>
+                <ErrorBoundary fullScreen>
+                  <AppRoutes />
+                </ErrorBoundary>
+              </ConfirmProvider>
+              {/* Top-centre on phones, where it's seen; top-right on larger screens. */}
+              <Toaster
+                position="top-center"
+                containerStyle={{ top: 64 }}
                 toastOptions={{
-                  className: 'dark:bg-accent-dark dark:text-white',
+                  className: '!rounded-2xl !shadow-lift dark:!bg-gray-800 dark:!text-white',
                   duration: 4000,
                 }}
               />

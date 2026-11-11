@@ -1,795 +1,284 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Download,
-  Filter,
-  Calendar,
-  TrendingUp,
-  TrendingDown,
-  Banknote,
-  ShoppingBag,
-  Users,
-  BarChart3,
-  Eye,
-  RefreshCw,
-  ChevronDown,
-  FileText,
-  PieChart,
-  LineChart,
-  Activity,
-  ArrowUpRight,
-  ArrowDownRight
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Bar, BarChart, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Banknote, CircleDollarSign, ClipboardList, Download, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getSalesReport, getDashboardStats } from '../../api/adminApi';
-import { useReportsStore } from '../../stores/reportsStore';
-import type { SalesReport } from '../../types/admin.types';
+import { getSalesSummary } from '../../api/adminApi';
+import PageHeader from '../../components/ui/PageHeader';
+import StatCard from '../../components/dashboard/StatCard';
+import { useTheme } from '../../contexts/ThemeContext';
+import { downloadCsv } from '../../utils/csv';
+import { formatDay, hourLabel, isoDate, naira, nairaShort, percentChange } from '../../utils/format';
+import type { ReportGroup, SalesPoint } from '../../types';
 
-import {
-  LineChart as RechartsLineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell
-} from 'recharts';
+type Preset = 'today' | '7d' | '30d' | 'month' | 'lastMonth' | 'year' | 'custom';
 
-const CHART_COLORS = {
-  revenue: '#3b82f6', // blue-500
-  orders: '#10b981', // green-500
-  average: '#8b5cf6', // purple-500
-  background: '#f3f4f6'
+const PRESETS: { id: Preset; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: '7d', label: 'Last 7 days' },
+  { id: '30d', label: 'Last 30 days' },
+  { id: 'month', label: 'This month' },
+  { id: 'lastMonth', label: 'Last month' },
+  { id: 'year', label: 'This year' },
+  { id: 'custom', label: 'Custom' },
+];
+
+const METHOD_LABELS: Record<string, string> = { cash: 'Pay on delivery / pickup', transfer: 'Bank transfer', card: 'Card' };
+
+// The dates a preset covers, both included, in the device's calendar.
+const presetRange = (preset: Preset): { from: string; to: string } => {
+  const today = new Date();
+  const days = (n: number) => { const d = new Date(today); d.setDate(d.getDate() - n); return d; };
+  switch (preset) {
+    case 'today': return { from: isoDate(today), to: isoDate(today) };
+    case '7d': return { from: isoDate(days(6)), to: isoDate(today) };
+    case 'month': return { from: isoDate(new Date(today.getFullYear(), today.getMonth(), 1)), to: isoDate(today) };
+    case 'lastMonth': return { from: isoDate(new Date(today.getFullYear(), today.getMonth() - 1, 1)), to: isoDate(new Date(today.getFullYear(), today.getMonth(), 0)) };
+    case 'year': return { from: isoDate(new Date(today.getFullYear(), 0, 1)), to: isoDate(today) };
+    default: return { from: isoDate(days(29)), to: isoDate(today) };
+  }
 };
 
+const pointLabel = (point: SalesPoint, group: ReportGroup) => {
+  const date = new Date(`${point.date}T12:00:00`);
+  if (group === 'month') return date.toLocaleDateString('en-NG', { month: 'short', year: '2-digit' });
+  if (group === 'week') return `w/c ${date.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}`;
+  return date.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' });
+};
+
+// Sales for a chosen period, from the API: money received (paid, not
+// cancelled), orders placed, and a comparison with the period before.
 const SalesReport: React.FC = () => {
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days ago
-    endDate: new Date().toISOString().split('T')[0], // today
-  });
-  const [chartType, setChartType] = useState<'line' | 'bar' | 'area'>('line');
-  const [groupBy, setGroupBy] = useState<'day' | 'week' | 'month'>('day');
-  const [showFilters, setShowFilters] = useState(false);
-  
-  const {
-    salesReports,
-    filteredSalesReports,
-    setSalesReports,
-    setDateRange: setStoreDateRange,
-    getRevenueSummary,
-    getOrdersSummary,
-    setLoading,
-    setError
-  } = useReportsStore();
+  const { theme } = useTheme();
+  const dark = theme === 'dark';
+  const [preset, setPreset] = useState<Preset>('30d');
+  const [custom, setCustom] = useState(presetRange('30d'));
+  const range = preset === 'custom' ? custom : presetRange(preset);
+  const spanDays = Math.round((new Date(range.to).getTime() - new Date(range.from).getTime()) / 86_400_000) + 1;
+  const [groupChoice, setGroupChoice] = useState<ReportGroup | 'auto'>('auto');
+  const group: ReportGroup = groupChoice !== 'auto' ? groupChoice : spanDays > 120 ? 'month' : spanDays > 45 ? 'week' : 'day';
+  const validRange = range.from && range.to && range.from <= range.to;
 
-  const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['sales-report', dateRange.startDate, dateRange.endDate],
-    queryFn: async () => {
-      setLoading(true);
-      try {
-        const data = await getSalesReport({
-          from: dateRange.startDate,
-          to: dateRange.endDate,
-        });
-        setSalesReports(Array.isArray(data) ? data : []);
-        return data;
-      } catch (error: any) {
-        setError(error.message || 'Failed to load sales report');
-        toast.error('Failed to load sales report');
-        return [];
-      } finally {
-        setLoading(false);
-      }
-    },
-    enabled: !!dateRange.startDate && !!dateRange.endDate,
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['sales-summary', range.from, range.to, group],
+    queryFn: () => getSalesSummary({ from: range.from, to: range.to, group }),
+    enabled: Boolean(validRange),
+    placeholderData: (previous) => previous,
   });
 
-  const { data: dashboardStats } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      try {
-        const data = await getDashboardStats();
-        return data;
-      } catch (error) {
-        return null;
-      }
-    },
-  });
+  const series = useMemo(() => (data?.series ?? []).map((p) => ({ ...p, label: pointLabel(p, group) })), [data, group]);
+  const totals = data?.totals;
+  const previous = data?.previous;
+  const comparison = data ? `vs ${formatDay(data.previousFrom)} – ${formatDay(data.previousTo)}` : '';
+  const busyHours = (data?.hourly ?? []).filter((h) => h.orders > 0);
+  const totalMethodRevenue = (data?.paymentMethods ?? []).reduce((s, m) => s + m.revenue, 0) || 1;
 
-  useEffect(() => {
-    setStoreDateRange({
-      ...dateRange,
-      period: groupBy,
-    });
-  }, [dateRange, groupBy, setStoreDateRange]);
-
-  const quickDateRanges = [
-    { label: 'Today', days: 1 },
-    { label: 'Last 7 days', days: 7 },
-    { label: 'Last 30 days', days: 30 },
-    { label: 'Last 90 days', days: 90 },
-    { label: 'Year to date', days: getDaysSinceYearStart() },
-  ];
-
-  function getDaysSinceYearStart() {
-    const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    return Math.floor((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
-  }
-
-  const handleQuickDateRange = (days: number) => {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    
-    setDateRange({
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
-    });
-  };
-
-  const revenueSummary = getRevenueSummary();
-  const ordersSummary = getOrdersSummary();
-
-  const chartData = filteredSalesReports.map(report => ({
-    date: formatChartDate(report.date, groupBy),
-    revenue: report.totalRevenue,
-    orders: report.totalOrders,
-    average: report.averageOrder,
-  }));
-
-  function formatChartDate(dateString: string, format: 'day' | 'week' | 'month') {
-    const date = new Date(dateString);
-    switch (format) {
-      case 'day':
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      case 'week':
-        return `Week ${Math.ceil(date.getDate() / 7)}`;
-      case 'month':
-        return date.toLocaleDateString('en-US', { month: 'short' });
-      default:
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
-  }
-
-  const calculatePercentageChange = (current: number, previous: number) => {
-    if (previous === 0) return 0;
-    return ((current - previous) / previous) * 100;
-  };
-
-  const exportToCSV = () => {
-    if (filteredSalesReports.length === 0) {
-      toast.error('No data to export');
-      return;
-    }
-
-    const headers = ['Date', 'Total Orders', 'Total Revenue (₦)', 'Average Order (₦)'];
-    const csvContent = [
-      headers.join(','),
-      ...filteredSalesReports.map(report => [
-        report.date,
-        report.totalOrders,
-        report.totalRevenue.toFixed(2),
-        report.averageOrder.toFixed(2)
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sales-report-${dateRange.startDate}-to-${dateRange.endDate}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast.success('Report exported successfully');
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-64 animate-pulse"></div>
-          <div className="h-10 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
-          ))}
-        </div>
-        <div className="h-96 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
-      </div>
+  const exportCsv = () => {
+    if (!data) return;
+    downloadCsv(
+      `sales-${data.from}-to-${data.to}-by-${group}.csv`,
+      [group === 'day' ? 'Date' : group === 'week' ? 'Week starting' : 'Month starting', 'Money received (NGN)', 'Paid orders', 'Orders placed'],
+      data.series.map((p) => [p.date, p.revenue, p.paidOrders, p.orders]),
     );
-  }
+    toast.success('Report downloaded');
+  };
+
+  const gridStroke = dark ? '#1e293b' : '#e2e8f0';
+  const tooltipStyle = { borderRadius: 12, border: 'none', background: dark ? '#1e293b' : '#fff', boxShadow: '0 8px 24px rgba(15,23,42,0.15)' };
 
   return (
     <div className="space-y-6">
-      
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales Report</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Analyze sales performance and revenue trends
-          </p>
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={exportToCSV}
-            className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            <span>Export CSV</span>
+      <PageHeader
+        title="Reports"
+        description="Money received counts paid orders that weren’t cancelled, on the day they were paid."
+        actions={
+          <button type="button" className="btn-secondary" onClick={exportCsv} disabled={!data}>
+            <Download className="h-4 w-4" aria-hidden="true" /> Download CSV
           </button>
-          <button
-            onClick={() => refetch()}
-            className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>Refresh</span>
-          </button>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
-          >
-            <Filter className="h-4 w-4" />
-            <span>Filters</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
-      
-      {showFilters && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Report Filters</h2>
-            <button
-              onClick={() => setShowFilters(false)}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              ✕
+      {/* Period */}
+      <section className="card space-y-3 p-4" aria-label="Report period">
+        <div className="scroll-row" role="group" aria-label="Period">
+          {PRESETS.map((p) => (
+            <button key={p.id} type="button" className={`chip ${preset === p.id ? 'chip-active' : ''}`} aria-pressed={preset === p.id} onClick={() => setPreset(p.id)}>
+              {p.label}
             </button>
+          ))}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {preset === 'custom' && (
+            <>
+              <div>
+                <label htmlFor="report-from" className="form-label">From</label>
+                <input id="report-from" type="date" className="input-primary" value={custom.from} max={custom.to} onChange={(e) => setCustom({ ...custom, from: e.target.value })} />
+              </div>
+              <div>
+                <label htmlFor="report-to" className="form-label">To</label>
+                <input id="report-to" type="date" className="input-primary" value={custom.to} min={custom.from} max={isoDate(new Date())} onChange={(e) => setCustom({ ...custom, to: e.target.value })} />
+              </div>
+            </>
+          )}
+          <div>
+            <label htmlFor="report-group" className="form-label">Show by</label>
+            <select id="report-group" className="input-primary" value={groupChoice} onChange={(e) => setGroupChoice(e.target.value as ReportGroup | 'auto')}>
+              <option value="auto">Automatic ({group})</option>
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select>
           </div>
-          
-          <div className="space-y-6">
-            
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quick Date Ranges</p>
-              <div className="flex flex-wrap gap-2">
-                {quickDateRanges.map((range) => (
-                  <button
-                    key={range.label}
-                    onClick={() => handleQuickDateRange(range.days)}
-                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors text-sm"
-                  >
-                    {range.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+        </div>
+        {!validRange && <p className="text-sm text-red-600" role="alert">The start date must be on or before the end date.</p>}
+      </section>
 
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Start Date
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="date"
-                    value={dateRange.startDate}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  End Date
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="date"
-                    value={dateRange.endDate}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Group By
-                </label>
-                <select
-                  value={groupBy}
-                  onChange={(e) => setGroupBy(e.target.value as any)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="day">Daily</option>
-                  <option value="week">Weekly</option>
-                  <option value="month">Monthly</option>
-                </select>
-              </div>
-            </div>
-
-            
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Chart Display</p>
-              <div className="flex space-x-4">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={chartType === 'line'}
-                    onChange={() => setChartType('line')}
-                    className="text-primary-500 focus:ring-primary-500"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Line Chart</span>
-                </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={chartType === 'bar'}
-                    onChange={() => setChartType('bar')}
-                    className="text-primary-500 focus:ring-primary-500"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Bar Chart</span>
-                </label>
-              </div>
-            </div>
-          </div>
+      {isError && (
+        <div className="card flex items-center justify-between gap-3 p-4" role="alert">
+          <p className="text-sm">The report didn’t load.</p>
+          <button type="button" className="btn-secondary" onClick={() => refetch()}>Try again</button>
         </div>
       )}
 
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {formatCurrency(revenueSummary.totalRevenue)}
-              </p>
-              <div className="flex items-center space-x-1 mt-2">
-                {revenueSummary.revenueChange >= 0 ? (
-                  <>
-                    <ArrowUpRight className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-600 dark:text-green-400">
-                      {revenueSummary.revenueChange.toFixed(1)}%
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <ArrowDownRight className="h-4 w-4 text-red-500" />
-                    <span className="text-sm text-red-600 dark:text-red-400">
-                      {Math.abs(revenueSummary.revenueChange).toFixed(1)}%
-                    </span>
-                  </>
-                )}
-                <span className="text-xs text-gray-500 dark:text-gray-400">vs previous period</span>
-              </div>
-            </div>
-            <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-              <Banknote className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Average daily: {formatCurrency(revenueSummary.averageDailyRevenue)}
-            </p>
-          </div>
-        </div>
-        
-        
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Orders</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {ordersSummary.totalOrders.toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                Average: {ordersSummary.averageOrdersPerDay.toFixed(1)}/day
-              </p>
-            </div>
-            <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
-              <ShoppingBag className="h-6 w-6 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500 dark:text-gray-400">Completion Rate</span>
-              <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                {ordersSummary.completionRate}%
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Average Order Value</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {formatCurrency(chartData.length > 0 
-                  ? chartData.reduce((sum, item) => sum + item.average, 0) / chartData.length 
-                  : 0)}
-              </p>
-              <div className="mt-2">
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-purple-500 h-2 rounded-full"
-                    style={{ width: '75%' }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-              <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-        </div>
-        
-        
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Report Period</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">
-                {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - 
-                {new Date(dateRange.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                {filteredSalesReports.length} {groupBy} records
-              </p>
-            </div>
-            <div className="h-12 w-12 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center">
-              <Activity className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-4">
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {chartData.length > 0 ? chartData[chartData.length - 1].revenue : 0}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Latest Revenue</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {chartData.length > 0 ? chartData[chartData.length - 1].orders : 0}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Latest Orders</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Totals */}
+      <section aria-label="Totals" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Money received" value={naira(totals?.revenue)} icon={Banknote} change={totals && previous ? percentChange(totals.revenue, previous.revenue) : null} comparison={comparison} loading={isLoading} />
+        <StatCard label="Orders placed" value={String(totals?.orders ?? 0)} icon={ClipboardList} change={totals && previous ? percentChange(totals.orders, previous.orders) : null} comparison={comparison} loading={isLoading} />
+        <StatCard label="Average paid order" value={naira(totals?.averageOrder)} icon={CircleDollarSign} change={totals && previous ? percentChange(totals.averageOrder, previous.averageOrder) : null} comparison={comparison} loading={isLoading} />
+        <StatCard label="Cancelled" value={String(totals?.cancelled ?? 0)} icon={XCircle} comparison={totals && totals.orders + totals.cancelled > 0 ? `${((totals.cancelled / (totals.orders + totals.cancelled)) * 100).toFixed(0)}% of orders` : ''} loading={isLoading} />
+      </section>
 
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sales Performance</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Revenue and orders over time
-                </p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="flex items-center space-x-1 text-sm">
-                  <div className="h-3 w-3 rounded-full bg-blue-500"></div>
-                  <span>Revenue</span>
-                </span>
-                <span className="flex items-center space-x-1 text-sm">
-                  <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                  <span>Orders</span>
-                </span>
-              </div>
-            </div>
-            
-            <div className="h-80">
-              {chartData.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center">
-                  <LineChart className="h-16 w-16 text-gray-400 mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400">No data available for the selected period</p>
-                </div>
-              ) : chartType === 'line' ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsLineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="#9CA3AF"
-                      fontSize={12}
-                    />
-                    <YAxis 
-                      stroke="#9CA3AF"
-                      fontSize={12}
-                      tickFormatter={(value) => `₦${value.toLocaleString()}`}
-                    />
-                    <Tooltip 
-                      formatter={(value, name) => [
-                        name === 'revenue' ? `₦${Number(value).toLocaleString()}` : value,
-                        name === 'revenue' ? 'Revenue' : 'Orders'
-                      ]}
-                      labelFormatter={(label) => `Date: ${label}`}
-                      contentStyle={{ 
-                        backgroundColor: '#1F2937',
-                        border: '1px solid #374151',
-                        borderRadius: '0.5rem'
-                      }}
-                    />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke={CHART_COLORS.revenue}
-                      strokeWidth={2}
-                      dot={{ r: 4 }}
-                      activeDot={{ r: 6 }}
-                      name="Revenue"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="orders"
-                      stroke={CHART_COLORS.orders}
-                      strokeWidth={2}
-                      dot={{ r: 4 }}
-                      activeDot={{ r: 6 }}
-                      name="Orders"
-                      yAxisId={1}
-                    />
-                  </RechartsLineChart>
-                </ResponsiveContainer>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="#9CA3AF"
-                      fontSize={12}
-                    />
-                    <YAxis 
-                      stroke="#9CA3AF"
-                      fontSize={12}
-                      tickFormatter={(value) => `₦${value.toLocaleString()}`}
-                    />
-                    <Tooltip 
-                      formatter={(value, name) => [
-                        name === 'revenue' ? `₦${Number(value).toLocaleString()}` : value,
-                        name === 'revenue' ? 'Revenue' : 'Orders'
-                      ]}
-                      labelFormatter={(label) => `Date: ${label}`}
-                    />
-                    <Legend />
-                    <Bar 
-                      dataKey="revenue" 
-                      fill={CHART_COLORS.revenue}
-                      name="Revenue"
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar 
-                      dataKey="orders" 
-                      fill={CHART_COLORS.orders}
-                      name="Orders"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
+      {/* Over time */}
+      <section className="card p-4" aria-labelledby="trend-title">
+        <h2 id="trend-title" className="font-semibold text-gray-900 dark:text-white">Money received and orders, by {group}</h2>
+        <p className="mb-3 text-xs text-gray-500">Bars are money received; the line is orders placed. Days with no sales show as zero.</p>
+        <div className="h-64 sm:h-80" aria-hidden="true">
+          {series.length === 0 ? (
+            <div className="skeleton h-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={series} margin={{ top: 8, right: 0, bottom: 0, left: -8 }}>
+                <CartesianGrid vertical={false} stroke={gridStroke} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} minTickGap={16} />
+                <YAxis yAxisId="money" tickLine={false} axisLine={false} width={56} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v) => nairaShort(Number(v))} />
+                <YAxis yAxisId="orders" orientation="right" tickLine={false} axisLine={false} width={32} allowDecimals={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  cursor={{ fill: dark ? 'rgba(148,163,184,0.08)' : 'rgba(15,23,42,0.04)' }}
+                  formatter={(value, name) => (name === 'revenue' ? [naira(Number(value)), 'Money received'] : [String(value), 'Orders placed'])}
+                />
+                <Bar yAxisId="money" dataKey="revenue" fill="#c3241a" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                <Line yAxisId="orders" type="monotone" dataKey="orders" stroke={dark ? '#cbd5e1' : '#334155'} strokeWidth={2} dot={series.length <= 31} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
         </div>
-
-        
-        <div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 h-full">
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Average Order Value</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Trend over time
-              </p>
+        {/* The figures behind the chart, readable and on any screen size. */}
+        {series.length > 0 && (
+          <details className="mt-4 rounded-xl border border-gray-200 dark:border-gray-800">
+            <summary className="flex min-h-[44px] cursor-pointer items-center px-4 text-sm font-medium">Show the figures ({series.length} rows)</summary>
+            <div className="max-h-80 overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-gray-800">
+                  <tr><th className="px-4 py-2">{group === 'day' ? 'Date' : group === 'week' ? 'Week of' : 'Month'}</th><th className="px-4 py-2 text-right">Received</th><th className="px-4 py-2 text-right">Orders</th></tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {series.map((p) => (
+                    <tr key={p.date}><td className="px-4 py-2">{p.label}</td><td className="px-4 py-2 text-right tabular-nums">{naira(p.revenue)}</td><td className="px-4 py-2 text-right tabular-nums">{p.orders}</td></tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            
-            <div className="h-64">
-              {chartData.length === 0 ? (
-                <div className="h-full flex items-center justify-center">
-                  <PieChart className="h-12 w-12 text-gray-400" />
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsLineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="#9CA3AF"
-                      fontSize={10}
-                    />
-                    <YAxis 
-                      stroke="#9CA3AF"
-                      fontSize={10}
-                      tickFormatter={(value) => `₦${value}`}
-                    />
-                    <Tooltip 
-                      formatter={(value) => [`₦${Number(value).toFixed(2)}`, 'Average Order']}
-                      labelFormatter={(label) => `Date: ${label}`}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="average"
-                      stroke={CHART_COLORS.average}
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
-                    />
-                  </RechartsLineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-            
-            
-            {chartData.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Highest AOV</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      ₦{Math.max(...chartData.map(d => d.average)).toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Lowest AOV</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      ₦{Math.min(...chartData.map(d => d.average)).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Detailed Report Data</h2>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {filteredSalesReports.length} records
-            </span>
-          </div>
-        </div>
-        
-        {filteredSalesReports.length === 0 ? (
-          <div className="p-8 text-center">
-            <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Data Available</h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              Try adjusting your date range or filters
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Total Orders
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Total Revenue
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Average Order
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Revenue per Order
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredSalesReports.map((report, index) => {
-                  const prevDayReport = index > 0 ? filteredSalesReports[index - 1] : null;
-                  const revenueChange = prevDayReport 
-                    ? ((report.totalRevenue - prevDayReport.totalRevenue) / prevDayReport.totalRevenue) * 100
-                    : 0;
-                  
-                  return (
-                    <tr key={report.date} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {new Date(report.date).toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 dark:text-white">{report.totalOrders}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            ₦{report.totalRevenue.toFixed(2)}
-                          </span>
-                          {prevDayReport && (
-                            <span className={`text-xs ${revenueChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                              {revenueChange >= 0 ? '↑' : '↓'} {Math.abs(revenueChange).toFixed(1)}%
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          ₦{report.averageOrder.toFixed(2)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          ₦{(report.totalRevenue / report.totalOrders).toFixed(2)}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          </details>
         )}
-      </div>
+      </section>
 
-      
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
-        <div className="flex items-start space-x-3">
-          <Eye className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
-          <div className="space-y-4">
-            <h3 className="font-medium text-blue-800 dark:text-blue-300">Key Insights</h3>
-            <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-2">
-              {filteredSalesReports.length > 0 && (
-                <>
-                  <li>• Highest revenue day: <strong>
-                    {new Date(
-                      [...filteredSalesReports].sort((a, b) => b.totalRevenue - a.totalRevenue)[0].date
-                    ).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                  </strong></li>
-                  <li>• Average daily revenue: <strong>₦{revenueSummary.averageDailyRevenue.toFixed(2)}</strong></li>
-                  <li>• Best performing time: <strong>Weekend days show 25% higher revenue</strong></li>
-                  <li>• Recommendation: <strong>Focus promotions on low-revenue days</strong></li>
-                </>
-              )}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Best sellers */}
+        <section className="card p-4" aria-labelledby="best-title">
+          <h2 id="best-title" className="font-semibold text-gray-900 dark:text-white">Best sellers</h2>
+          {(data?.topItems ?? []).length === 0 ? (
+            <p className="mt-3 text-sm text-gray-500">No sales in this period.</p>
+          ) : (
+            <ol className="mt-3 divide-y divide-gray-100 dark:divide-gray-800">
+              {data!.topItems.map((item, i) => (
+                <li key={item.menuItemId} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span className="truncate"><span className="mr-2 text-gray-400">{i + 1}</span>{item.name}</span>
+                  <span className="shrink-0 text-right tabular-nums">
+                    <span className="font-semibold">{item.quantity} sold</span>
+                    <span className="block text-xs text-gray-500">{naira(item.revenue)}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+
+        {/* Busy hours */}
+        <section className="card p-4" aria-labelledby="hours-title">
+          <h2 id="hours-title" className="font-semibold text-gray-900 dark:text-white">Busy hours</h2>
+          <p className="text-xs text-gray-500">Orders placed in each hour of the day, across the period</p>
+          {busyHours.length === 0 ? (
+            <p className="mt-3 text-sm text-gray-500">No orders in this period.</p>
+          ) : (
+            <div className="mt-3 h-48" aria-hidden="true">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data!.hourly.filter((h) => h.hour >= Math.min(...busyHours.map((b) => b.hour)) && h.hour <= Math.max(...busyHours.map((b) => b.hour)))} margin={{ top: 4, right: 0, bottom: 0, left: -20 }}>
+                  <CartesianGrid vertical={false} stroke={gridStroke} />
+                  <XAxis dataKey="hour" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(h) => hourLabel(Number(h))} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={40} tick={{ fill: '#64748b', fontSize: 11 }} />
+                  <Tooltip contentStyle={tooltipStyle} labelFormatter={(h) => `${hourLabel(Number(h))}–${hourLabel((Number(h) + 1) % 24)}`} formatter={(v) => [String(v), 'Orders']} />
+                  <Bar dataKey="orders" fill={dark ? '#94a3b8' : '#475569'} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {busyHours.length > 0 && (
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Busiest: <strong>{hourLabel(busyHours.reduce((a, b) => (b.orders > a.orders ? b : a)).hour)}</strong>
+            </p>
+          )}
+        </section>
+
+        {/* How customers paid */}
+        <section className="card p-4" aria-labelledby="methods-title">
+          <h2 id="methods-title" className="font-semibold text-gray-900 dark:text-white">How customers paid</h2>
+          {(data?.paymentMethods ?? []).length === 0 ? (
+            <p className="mt-3 text-sm text-gray-500">No payments in this period.</p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {data!.paymentMethods.map((m) => (
+                <li key={m.key} className="text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span>{METHOD_LABELS[m.key] ?? m.key}</span>
+                    <span className="tabular-nums">{naira(m.revenue)} <span className="text-gray-500">· {m.orders}</span></span>
+                  </div>
+                  <div className="mt-1 h-2 rounded-full bg-gray-100 dark:bg-gray-800" aria-hidden="true">
+                    <div className="h-2 rounded-full bg-primary-500" style={{ width: `${(m.revenue / totalMethodRevenue) * 100}%` }} />
+                  </div>
+                </li>
+              ))}
             </ul>
-          </div>
-        </div>
+          )}
+        </section>
+
+        {/* Pickup and delivery */}
+        <section className="card p-4" aria-labelledby="types-title">
+          <h2 id="types-title" className="font-semibold text-gray-900 dark:text-white">Pickup and delivery</h2>
+          {(data?.orderTypes ?? []).length === 0 ? (
+            <p className="mt-3 text-sm text-gray-500">No orders in this period.</p>
+          ) : (
+            <ul className="mt-3 grid grid-cols-2 gap-3">
+              {data!.orderTypes.map((t) => (
+                <li key={t.key} className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800/60">
+                  <p className="text-xs capitalize text-gray-500">{t.key}</p>
+                  <p className="font-display text-xl font-bold">{t.orders}</p>
+                  <p className="text-xs text-gray-500">{naira(t.revenue)} ordered</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   );
