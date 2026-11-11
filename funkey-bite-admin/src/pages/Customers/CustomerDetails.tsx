@@ -14,20 +14,18 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Edit,
   MessageSquare,
   ShoppingBag,
-  Award,
   BarChart3,
   MoreVertical,
   Star,
-  ExternalLink
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getCustomer, getOrders } from '../../api/adminApi';
 import { isBackendUnavailableError } from '../../api/apiHelpers';
 import type { Order } from '../../types';
+import { naira } from '../../utils/format';
 
 const formatNaira = (amount: number) =>
   `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -116,13 +114,6 @@ const CustomerDetails: React.FC = () => {
     });
   };
 
-  const getCustomerTier = () => {
-    if (stats.totalSpent > 500) return { name: 'Gold', color: 'text-yellow-600', bgColor: 'bg-yellow-100 dark:bg-yellow-900/20' };
-    if (stats.totalSpent > 200) return { name: 'Silver', color: 'text-gray-600', bgColor: 'bg-gray-100 dark:bg-gray-700' };
-    return { name: 'Bronze', color: 'text-amber-700', bgColor: 'bg-amber-100 dark:bg-amber-900/20' };
-  };
-
-  const tier = getCustomerTier();
 
   if (customerLoading) {
     return (
@@ -188,15 +179,15 @@ const CustomerDetails: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            <MessageSquare className="h-4 w-4" />
-            <span>Message</span>
-          </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
-            <Edit className="h-4 w-4" />
-            <span>Edit Customer</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <a href={`tel:${customer.phone}`} className="btn-secondary">
+            <Phone className="h-4 w-4" aria-hidden="true" /> Call
+          </a>
+          {customer.email && (
+            <a href={`mailto:${customer.email}`} className="btn-secondary">
+              <Mail className="h-4 w-4" aria-hidden="true" /> Email
+            </a>
+          )}
         </div>
       </div>
 
@@ -216,12 +207,6 @@ const CustomerDetails: React.FC = () => {
                   {customer.fullName}
                 </h2>
                 <div className="flex items-center space-x-2 mt-1">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${tier.bgColor} ${tier.color}`}>
-                    <div className="flex items-center space-x-1">
-                      <Award className="h-3 w-3" />
-                      <span>{tier.name} Tier</span>
-                    </div>
-                  </span>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                     customer.isActive
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -362,47 +347,19 @@ const CustomerDetails: React.FC = () => {
           </div>
 
           
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Quick Actions
-            </h3>
-            
-            <div className="space-y-3">
-              <button className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                <div className="flex items-center space-x-3">
-                  <MessageSquare className="h-5 w-5 text-gray-400" />
-                  <span className="font-medium">Send Message</span>
-                </div>
-                <ExternalLink className="h-4 w-4 text-gray-400" />
-              </button>
-              
-              <button className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                <div className="flex items-center space-x-3">
-                  <ShoppingBag className="h-5 w-5 text-gray-400" />
-                  <span className="font-medium">Create Order</span>
-                </div>
-                <ExternalLink className="h-4 w-4 text-gray-400" />
-              </button>
-              
-              <button className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                <div className="flex items-center space-x-3">
-                  <Award className="h-5 w-5 text-gray-400" />
-                  <span className="font-medium">Update Tier</span>
-                </div>
-                <ExternalLink className="h-4 w-4 text-gray-400" />
-              </button>
-              
-              <button
-                onClick={() => navigate(`/customers/${customer.id}/edit`)}
-                className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <Edit className="h-5 w-5 text-gray-400" />
-                  <span className="font-medium">Edit Profile</span>
-                </div>
-                <ExternalLink className="h-4 w-4 text-gray-400" />
-              </button>
-            </div>
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Get in touch</h3>
+            <a href={`tel:${customer.phone}`} className="btn-secondary w-full justify-start">
+              <Phone className="h-4 w-4" aria-hidden="true" /> Call {customer.phone}
+            </a>
+            <a href={`https://wa.me/${customer.phone.replace(/\D/g, '').replace(/^0/, '234')}`} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full justify-start">
+              <MessageSquare className="h-4 w-4" aria-hidden="true" /> WhatsApp
+            </a>
+            {customer.email && (
+              <a href={`mailto:${customer.email}`} className="btn-secondary w-full justify-start">
+                <Mail className="h-4 w-4" aria-hidden="true" /> Email {customer.email}
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -492,7 +449,7 @@ const CustomerDetails: React.FC = () => {
                     
                     <div className="text-right">
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        ₦{order.totalAmount.toFixed(2)}
+                        {naira(order.totalAmount)}
                       </p>
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         order.status === 'completed'
@@ -511,52 +468,6 @@ const CustomerDetails: React.FC = () => {
           </div>
 
           
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Customer Notes
-              </h3>
-              <button className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
-                Add Note
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-start justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    First-time customer
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatDate(customer.createdAt)}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  New customer registered through the website.
-                </p>
-              </div>
-              
-              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-start justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    Phone verification
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {customer.lastLogin ? formatDate(customer.lastLogin) : 'Pending'}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {customer.isVerified ? 'Phone number verified successfully.' : 'Phone verification pending.'}
-                </p>
-              </div>
-              
-              <textarea
-                placeholder="Add a note about this customer..."
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-          </div>
         </div>
       )}
 
@@ -633,7 +544,7 @@ const CustomerDetails: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                          ₦{order.totalAmount.toFixed(2)}
+                          {naira(order.totalAmount)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
