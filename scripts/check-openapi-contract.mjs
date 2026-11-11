@@ -47,6 +47,7 @@ const routeSets = {
     ['put', '/api/v1/admin/team/{id}'],
     ['delete', '/api/v1/admin/team/{id}'],
     ['get', '/api/v1/menu/categories'],
+    ['get', '/api/v1/admin/menu/categories'],
     ['post', '/api/v1/admin/menu/categories'],
     ['put', '/api/v1/admin/menu/categories/{id}'],
     ['get', '/api/v1/admin/inventory'],
