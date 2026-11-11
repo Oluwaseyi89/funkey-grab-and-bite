@@ -2,116 +2,52 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Notification } from '../types';
 
+const LIMIT = 50;
+
 interface NotificationState {
   notifications: Notification[];
-  unreadCount: number;
-  isLoading: boolean;
-  error: string | null;
-  
-  setNotifications: (notifications: Notification[]) => void;
-  addNotification: (notification: Notification) => void;
-  markAsRead: (id: number) => void;
+  // Per device: a chime for new orders and payments (on unless turned off),
+  // and the browser's own notifications (off until staff turn them on).
+  soundEnabled: boolean;
+  browserEnabled: boolean;
+
+  add: (notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>) => Notification;
+  markAsRead: (id: string) => void;
   markAllAsRead: () => void;
-  deleteNotification: (id: number) => void;
   clearAll: () => void;
-  
-  getUnreadNotifications: () => Notification[];
-  getNotificationsByType: (type: string) => Notification[];
-  getRecentNotifications: (limit?: number) => Notification[];
-  
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  clearError: () => void;
+  setSoundEnabled: (enabled: boolean) => void;
+  setBrowserEnabled: (enabled: boolean) => void;
 }
 
+const newId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+// The bell's alerts, newest first, kept on this device so they survive a
+// reload. They come from live events while the admin is open.
 export const useNotificationStore = create<NotificationState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       notifications: [],
-      unreadCount: 0,
-      isLoading: false,
-      error: null,
-      
-      setNotifications: (notifications) => {
-        const unreadCount = notifications.filter(n => !n.isRead).length;
-        set({ notifications, unreadCount });
+      soundEnabled: true,
+      browserEnabled: false,
+
+      add: (input) => {
+        const notification: Notification = { ...input, id: newId(), createdAt: new Date().toISOString(), isRead: false };
+        set((state) => ({ notifications: [notification, ...state.notifications].slice(0, LIMIT) }));
+        return notification;
       },
-      
-      addNotification: (notification) =>
-        set((state) => {
-          const newNotifications = [notification, ...state.notifications];
-          const unreadCount = newNotifications.filter(n => !n.isRead).length;
-          return { 
-            notifications: newNotifications, 
-            unreadCount 
-          };
-        }),
-      
       markAsRead: (id) =>
-        set((state) => {
-          const updatedNotifications = state.notifications.map(notif =>
-            notif.id === id ? { ...notif, isRead: true, readAt: new Date().toISOString() } : notif
-          );
-          const unreadCount = updatedNotifications.filter(n => !n.isRead).length;
-          return { 
-            notifications: updatedNotifications, 
-            unreadCount 
-          };
-        }),
-      
+        set((state) => ({ notifications: state.notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)) })),
       markAllAsRead: () =>
-        set((state) => {
-          const updatedNotifications = state.notifications.map(notif => 
-            !notif.isRead ? { ...notif, isRead: true, readAt: new Date().toISOString() } : notif
-          );
-          return { 
-            notifications: updatedNotifications, 
-            unreadCount: 0 
-          };
-        }),
-      
-      deleteNotification: (id) =>
-        set((state) => {
-          const notification = state.notifications.find(n => n.id === id);
-          const updatedNotifications = state.notifications.filter(notif => notif.id !== id);
-          const unreadCount = notification?.isRead 
-            ? state.unreadCount 
-            : Math.max(0, state.unreadCount - 1);
-          return { 
-            notifications: updatedNotifications, 
-            unreadCount 
-          };
-        }),
-      
-      clearAll: () => set({ notifications: [], unreadCount: 0 }),
-      
-      getUnreadNotifications: () => {
-        const { notifications } = get();
-        return notifications.filter(notif => !notif.isRead);
-      },
-      
-      getNotificationsByType: (type) => {
-        const { notifications } = get();
-        return notifications.filter(notif => notif.type === type);
-      },
-      
-      getRecentNotifications: (limit = 10) => {
-        const { notifications } = get();
-        return notifications
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, limit);
-      },
-      
-      setLoading: (loading) => set({ isLoading: loading }),
-      setError: (error) => set({ error }),
-      clearError: () => set({ error: null }),
+        set((state) => ({ notifications: state.notifications.map((n) => (n.isRead ? n : { ...n, isRead: true })) })),
+      clearAll: () => set({ notifications: [] }),
+      setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
+      setBrowserEnabled: (browserEnabled) => set({ browserEnabled }),
     }),
-    {
-      name: 'notification-storage',
-      partialize: (state) => ({
-        notifications: state.notifications,
-        unreadCount: state.unreadCount,
-      }),
-    }
-  )
+    { name: 'admin-notifications' },
+  ),
 );
+
+export const selectUnreadCount = (state: NotificationState) => state.notifications.filter((n) => !n.isRead).length;
