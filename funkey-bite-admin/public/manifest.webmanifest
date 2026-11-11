@@ -1,0 +1,14 @@
+{
+  "name": "Funkey Admin",
+  "short_name": "Funkey Admin",
+  "description": "Manage Funkey Grab & Bite orders, menu and catering.",
+  "start_url": "/orders",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c3241a",
+  "icons": [
+    { "src": "/brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
