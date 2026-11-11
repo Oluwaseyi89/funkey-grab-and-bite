@@ -1,275 +1,187 @@
 import React, { useState } from 'react';
-import { 
-  FolderOpen, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  ChevronRight,
-  Grid,
-  List,
-  Eye,
-  ArrowUp,
-  ArrowDown
-} from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowDown, ArrowUp, Eye, EyeOff, FolderTree, Pencil, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getCategories } from '../../api/adminApi';
-import { isBackendUnavailableError } from '../../api/apiHelpers';
+import { createCategory, getAdminCategories, getMenuItems, updateCategory } from '../../api/adminApi';
+import PageHeader from '../../components/ui/PageHeader';
+import Sheet from '../../components/ui/Sheet';
 import type { MenuCategory } from '../../types';
 
+type Draft = { id?: number; name: string; description: string; isActive: boolean };
+
+// Menu categories: add, rename, reorder, and show or hide them on the
+// customer menu. There's no delete, so items are never left without one;
+// hiding a category takes it off the menu.
 const Categories: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [expandedCategory, setExpandedCategory] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [error, setError] = useState('');
 
-  const { data: categories = [], isLoading, refetch } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      try {
-        const data = await getCategories();
-        return Array.isArray(data) ? data : [];
-      } catch (error) {
-        if (isBackendUnavailableError(error)) {
-          toast.error('Backend is unavailable. Showing empty category state.');
-          return [];
-        }
+  const { data: categories = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin-categories'],
+    queryFn: async () => (await getAdminCategories()) ?? [],
+  });
+  const { data: items = [] } = useQuery({
+    queryKey: ['menu-items', 'all-for-counts'],
+    queryFn: async () => (await getMenuItems({ limit: 1000 })) ?? [],
+  });
+  const countFor = (id: number) => items.filter((item) => item.categoryId === id).length;
+  const sorted = [...categories].sort((a, b) => a.displayOrder - b.displayOrder || a.id - b.id);
 
-        toast.error('Failed to load categories');
-        throw error;
-      }
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
+  };
+
+  const save = useMutation({
+    mutationFn: async (value: Draft) => {
+      const body = { name: value.name.trim(), description: value.description.trim(), isActive: value.isActive };
+      if (value.id) return updateCategory(value.id, body);
+      const nextOrder = sorted.length ? Math.max(...sorted.map((c) => c.displayOrder)) + 1 : 1;
+      return createCategory({ ...body, displayOrder: nextOrder });
+    },
+    onSuccess: (_d, value) => {
+      toast.success(value.id ? 'Category saved' : 'Category added');
+      setDraft(null);
+      refresh();
+    },
+    onError: (e: Error) => setError(e.message || 'The category wasn’t saved.'),
+  });
+
+  const toggle = useMutation({
+    mutationFn: (category: MenuCategory) => updateCategory(category.id, { isActive: !category.isActive }),
+    onSuccess: (_d, category) => {
+      toast.success(category.isActive ? `${category.name} is hidden from the menu` : `${category.name} is on the menu`);
+      refresh();
+    },
+    onError: () => toast.error('That didn’t save. Please try again.'),
+  });
+
+  // Swaps places with the neighbour, then renumbers so the order is clean.
+  const move = useMutation({
+    mutationFn: async ({ index, direction }: { index: number; direction: -1 | 1 }) => {
+      const order = [...sorted];
+      const target = index + direction;
+      [order[index], order[target]] = [order[target], order[index]];
+      const changes = order
+        .map((category, position) => ({ category, position: position + 1 }))
+        .filter(({ category, position }) => category.displayOrder !== position);
+      await Promise.all(changes.map(({ category, position }) => updateCategory(category.id, { displayOrder: position })));
+    },
+    onSuccess: refresh,
+    onError: () => {
+      toast.error('The new order wasn’t saved. Please try again.');
+      refresh();
     },
   });
 
-  const handleReorder = (categoryId: number, direction: 'up' | 'down') => {
-    toast('Reordering feature coming soon!');
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this category? This will affect all menu items in this category.')) return;
-    
-    try {
-      toast.success('Category deleted successfully');
-      refetch();
-    } catch (error) {
-      toast.error('Failed to delete category');
-    }
-  };
-
-  const toggleExpand = (categoryId: number) => {
-    setExpandedCategory(expandedCategory === categoryId ? null : categoryId);
+  const openEditor = (category?: MenuCategory) => {
+    setError('');
+    setDraft(category ? { id: category.id, name: category.name, description: category.description ?? '', isActive: category.isActive } : { name: '', description: '', isActive: true });
   };
 
   return (
-    <div className="space-y-6">
-      
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Menu Categories</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Organize your menu items into categories
-          </p>
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            {viewMode === 'grid' ? (
-              <List className="h-5 w-5 text-gray-400" />
-            ) : (
-              <Grid className="h-5 w-5 text-gray-400" />
-            )}
+    <div>
+      <PageHeader
+        title="Categories"
+        description="The sections of your menu, in the order customers see them."
+        actions={
+          <button type="button" className="btn-primary" onClick={() => openEditor()}>
+            <Plus className="h-4 w-4" aria-hidden="true" /> Add category
           </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
-            <Plus className="h-4 w-4" />
-            <span>Add Category</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
-      
       {isLoading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mx-auto"></div>
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Loading categories...</p>
+        <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="skeleton h-16 rounded-2xl" />)}</div>
+      ) : isError ? (
+        <div className="card p-6 text-center" role="alert">
+          <p>The categories didn’t load.</p>
+          <button type="button" className="btn-secondary mt-3" onClick={() => refetch()}>Try again</button>
         </div>
-      ) : categories.length === 0 ? (
-        <div className="text-center py-12">
-          <FolderOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No Categories Found
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">
-            Create categories to organize your menu items.
-          </p>
-          <button className="inline-flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
-            <Plus className="h-4 w-4" />
-            <span>Add Your First Category</span>
-          </button>
-        </div>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((category) => (
-            <div
-              key={category.id}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                    <FolderOpen className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
-                      {category.name}
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Display Order: {category.displayOrder}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <button className="p-1 text-gray-400 hover:text-primary-500 transition-colors">
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(category.id)}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                {category.description || 'No description provided'}
-              </p>
-              
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center space-x-4">
-                  <button
-                    onClick={() => handleReorder(category.id, 'up')}
-                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    title="Move up"
-                  >
-                    <ArrowUp className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleReorder(category.id, 'down')}
-                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    title="Move down"
-                  >
-                    <ArrowDown className="h-4 w-4" />
-                  </button>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  category.isActive
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                }`}>
-                  {category.isActive ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-            </div>
-          ))}
+      ) : sorted.length === 0 ? (
+        <div className="card p-10 text-center">
+          <FolderTree className="mx-auto h-10 w-10 text-gray-300" aria-hidden="true" />
+          <p className="mt-3 font-medium">No categories yet</p>
+          <p className="mt-1 text-sm text-gray-500">Add one, e.g. “Rice dishes” or “Drinks”, then put menu items in it.</p>
+          <button type="button" className="btn-primary mt-4" onClick={() => openEditor()}>Add your first category</button>
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Display Order
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray500 dark:text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {categories.map((category) => (
-                  <tr key={category.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <FolderOpen className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {category.name}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {new Date(category.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="max-w-xs">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                          {category.description || 'No description'}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium">{category.displayOrder}</span>
-                        <div className="flex flex-col">
-                          <button
-                            onClick={() => handleReorder(category.id, 'up')}
-                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          >
-                            <ArrowUp className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={() => handleReorder(category.id, 'down')}
-                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          >
-                            <ArrowDown className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        category.isActive
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {category.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <button className="p-1 text-gray-400 hover:text-primary-500 transition-colors">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button className="p-1 text-gray-400 hover:text-primary-500 transition-colors">
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(category.id)}
-                          className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ol className="card divide-y divide-gray-100 dark:divide-gray-800">
+          {sorted.map((category, index) => (
+            <li key={category.id} className={`flex items-center gap-2 p-3 ${category.isActive ? '' : 'bg-gray-50/70 dark:bg-gray-800/30'}`}>
+              <div className="flex flex-col">
+                <button type="button" className="icon-btn h-9 w-9" disabled={index === 0 || move.isPending} onClick={() => move.mutate({ index, direction: -1 })} aria-label={`Move ${category.name} up`}>
+                  <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button type="button" className="icon-btn h-9 w-9" disabled={index === sorted.length - 1 || move.isPending} onClick={() => move.mutate({ index, direction: 1 })} aria-label={`Move ${category.name} down`}>
+                  <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={`truncate font-semibold ${category.isActive ? 'text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+                  {category.name}
+                  {!category.isActive && <span className="badge ml-2 bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">Hidden</span>}
+                </p>
+                <p className="truncate text-sm text-gray-500">
+                  <Link to={`/menu?category=${category.id}`} className="hover:underline">{countFor(category.id)} items</Link>
+                  {category.description ? ` · ${category.description}` : ''}
+                </p>
+              </div>
+              <button type="button" className="icon-btn" onClick={() => toggle.mutate(category)} disabled={toggle.isPending} aria-label={category.isActive ? `Hide ${category.name} from the menu` : `Show ${category.name} on the menu`}>
+                {category.isActive ? <Eye className="h-5 w-5" aria-hidden="true" /> : <EyeOff className="h-5 w-5" aria-hidden="true" />}
+              </button>
+              <button type="button" className="icon-btn" onClick={() => openEditor(category)} aria-label={`Edit ${category.name}`}>
+                <Pencil className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ol>
       )}
+
+      <Sheet
+        open={!!draft}
+        title={draft?.id ? 'Edit category' : 'Add category'}
+        onClose={() => setDraft(null)}
+        footer={
+          <div className="grid grid-cols-2 gap-3">
+            <button type="button" className="btn-secondary" onClick={() => setDraft(null)}>Cancel</button>
+            <button type="submit" form="category-form" className="btn-primary" disabled={save.isPending}>
+              {save.isPending ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        }
+      >
+        {draft && (
+          <form
+            id="category-form"
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!draft.name.trim()) {
+                setError('Give the category a name.');
+                return;
+              }
+              save.mutate(draft);
+            }}
+          >
+            <div>
+              <label htmlFor="category-name" className="form-label">Name</label>
+              <input id="category-name" className="input-primary" value={draft.name} maxLength={100} onChange={(e) => setDraft({ ...draft, name: e.target.value })} aria-invalid={error && !draft.name.trim() ? 'true' : undefined} aria-describedby={error ? 'category-error' : undefined} autoFocus />
+            </div>
+            <div>
+              <label htmlFor="category-description" className="form-label">Description <span className="font-normal text-gray-400">(optional)</span></label>
+              <textarea id="category-description" className="input-primary resize-none" rows={2} maxLength={500} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Shown under the category on the menu" />
+            </div>
+            <label className="flex min-h-[44px] items-center gap-3 text-sm">
+              <input type="checkbox" className="h-5 w-5 accent-primary-600" checked={draft.isActive} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} />
+              Show on the customer menu
+            </label>
+            {error && <p id="category-error" className="text-sm text-red-600" role="alert">{error}</p>}
+          </form>
+        )}
+      </Sheet>
     </div>
   );
 };
